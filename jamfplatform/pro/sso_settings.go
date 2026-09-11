@@ -132,3 +132,28 @@ func (c *Client) DownloadSsoMetadataV3(ctx context.Context) ([]byte, error) {
 	}
 	return result, nil
 }
+
+// GetSsoOidcBrokerConfigV3 get the OIDC broker configuration.
+//
+// Required privileges: sso-settings:read. Legacy Jamf Pro privilege name(s): Read SSO Settings.
+func (c *Client) GetSsoOidcBrokerConfigV3(ctx context.Context) (*OidcBrokerConfig, error) {
+	prefix := c.transport.APIPrefix("pro", "v3")
+	var result OidcBrokerConfig
+	endpoint := prefix + "/sso/oidc-broker-config"
+	if err := c.transport.Do(ctx, http.MethodGet, endpoint, nil, &result); err != nil {
+		return nil, fmt.Errorf("GetSsoOidcBrokerConfigV3: %w", err)
+	}
+	return &result, nil
+}
+
+// UpdateSsoOidcBrokerConfigV3 update the OIDC broker configuration.
+//
+// Required privileges: sso-settings:update. Legacy Jamf Pro privilege name(s): Update SSO Settings.
+func (c *Client) UpdateSsoOidcBrokerConfigV3(ctx context.Context, request *OidcBrokerConfigUpdate) error {
+	prefix := c.transport.APIPrefix("pro", "v3")
+	endpoint := prefix + "/sso/oidc-broker-config"
+	if err := c.transport.DoWithContentType(ctx, http.MethodPut, endpoint, request, "application/json", http.StatusNoContent, nil); err != nil {
+		return fmt.Errorf("UpdateSsoOidcBrokerConfigV3: %w", err)
+	}
+	return nil
+}

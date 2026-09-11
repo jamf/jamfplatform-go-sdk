@@ -1164,6 +1164,147 @@ two rows, so the generated `strings.Join(uuids, ",")` needs no override.
 The endpoint still sends `Deprecation: date="Mon, 16 Oct 2023 00:00:00 GMT"`,
 which the transport logs.
 
+### v2154's three new `jpapi` operations are published and unrouted (2026-09-10)
+
+GitOps v2154 / Jamf Pro API 11.32.0 adds three operations, and the gateway
+routes none of them. Probed under environment scope against
+`eu.api.jamfcloud.com`, with `GET /pro/v1/jamf-pro-version` at **200**
+(`11.31.1-t1787060595569`) and a bogus path in the same namespace at
+**403 `BAD_PERMISSIONS`** as controls in the same invocation, and every 403
+reproduced on a second round:
+
+| operation | result |
+|---|---|
+| `DELETE /pro/v1/notifications` | 403 `BAD_PERMISSIONS` (2/2) |
+| `GET /pro/v3/sso/oidc-broker-config` | 403 `BAD_PERMISSIONS` (2/2) |
+| `PUT /pro/v3/sso/oidc-broker-config` | 403 `BAD_PERMISSIONS` (2/2) |
+
+**The credential is short of neither capability, which is what makes this a
+routing gap rather than a grant.** `GET /pro/v3/sso/dependencies` — the same
+`sso-settings:read` — answers **200** (`{"dependencies": []}`), and the routed
+item-level `DELETE /pro/v1/notifications/PATCH_UPDATE/999999999` — the same
+`dismiss-notifications:execute` — answers **204**. Both sibling probes ran in
+the same invocation as the refusals. So the two-path form of the classification
+is decisive here and a second credential was not needed: the same token passes
+the capability check on a neighbouring path.
+
+**`jamf/authorization-policies` explains it and the fix is in flight.** `main`
+at `1450318` carries no allow rule for any of the three:
+`jamf_pro_dismiss_notifications.rego` matches only
+`["api","pro","v1","notifications",type,id]`, and `jamf_pro_sso_settings.rego`
+has a rule for every other `/v3/sso/*` sibling (`dependencies`, `disable`,
+`history`, `metadata/download`) but not `oidc-broker-config`. **PR #283**
+("API-396: Add authz rules for three new jpapi 11.32 endpoints", open,
+2026-09-10) adds exactly those three and states the same reading in its own
+body — "without these rules the endpoints publish in docs but 403 for every
+caller". So this is a known gap awaiting a merge and a bundle deploy, not a
+disagreement.
+
+All three are whitelisted anyway, per the house rule that a published operation
+is generated and its refusal pinned.
+`TestAcceptance_Pro_DismissAllNotificationsUnroutedAtGateway` and
+`TestAcceptance_Pro_SsoOidcBrokerConfigUnroutedAtGateway` each fail the day the
+rule lands, and each names the real coverage to write in its place.
+
+One caution recorded in the test rather than left to a reader: the `PUT` is a
+**full replacement**, so the day it starts routing, a replacement test must read
+the current configuration first. The unrouted probe sends the spec's six
+required fields with `enabled: false` and a throwaway client id precisely so an
+unexpected success is loud rather than a silent partial write.
+
+**A wire fact that came out of the sibling control**: the routed
+`DELETE /pro/v1/notifications/{type}/{id}` answers **204 for a notification that
+does not exist** — a bogus type and id both — so `DeleteNotificationV1` cannot
+distinguish "dismissed" from "was never there".
+
+### v2154's `AccountPreferencesV6.showDirectoryGroupUuidColumn`: rejected on 11.31.1, live on 11.32.0 (2026-09-10, resolved 2026-09-11)
+
+**A shipped break for the duration of the ingest, resolved by the server
+catching up a day later.** The property is new at v2154 and the spec adds it to
+`AccountPreferencesV6`'s `required` list, which makes the generated field a
+non-pointer `bool` with no `omitempty` — so *every* `UpdateAccountPreferencesV3`
+call sends the key.
+
+**On 11.31.1 the server has no such field.** Probed under environment scope,
+control in the same invocation:
+
+- `GET /pro/v3/account-preferences` → **200**, 26 keys, and
+  `showDirectoryGroupUuidColumn` **absent entirely**. Not null-valued; the DTO
+  does not carry it.
+- `PATCH /pro/v3/account-preferences` with the GET's own body plus that one key
+  → **400**:
+
+  ```
+  [INVALID_CONTENT] Unrecognized field "showDirectoryGroupUuidColumn"
+  (class com.jamfsoftware.useraccounts.web.dto.AccountPreferencesDtoV6),
+  not marked as ignorable
+  ```
+
+  The same body **without** the key answers 2xx, which is the control isolating
+  the field as the cause. Re-confirmed 2026-09-11, so this is the standing
+  behaviour of an 11.31 tenant and not a transient.
+
+**On 11.32.0 it is fully live.** Probed 2026-09-11 under tenant scope on
+`5c4425d9-…`, with `GET /pro/v1/jamf-pro-version` → `11.32.0-t1787580540993` as
+the control in the same invocation:
+
+- `GET /pro/v3/account-preferences` → **200**, **27 keys**, the field present as
+  `false`.
+- `PATCH` setting it → **204**, and the value **reads back**: `false → true`,
+  then `true → false`, each confirmed by a re-read. Asserting the read-back
+  matters — this server accepts and silently ignores plenty of input, and a bare
+  204 would have passed against that.
+- `PATCH` **omitting** the key → 204 with the field unchanged, so this operation
+  merges rather than replaces.
+
+**Two other wire laws came out of the same probe, neither in the spec.**
+
+- **The PATCH is atomic.** A 12-key body carrying one invalid value
+  (`configProfilesSortingMethod: "BY_TYPE"`) was rejected whole — `400
+  INVALID_CONTENT`, `field: configProfilesSortingMethod` — and **none of the
+  other 11 valid values applied**, verified by read-back. So a partial write is
+  not a failure mode here.
+- **`configProfilesSortingMethod` has an undeclared enum.** The spec types it a
+  bare `string` with no `enum` and no description; the server enforces
+  `ALPHABETICALLY` / `STANDARD` and names both in the error. `dateFormat`,
+  `timezone` and `resultsPerPage` are likewise bare and unconstrained in the
+  spec. Report upstream; candidates for `enumAdditions` if the constants are
+  wanted.
+
+**The removal is gone and the coverage is version-gated.** `propertyRemovals`,
+the `AccountPreferencesV6` docNote and the limitation test are all deleted.
+`TestAcceptance_Pro_AccountPreferencesShowDirectoryGroupUuidColumn` branches on
+`proServerAtLeast(t, c, 11, 32)`: at or past 11.32 it round-trips the field,
+below it asserts the absence and the refusal. **Both halves are assertions and
+both were run against real tenants on 2026-09-11**; the pre-11.32 branch fails
+the day its tenant rolls forward, which is the notification to delete it.
+
+**Self-expiry belonged in the acceptance suite rather than in config, and this is
+the worked example.** `propertyRemovals` panics when the *spec* stops declaring
+the path — the wrong trigger, because the event to wait for was the *server*
+catching up, which no config mechanism can observe. The test was the only thing
+that could see it, and it is what fired.
+
+**Following the spec costs pre-11.32 callers this method, deliberately.** No
+config key forces a declared-required property optional, and inventing one for a
+niche per-credential preferences write was not justified: nothing in
+`terraform-provider-jamfplatform` calls `AccountPreferences`, so the blast radius
+is the SDK's own method.
+
+**Unrelated but discovered alongside: these preferences are per-account and
+invisible to a browsing admin.** Setting 12 of them through the API and then
+reading the Jamf Pro UI as a human showed the UI's own values, because the UI is
+session-cookie scoped to the signed-in user while the API writes the M2M
+credential's own row. So `UpdateAccountPreferencesV3` cannot be verified through
+the interface, and its practical value to a consumer is close to nil.
+
+**The removal also exposed a latent generator bug.** `applyPropertyRemovals`
+deleted the property and left its name in the parent's `required` list, so
+`api/pro_api.json` would have published a schema requiring a property it does
+not declare — an invalid spec handed to consumers. It now prunes `required` too,
+pinned by `TestApplyPropertyRemovalsAlsoDropsTheRequiredEntry`. There was no
+test for that function at all before this.
+
 ### Self Service categories: `display_in` is what stores them, and only the mobile profile hides it (2026-09-07)
 
 All six Classic resources carrying a `self_service.self_service_categories`

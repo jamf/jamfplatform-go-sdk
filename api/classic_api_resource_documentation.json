@@ -16788,7 +16788,7 @@
     },
     "termsOfService": "https://www.jamf.com/developer-resources/api-license-agreement/",
     "title": "Classic API",
-    "version": "11.28.0"
+    "version": "11.32.0"
   },
   "openapi": "3.0.1",
   "paths": {
@@ -17564,6 +17564,7 @@
     },
     "/activationcode": {
       "get": {
+        "deprecated": true,
         "description": "**Required Permissions:** `activation-code:read`",
         "operationId": "findactivationcode",
         "parameters": [
@@ -17602,12 +17603,14 @@
         "tags": [
           "activationcode"
         ],
+        "x-deprecation-date": "2026-07-14T00:00:00.000Z",
         "x-explorer-enabled": false,
         "x-required-privileges": [
           "activation-code:read"
         ]
       },
       "put": {
+        "deprecated": true,
         "description": "**Required Permissions:** `activation-code:update`",
         "operationId": "updateActivationCode",
         "parameters": [
@@ -17644,6 +17647,7 @@
         "tags": [
           "activationcode"
         ],
+        "x-deprecation-date": "2026-07-14T00:00:00.000Z",
         "x-explorer-enabled": false,
         "x-jamf-expected-status": 201,
         "x-required-privileges": [

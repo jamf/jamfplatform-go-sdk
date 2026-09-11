@@ -429,8 +429,8 @@ the executable authority; this is the prose copy, and the two must agree.**
 
 | `testing/` file | bundle source | at |
 |---|---|---|
-| `openapi-jpapi.yaml` | `external/jpapi` | **v2121** |
-| `Classic-openapi.yaml` | `external/capi` | **v2082** |
+| `openapi-jpapi.yaml` | `external/jpapi` | **v2154** |
+| `Classic-openapi.yaml` | `external/capi` | **v2154** |
 | `blueprints-api.yaml` | `external/blueprints` | **v2082** |
 | `device-groups-api.yaml` | `external/device-groups` | **v2082** |
 | `device-inventory-api.yaml` | `external/devices` | **v2082** |
@@ -570,8 +570,164 @@ tenant routes reference is present under `environment`.
 
 ### Current position and holds
 
-**Ingested through v2121 (2026-09-09) for seventeen of the nineteen specs**;
-`account-licensing` and `account-sso` stay **held at v1865**. Two specs moved
+**Ingested through v2154 (2026-09-10) for seventeen of the nineteen specs**;
+`account-licensing` and `account-sso` stay **held at v1865**, and their v2154
+deltas are still the one field each their rows name plus the inert `servers`
+region narrowing — so there is nothing new to weigh and the 2026-09-09 re-probe
+stands. `account-partners` is at v2082 and inert. Two specs moved at v2154 —
+`jpapi` and `capi`, both to `info.version: 11.32.0` — and everything else in
+`external/` is byte-identical to v2121, so the only other diffs were the
+manifest, the two unified rollups and `_permissions/routes.yaml`.
+`internal/stage` matches `external/` op-for-op on both moved specs, so neither
+change is an environment rollout; `internal/dev` carries 814 `jpapi` operations
+against `external/`'s 704 and 606 `capi` against 589, so the v1942 publishing
+filter is still in place and still prod-only.
+
+**v2137 (2026-09-10) is a pure pipeline re-run and was not ingested — the
+fourth recorded no-op build.** Every per-family spec in `external/` and
+`internal/stage` is byte-identical to v2121, `_permissions/{routes,scopes}.yaml`
+included; the only diffs in either tree are the two unified rollups. The whole
+11.32.0 change landed at v2154, five hours later the same day. Note the shape of
+that: **two builds on one day, the first inert and the second substantive**,
+which is exactly why step 1 of the ingest is to hash and dry-run rather than to
+read.
+
+**`jpapi` gained three genuinely new operations and the gateway routes none of
+them.** `DELETE /v1/notifications` (bulk dismiss, `dismiss-notifications:execute`),
+`GET` and `PUT /v3/sso/oidc-broker-config` (`sso-settings:{read,update}`). 701 →
+704 operations. All three are whitelisted, per the house rule that a published
+operation is generated and its refusal pinned rather than left out.
+
+Wire-classified 2026-09-10 under environment scope with a 200 control and a
+bogus-path 403 in the same invocation, each refusal reproduced: all three answer
+**403 `BAD_PERMISSIONS`**, the unrouted tell. **The credential is short of
+neither capability** — `GET /v3/sso/dependencies` (same `sso-settings:read`)
+answers 200 and the routed item-level
+`DELETE /v1/notifications/{type}/{id}` (same `dismiss-notifications:execute`)
+answers 204 — so a sibling path settled the classification and a second
+credential was not needed.
+
+**`jamf/authorization-policies` explains it and the fix is open.** `main` at
+`1450318` has no rule for any of the three, and **PR #283** ("API-396: Add authz
+rules for three new jpapi 11.32 endpoints", opened 2026-09-10) adds exactly
+those three, its own body stating that without them "the endpoints publish in
+docs but 403 for every caller". So this is a known gap awaiting a merge and a
+deploy, not a spec/wire disagreement. Both pinning tests fail the day it lands
+and each names the coverage to write in its place. Evidence:
+[WIRE-FACTS.md](docs/WIRE-FACTS.md#v2154s-three-new-jpapi-operations-are-published-and-unrouted-2026-09-10).
+
+**Everything else in `jpapi` is additive, and one addition was a shipped
+break.** 66 new struct fields, zero removed, **zero type changes** — verified
+field-by-field across all 4127 `pro` struct fields, so no pointer-ness moved and
+nothing downstream breaks. The new properties are `appleEnrollmentType` (a
+five-value enum), `awaitingConfiguration`, `lockdownModeEnabled`,
+`returnToServiceEnabled` and a `systemHealth` sub-object, spread over 15 computer
+and mobile-device read schemas; all are optional and none is reachable from a
+request body, which is why they generate as non-pointer response fields. RSQL
+filter vocabularies gained the three booleans. `UserAccount.accountType` gained
+`MIGRATED`.
+
+**~~The exception is `AccountPreferencesV6.showDirectoryGroupUuidColumn`~~ —
+expired 2026-09-11, and the way it expired is the reusable part.** v2154 added
+it as `required` against a server that did not have it. Required means
+non-pointer with no `omitempty`, so *every* `UpdateAccountPreferencesV3` call
+sent the key and every one failed — the same shape of defect as
+`CreateInventoryPreloadHistoryNoteV1`'s wrong `expectedStatus`. `propertyRemovals`
+dropped the property and a docNote carried the evidence.
+
+**The server caught up, and the removal is gone.** Wire-verified 2026-09-11 on
+a **11.32.0** tenant with `GET /pro/v1/jamf-pro-version` as the control in the
+same invocation: the `GET` returns **27 keys** including the field, a `PATCH`
+setting it answers 204, and — asserted rather than assumed — the value **reads
+back**, `false → true → false`. Omitting the key leaves it untouched, so this
+`PATCH` merges. `propertyRemovals`, the docNote and the limitation test are all
+deleted; the generated type is 27 fields and `api/pro_api.json` publishes 27/25,
+matching upstream exactly.
+
+**The self-expiry was in the acceptance suite, not in config, and that is the
+distinction worth keeping.** `propertyRemovals` panics when the *spec* stops
+declaring the path, which is the wrong trigger: the event to wait for was the
+*server* catching up, and no config mechanism can see that. The test was the
+only thing that could, and it is what fired.
+
+**Following the spec here costs pre-11.32 callers this one method, deliberately.**
+The field is required, so the SDK now sends it unconditionally and an 11.31
+tenant answers `400 [INVALID_CONTENT] Unrecognized field
+"showDirectoryGroupUuidColumn" (class …AccountPreferencesDtoV6), not marked as
+ignorable` — re-confirmed 2026-09-11. There is no config key that forces a
+declared-required property optional, and inventing one for a niche
+per-credential preferences write was not worth it: no consumer calls
+`AccountPreferences` (checked across `terraform-provider-jamfplatform`), so the
+blast radius is the SDK's own method. Per the spec-wins rule, the spec is
+followed and the cost is recorded.
+
+**`TestAcceptance_Pro_AccountPreferencesShowDirectoryGroupUuidColumn` is
+version-gated, and both halves are assertions.** The CI matrix holds tenants at
+both versions at once, so a test asserting either behaviour unconditionally
+fails on the other and the failure reads as a defect rather than a rollout.
+`proServerAtLeast(t, c, 11, 32)` picks the branch: at or past 11.32 it
+round-trips the field, below it asserts the absence and the refusal. The
+pre-11.32 branch **fails the day its tenant rolls forward**, which is the
+notification to delete it — at that point the gate is dead code. Both branches
+were run against real tenants on 2026-09-11 and both pass. `proServerVersion` /
+`proServerAtLeast` in `acc_helpers_test.go` are new and general: any future
+spec-ahead-of-server property wants the same treatment.
+
+**It also exposed a latent generator bug.** `applyPropertyRemovals` deleted the
+property and left its name in the parent's `required`, so `api/pro_api.json`
+would have published a schema requiring a property it does not declare — an
+invalid spec handed to consumers. It now prunes `required` too, pinned by
+`TestApplyPropertyRemovalsAlsoDropsTheRequiredEntry`; the function had **no test
+at all** before this.
+
+**`external/jpapi` also stopped pruning unreachable schemas, and that is inert
+to the SDK.** 698 → 767 component schemas while only **four** more became
+reachable from a published operation (`OidcBrokerConfig`,
+`OidcBrokerConfigUpdate`, `SystemHealthV2`, `MobileDeviceSystemHealth`);
+orphans went 53 → 118. The 65 new orphans are the schemas the `internal/dev`-only
+operations reach — the whole `MdmCommand*`/`ApiRole*`/`ApiIntegration*` set, plus
+`InitializeV1` and `PlatformInitializeV1`, whose *operations* v1897 withdrew and
+which have **not** come back. `external` and `internal/dev` now carry the
+identical 767 schemas against 704 and 814 operations, so the publishing filter
+strips the operations and no longer prunes what they orphan. The generator's own
+reachability pruning absorbs it, so there is zero Go diff and `api/pro_api.json`
+does not grow. Worth reporting as a pipeline regression.
+
+**`capi`'s entire delta is a deprecation flag on both `/activationcode` verbs**
+— `deprecated: true` plus `x-deprecation-date: 2026-07-14`, no
+`x-successor-endpoint`. Zero operations, zero schemas, zero prose. It was
+**held at v2121 and then taken on instruction**, and the reason for the initial
+hold is the thing to carry forward rather than the outcome: **`GET
+/activationcode` is deprecated with no successor in any environment.** `jpapi`
+declares `PUT /v1/activation-code` and `PATCH /v1/activation-code/organization-name`
+but **no `GET`** — checked in `external`, `internal/stage` and `internal/dev`,
+all three — and no other `capi` operation returns the `activation_code` schema.
+So the SDK now ships a `// Deprecated:` marker on a read with nothing to migrate
+to, which is what the hard rule below exists to prevent: staticcheck's SA1019 is
+on by default, and `terraform-provider-jamfplatform`'s `activation_code`
+resource **and** data source rest entirely on `GetActivationCode` (read) and
+`UpdateActivationCode` (write). Expect that build to go red. The write is
+migratable to `UpdateActivationCodeV1`; the read is not. **Report the missing
+Pro-API read upstream** — a deprecation with no successor is the defect, not the
+SDK's reaction to it. The endpoint is live: `GET /proclassic/activationcode`
+answers 200 with real data (wire-checked 2026-09-10).
+
+**The privilege oracles all agreed and needed no refresh.** `routes.yaml` is
+purely additive and its whole delta is the three new operations (each appearing
+twice, which is the dual-scope duplication defect already reported);
+`scopes.yaml` is byte-identical, because `dismiss-notifications` and
+`sso-settings` were already declared capabilities; and the committed permissions
+map already publishes `dismiss-notifications:{x}` and `sso-settings:{r,u}`, so
+`TestScopedPrivilegesUseGAVocabulary` passed without `make permmap`.
+
+**One ingest-tool footgun was fixed because it fired during this ingest.**
+`-only <spec>` did not gate the `_permissions` copy, so restoring `capi` from
+the v2121 archive with `-only` silently took `routes.yaml` back to v2121 with
+it. Those two files are not spec-scoped, so a narrowed run now reports them and
+writes neither, pinned by
+`TestOnlyRunReportsPermissionsWithoutWritingThem`.
+
+**v2121 (2026-09-09), retained.** Two specs moved
 and everything else in `external/` is byte-identical to v2082, so the only
 other diffs in the archive were the manifest, the two unified rollups, and
 `_permissions/routes.yaml` — which is byte-different and **`sort`-identical**
@@ -1376,11 +1532,11 @@ newline) confirmed `testing/openapi-jpapi.json` was semantically identical to
 v1882's `openapi.yaml` before the copy, so the generated diff is exactly the
 delta: 298 deletions, zero insertions, nothing outside `pro`.
 
-**The `pro` whitelist remains complete — 701 operations as of v2121** — it
+**The `pro` whitelist remains complete — 704 operations as of v2154** — it
 reached all 790 on 2026-08-31, v1897 took two away, v1942 took 122 more,
 v2043 added App Installers' 23, v2051 took one back, v2082 restored the 13
-`/v3/computers-inventory` operations and v2121 restored
-`GET /v1/mdm/commands`. 21 of the 38 added on 2026-08-31 were
+`/v3/computers-inventory` operations, v2121 restored
+`GET /v1/mdm/commands` and v2154 added three genuinely new ones. 21 of the 38 added on 2026-08-31 were
 deprecated, which was no bar at the time: the whitelist carried 111 deprecated
 operations, and until v1942 the additive-versions rule kept them until Jamf
 removed the path. v1942 removed the paths — and v2082 and v2121 have each put
@@ -1497,6 +1653,14 @@ formatting is inert to the generator, and bundle diffs become exact.
 - **A `// Deprecated:` marker must never ship without its successor whitelisted
   alongside it.** `staticcheck`'s SA1019 is on by default, so deprecating a surface
   with nothing to migrate to turns every consumer's build red for no reason.
+  **Broken deliberately once, at v2154, on instruction.** `capi` flagged both
+  `/activationcode` verbs deprecated and `jpapi` publishes no `GET
+  /v1/activation-code` in any environment, so `GetActivationCode` now carries a
+  marker with nothing to migrate to. The hold that would have honoured this rule
+  cost nothing — the flag was `capi` v2154's whole delta — and was dropped by the
+  user's call, which is theirs to make; the rule stands for the next build. The
+  lesson worth keeping is that the *tool* for this case is a hold, and a hold is
+  cheap exactly when the offending flag is the build's only change.
 - **Local spec repairs are self-expiring.** `schemaCreations` panics if the name
   reappears; a `schemaPatches` entry that *supplies* a missing property needs a
   `schemaPatchesRequireAbsent` line or it shadows the real one forever;
@@ -1574,8 +1738,8 @@ Layer-by-layer diagnosis of a refusal, per-package findings and the full evidenc
 
 | package | namespace(s) | scope | notes |
 |---|---|---|---|
-| `pro` | `pro` | tenant **or** environment (both declared as of v2082) | 701 ops — the whole spec, v1942's 122 withdrawals minus v2082's 13 `/v3/computers-inventory` restorations and v2121's `GET /v1/mdm/commands` |
-| `proclassic` | `proclassic` | tenant **or** environment (both declared as of v2082) | 589 ops, XML end-to-end — the v2082 surface exactly, the patch-management family restored and the hold gone |
+| `pro` | `pro` | tenant **or** environment (both declared as of v2082) | 704 ops — the whole spec, v1942's 122 withdrawals minus v2082's 13 `/v3/computers-inventory` restorations, v2121's `GET /v1/mdm/commands` and v2154's three new ones, all three of which are unrouted at the gateway |
+| `proclassic` | `proclassic` | tenant **or** environment (both declared as of v2082) | 589 ops, XML end-to-end — the v2154 surface exactly. Both `/activationcode` verbs now carry a `// Deprecated:` marker and the GET has no successor anywhere; see the v2154 section |
 | `devices`, `devicegroups`, `deviceactions` | as named | **environment** per the spec; tenant still served | Platform APIs. v2082 declares them environment-only, the gateway still answers `X-Tenant-Id` on all three — pinned by `TestAcceptance_TenantScopePlatformSpecsStillServed`, which fails when that changes |
 | `blueprints`, `compliancebenchmarks`, `ddmreport` | as named | **environment** | v2082 declares all three environment-only. `ddmreport` still answers under tenant scope and is pinned; `blueprints` and `compliancebenchmarks` refuse a tenant credential with `403 BAD_PERMISSIONS`, unclassifiable against one credential but agreeing with the GA env-only decision, so deliberately unpinned |
 | `securitycloud` | `securitycloud` | tenant (own identifier) **or** environment (both declared as of v2082) | 52 ops across six specs — every spec at v2082 as of 2026-09-04, the `securitycloud-devices` hold having lifted and taken `GET /v1/groups` and `PUT /v1/groups/{groupId}` with it |

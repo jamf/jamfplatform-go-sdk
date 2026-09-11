@@ -13,6 +13,8 @@ import (
 
 // GetActivationCode finds the Jamf Pro activation code.
 //
+// Deprecated: this endpoint is marked deprecated in the Jamf API spec (deprecation-date: 2026-07-14) and may be removed in a future release.
+//
 // Required privileges: activation-code:read.
 func (c *Client) GetActivationCode(ctx context.Context) (*ActivationCode, error) {
 	prefix := c.transport.APIPrefix("proclassic", "")
@@ -25,6 +27,8 @@ func (c *Client) GetActivationCode(ctx context.Context) (*ActivationCode, error)
 }
 
 // UpdateActivationCode updates the Jamf Pro activation code.
+//
+// Deprecated: this endpoint is marked deprecated in the Jamf API spec (deprecation-date: 2026-07-14) and may be removed in a future release.
 //
 // Required privileges: activation-code:update.
 func (c *Client) UpdateActivationCode(ctx context.Context, request *ActivationCode) error {

@@ -73,8 +73,9 @@ func (c *Client) RemoveMdmProfileFromComputerV4(ctx context.Context, id string) 
 //     Example: `sort=udid:desc,general.name:asc`.
 //   - filter: Query in the RSQL format, allowing to filter computer inventory collection. Default filter is empty
 //     query - returning all results for the requested page.
-//     Fields allowed in the query: `general.name`, `udid`, `id`, `general.assetTag`, `general.barcode1`,
-//     `general.barcode2`, `general.enrolledViaAutomatedDeviceEnrollment`, `general.lastIpAddress`,
+//     Fields allowed in the query: `general.name`, `udid`, `id`, `general.assetTag`,
+//     `general.awaitingConfiguration`, `general.barcode1`, `general.barcode2`,
+//     `general.enrolledViaAutomatedDeviceEnrollment`, `general.lastIpAddress`,
 //     `general.itunesStoreAccountActive`, `general.jamfBinaryVersion`, `general.lastCheckIn`,
 //     `general.lastContact`, `general.lastEnrolledDate`, `general.lastCloudBackupDate`,
 //     `general.reportDate`, `general.lastReportedIp`, `general.lastReportedIpV4`,
@@ -90,6 +91,7 @@ func (c *Client) RemoveMdmProfileFromComputerV4(ctx context.Context, id string) 
 //     `operatingSystem.fileVault2Status`, `operatingSystem.build`,
 //     `operatingSystem.supplementalBuildVersion`, `operatingSystem.rapidSecurityResponse`,
 //     `operatingSystem.name`, `operatingSystem.version`, `security.activationLockEnabled`,
+//     `security.lockdownModeEnabled`,
 //     `security.recoveryLockEnabled`,`security.firewallEnabled`,`userAndLocation.buildingId`,
 //     `userAndLocation.departmentId`, `userAndLocation.email`, `userAndLocation.realname`,
 //     `userAndLocation.phone`, `userAndLocation.position`,`userAndLocation.room`,

@@ -25,6 +25,18 @@ func (c *Client) ListNotificationsV1(ctx context.Context) ([]NotificationV1, err
 	return result, nil
 }
 
+// DismissAllNotificationsV1 dismiss all notifications.
+//
+// Required privileges: dismiss-notifications:execute. Legacy Jamf Pro privilege name(s): Dismiss Notifications.
+func (c *Client) DismissAllNotificationsV1(ctx context.Context) error {
+	prefix := c.transport.APIPrefix("pro", "v1")
+	endpoint := prefix + "/notifications"
+	if err := c.transport.DoExpect(ctx, http.MethodDelete, endpoint, nil, http.StatusNoContent, nil); err != nil {
+		return fmt.Errorf("DismissAllNotificationsV1: %w", err)
+	}
+	return nil
+}
+
 // DeleteNotificationV1 delete Notifications.
 //
 // Required privileges: dismiss-notifications:execute. Legacy Jamf Pro privilege name(s): Dismiss Notifications.

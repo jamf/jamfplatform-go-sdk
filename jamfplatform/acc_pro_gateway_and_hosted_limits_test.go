@@ -228,3 +228,88 @@ func TestAcceptance_Pro_SendMacOsManagedSoftwareUpdatesV1SupersededByPlans(t *te
 			apiErr.StatusCode, err)
 	}
 }
+
+// The three operations v2154 (Jamf Pro API 11.32.0) added are published and
+// unrouted. `jamf/authorization-policies` carried no allow rule for any of them
+// on 2026-09-10 — `jamf_pro_dismiss_notifications.rego` covered only the
+// `{type}/{id}` variant, and `jamf_pro_sso_settings.rego` had a rule for every
+// other `/v3/sso/*` sibling but not `oidc-broker-config` — and PR #283
+// ("API-396: Add authz rules for three new jpapi 11.32 endpoints") is open with
+// that same reading in its own body. So the SDK reaches them and the gateway
+// does not, which the three tests below pin.
+//
+// Wire-classified 2026-09-10 against eu.api.jamfcloud.com under environment
+// scope, with `GET /pro/v1/jamf-pro-version` at 200 and a bogus path in the
+// same namespace at 403 BAD_PERMISSIONS as controls in the same invocation, and
+// each 403 reproduced on a second round. The credential is NOT short of either
+// capability, which is what makes this a routing gap rather than a grant:
+// `GET /pro/v3/sso/dependencies` (sso-settings:read) answers 200, and the
+// routed item-level `DELETE /pro/v1/notifications/{type}/{id}`
+// (dismiss-notifications:execute) answers 204.
+
+// TestAcceptance_Pro_DismissAllNotificationsUnroutedAtGateway pins
+// DELETE /v1/notifications.
+func TestAcceptance_Pro_DismissAllNotificationsUnroutedAtGateway(t *testing.T) {
+	c := accClient(t)
+
+	err := pro.New(c).DismissAllNotificationsV1(context.Background())
+	if err == nil {
+		t.Fatal("DismissAllNotificationsV1 now answers — the gateway has started routing " +
+			"DELETE /pro/v1/notifications. Replace this test with real coverage: dismiss the " +
+			"collection, then assert ListNotificationsV1 returns no dismissible notification. " +
+			"Note the call is destructive on a tenant that has notifications, so gate the " +
+			"replacement behind JAMFPLATFORM_ACC_DESTRUCTIVE.")
+	}
+	skipOnServerError(t, err)
+	if !gatewayUnrouted(t, "DismissAllNotificationsV1", err) {
+		t.Fatalf("DismissAllNotificationsV1 failed for an unexpected reason: %v", err)
+	}
+}
+
+// TestAcceptance_Pro_SsoOidcBrokerConfigUnroutedAtGateway pins
+// GET and PUT /v3/sso/oidc-broker-config.
+//
+// Both verbs are asserted in one test because they share the single missing
+// rego rule and will start routing together.
+//
+// The PUT body is the spec's six required fields with enabled:false and a
+// throwaway client id, so that if the rule lands between now and the next run
+// the test fails on the unexpected success rather than on a partial write —
+// and any real replacement must read the current config first, since the
+// operation is a full replacement that discards every omitted non-secret
+// field.
+func TestAcceptance_Pro_SsoOidcBrokerConfigUnroutedAtGateway(t *testing.T) {
+	c := accClient(t)
+	client := pro.New(c)
+
+	_, err := client.GetSsoOidcBrokerConfigV3(context.Background())
+	if err == nil {
+		t.Fatal("GetSsoOidcBrokerConfigV3 now answers — the gateway has started routing " +
+			"GET /pro/v3/sso/oidc-broker-config. Replace this test with real coverage: assert the " +
+			"returned OidcBrokerConfig, and that no secret field is populated (the spec says " +
+			"clientSecret and privateKeyJwt are never returned).")
+	}
+	skipOnServerError(t, err)
+	if !gatewayUnrouted(t, "GetSsoOidcBrokerConfigV3", err) {
+		t.Fatalf("GetSsoOidcBrokerConfigV3 failed for an unexpected reason: %v", err)
+	}
+
+	err = client.UpdateSsoOidcBrokerConfigV3(context.Background(), &pro.OidcBrokerConfigUpdate{
+		ClientAuthMethod:   "CLIENT_SECRET",
+		ClientID:           "sdk-acc-unrouted-probe",
+		DiscoveryURL:       "https://example.invalid/.well-known/openid-configuration",
+		Enabled:            false,
+		ProductUserMapping: "EMAIL",
+		Scopes:             []string{"openid"},
+	})
+	if err == nil {
+		t.Fatal("UpdateSsoOidcBrokerConfigV3 accepted a write — the gateway has started routing " +
+			"PUT /pro/v3/sso/oidc-broker-config AND this probe body was applied to the tenant's " +
+			"broker configuration. Check the tenant's SSO settings, then replace this test with " +
+			"coverage that reads the current config and round-trips it unchanged.")
+	}
+	skipOnServerError(t, err)
+	if !gatewayUnrouted(t, "UpdateSsoOidcBrokerConfigV3", err) {
+		t.Fatalf("UpdateSsoOidcBrokerConfigV3 failed for an unexpected reason: %v", err)
+	}
+}

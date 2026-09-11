@@ -470,6 +470,10 @@
             "example": 50,
             "type": "integer"
           },
+          "showDirectoryGroupUuidColumn": {
+            "example": false,
+            "type": "boolean"
+          },
           "timezone": {
             "example": "America/Chicago",
             "type": "string"
@@ -511,6 +515,7 @@
           "mobileDeviceAppSearchMethod",
           "mobileDeviceSearchMethod",
           "resultsPerPage",
+          "showDirectoryGroupUuidColumn",
           "timezone",
           "userAllContentSearchMethod",
           "userEbookSearchMethod",
@@ -4945,9 +4950,26 @@
       },
       "ComputerGeneral": {
         "properties": {
+          "appleEnrollmentType": {
+            "description": "The enrollment type reported by Apple.",
+            "enum": [
+              "none",
+              "supervised",
+              "device",
+              "user",
+              "unknown"
+            ],
+            "example": "supervised",
+            "type": "string"
+          },
           "assetTag": {
             "example": "304822",
             "type": "string"
+          },
+          "awaitingConfiguration": {
+            "description": "Whether the device is awaiting configuration.",
+            "example": false,
+            "type": "boolean"
           },
           "barcode1": {
             "example": "5 12345 678900",
@@ -5347,9 +5369,26 @@
       },
       "ComputerGeneralV4": {
         "properties": {
+          "appleEnrollmentType": {
+            "description": "The enrollment type reported by Apple.",
+            "enum": [
+              "none",
+              "supervised",
+              "device",
+              "user",
+              "unknown"
+            ],
+            "example": "supervised",
+            "type": "string"
+          },
           "assetTag": {
             "example": "304822",
             "type": "string"
+          },
+          "awaitingConfiguration": {
+            "description": "Whether the device is awaiting configuration.",
+            "example": false,
+            "type": "boolean"
           },
           "barcode1": {
             "example": "5 12345 678900",
@@ -7160,7 +7199,7 @@
                 "type": "boolean"
               },
               "manifestUrl": {
-                "description": "The URL to the manifest file for the Platform SSO (PSSO) application 403 workflow. This URL is used when deploying the PSSO app to devices during the setup process.",
+                "description": "The URL to the manifest file for the Platform SSO (PSSO) application Identity first workflow. This URL is used when deploying the PSSO app to devices during the setup process.",
                 "example": "https://mdmserver.example.com/psso-app.plist",
                 "nullable": true,
                 "type": "string"
@@ -7170,7 +7209,7 @@
                 "type": "string"
               },
               "platformSsoAppBundleId": {
-                "description": "The bundle identifier for the Platform SSO (PSSO) application unattended workflow. This identifier is used to specify which PSSO app should be deployed to devices during the setup process.",
+                "description": "The bundle identifier for the Platform SSO (PSSO) application Device first workflow. This identifier is used to specify which PSSO app should be deployed to devices during the setup process.",
                 "example": "com.okta.mobile",
                 "type": "string"
               },
@@ -7193,20 +7232,20 @@
                 "type": "string"
               },
               "profileUrl": {
-                "description": "The URL to the configuration profile for the Platform SSO (PSSO) application 403 workflow. This URL is used when deploying the PSSO app to devices during the setup process. Users should use either profileUrl or populate pssoConfigProfileId, but not both.",
+                "description": "The URL to the configuration profile for the Platform SSO (PSSO) application Identity first workflow. This URL is used when deploying the PSSO app to devices during the setup process. Users should use either profileUrl or populate pssoConfigProfileId, but not both.",
                 "example": "https://mdmserver.example.com/psso.mobileconfig",
                 "nullable": true,
                 "type": "string"
               },
               "pssoConfigProfileId": {
-                "description": "The identifier for the configuration profile associated with the Platform SSO (PSSO) application 403 workflow. This ID is used to specify which configuration profile should be applied to devices during the setup process when PSSO is enabled. Users should use either pssoConfigProfileId or populate profileUrl, but not both.",
+                "description": "The identifier for the configuration profile associated with the Platform SSO (PSSO) application Identity first workflow. This ID is used to specify which configuration profile should be applied to devices during the setup process when PSSO is enabled. Users should use either pssoConfigProfileId or populate profileUrl, but not both.",
                 "example": "1",
                 "nullable": true,
                 "type": "string"
               },
               "pssoEnabled": {
                 "default": false,
-                "description": "Indicates whether Platform SSO (PSSO) is enabled for this computer prestage, regardless of unattended or 403 workflows. When enabled, the PSSO application will be deployed to devices during the setup process to facilitate single sign-on (SSO) for users.",
+                "description": "Indicates whether Platform SSO (PSSO) is enabled for this computer prestage, regardless of Device first or Identity first workflows. When enabled, the PSSO application will be deployed to devices during the setup process to facilitate single sign-on (SSO) for users.",
                 "example": true,
                 "type": "boolean"
               },
@@ -7563,6 +7602,11 @@
             "example": "1970-01-01T00:00:00Z",
             "readOnly": true,
             "type": "string"
+          },
+          "lockdownModeEnabled": {
+            "description": "Whether Lockdown Mode is enabled.",
+            "example": false,
+            "type": "boolean"
           },
           "recoveryLockEnabled": {
             "example": true,
@@ -8833,6 +8877,11 @@
           "purchasing": {
             "$ref": "#/components/schemas/PurchasingV2"
           },
+          "returnToServiceEnabled": {
+            "description": "Whether Return to Service is enabled.",
+            "example": false,
+            "type": "boolean"
+          },
           "security": {
             "$ref": "#/components/schemas/SecurityV2"
           },
@@ -8849,6 +8898,9 @@
           "supervised": {
             "example": true,
             "type": "boolean"
+          },
+          "systemHealth": {
+            "$ref": "#/components/schemas/SystemHealthV2"
           },
           "unlockToken": {
             "example": "VU5MT0NLVE9LRU4=",
@@ -12054,6 +12106,18 @@
             "example": "9546567.0",
             "type": "string"
           },
+          "appleEnrollmentType": {
+            "description": "The enrollment type reported by Apple.",
+            "enum": [
+              "none",
+              "supervised",
+              "device",
+              "user",
+              "unknown"
+            ],
+            "example": "supervised",
+            "type": "string"
+          },
           "assetTag": {
             "example": "8675309",
             "type": "string"
@@ -12061,6 +12125,11 @@
           "availableSpaceMb": {
             "example": 26646,
             "type": "integer"
+          },
+          "awaitingConfiguration": {
+            "description": "Whether the device is awaiting configuration.",
+            "example": false,
+            "type": "boolean"
           },
           "batteryHealth": {
             "default": "UNKNOWN",
@@ -12308,6 +12377,11 @@
             "example": false,
             "type": "boolean"
           },
+          "lockdownModeEnabled": {
+            "description": "Whether Lockdown Mode is enabled.",
+            "example": false,
+            "type": "boolean"
+          },
           "lostModeEnabled": {
             "example": false,
             "type": "boolean"
@@ -12442,6 +12516,11 @@
           "residentUsers": {
             "example": 0,
             "type": "integer"
+          },
+          "returnToServiceEnabled": {
+            "description": "Whether Return to Service is enabled.",
+            "example": false,
+            "type": "boolean"
           },
           "roaming": {
             "example": false,
@@ -14880,9 +14959,26 @@
       },
       "MobileDeviceDetailsV2": {
         "properties": {
+          "appleEnrollmentType": {
+            "description": "The enrollment type reported by Apple.",
+            "enum": [
+              "none",
+              "supervised",
+              "device",
+              "user",
+              "unknown"
+            ],
+            "example": "supervised",
+            "type": "string"
+          },
           "assetTag": {
             "example": "12345",
             "type": "string"
+          },
+          "awaitingConfiguration": {
+            "description": "Whether the device is awaiting configuration.",
+            "example": false,
+            "type": "boolean"
           },
           "bluetoothMacAddress": {
             "example": "ee:00:7c:f0:e5:aa",
@@ -15208,9 +15304,26 @@
       },
       "MobileDeviceGeneral": {
         "properties": {
+          "appleEnrollmentType": {
+            "description": "The enrollment type reported by Apple.",
+            "enum": [
+              "none",
+              "supervised",
+              "device",
+              "user",
+              "unknown"
+            ],
+            "example": "supervised",
+            "type": "string"
+          },
           "assetTag": {
             "example": "8675309",
             "type": "string"
+          },
+          "awaitingConfiguration": {
+            "description": "Whether the device is awaiting configuration.",
+            "example": false,
+            "type": "boolean"
           },
           "declarativeDeviceManagementEnabled": {
             "example": true,
@@ -15424,6 +15537,9 @@
             "example": "5c28fdae",
             "type": "string"
           },
+          "systemHealth": {
+            "$ref": "#/components/schemas/MobileDeviceSystemHealth"
+          },
           "usedSpacePercentage": {
             "example": 70,
             "type": "integer"
@@ -15587,6 +15703,11 @@
               "residentUsers": {
                 "example": 0,
                 "type": "integer"
+              },
+              "returnToServiceEnabled": {
+                "description": "Whether Return to Service is enabled.",
+                "example": false,
+                "type": "boolean"
               },
               "sharedIpad": {
                 "example": false,
@@ -16237,6 +16358,11 @@
             "readOnly": true,
             "type": "string"
           },
+          "lockdownModeEnabled": {
+            "description": "Whether Lockdown Mode is enabled.",
+            "example": false,
+            "type": "boolean"
+          },
           "lostModeEnabled": {
             "example": false,
             "type": "boolean"
@@ -16425,6 +16551,47 @@
           "searchType",
           "value"
         ],
+        "type": "object"
+      },
+      "MobileDeviceSystemHealth": {
+        "description": "System health status for device components. Reported for iOS devices.",
+        "properties": {
+          "baseband": {
+            "example": "ok",
+            "maxLength": 255,
+            "type": "string"
+          },
+          "camera": {
+            "example": "ok",
+            "maxLength": 255,
+            "type": "string"
+          },
+          "display": {
+            "example": "ok",
+            "maxLength": 255,
+            "type": "string"
+          },
+          "faceId": {
+            "example": "ok",
+            "maxLength": 255,
+            "type": "string"
+          },
+          "nfc": {
+            "example": "ok",
+            "maxLength": 255,
+            "type": "string"
+          },
+          "touchId": {
+            "example": "ok",
+            "maxLength": 255,
+            "type": "string"
+          },
+          "ultraWideband": {
+            "example": "ok",
+            "maxLength": 255,
+            "type": "string"
+          }
+        },
         "type": "object"
       },
       "MobileDeviceTvOsGeneral": {
@@ -16989,6 +17156,190 @@
             "type": "string"
           }
         },
+        "type": "object"
+      },
+      "OidcBrokerConfig": {
+        "description": "The tenant's currently selected OIDC broker IdP configuration. Secret fields (clientSecret, privateKeyJwt) are never included in the response. The three enum-valued fields are always present but may be null — an unrecognized value from a newer authentication service is read as null rather than failing the response.",
+        "properties": {
+          "capabilities": {
+            "description": "A broker configuration carries ADMIN_SSO; an update preserves whatever is already stored rather than replacing it. The other values exist for non-broker IdP configurations.",
+            "example": [
+              "ADMIN_SSO"
+            ],
+            "items": {
+              "enum": [
+                "IOS_SELF_SERVICE_PLUS",
+                "MAC_SELF_SERVICE_PLUS",
+                "USER_INITIATED_ENROLLMENT",
+                "ADMIN_SSO"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "clientAuthMethod": {
+            "description": "Read this before updating to determine whether an update changes the client authentication method, which requires supplying the new method's credential.",
+            "enum": [
+              "CLIENT_SECRET",
+              "PRIVATE_KEY_JWT"
+            ],
+            "example": "CLIENT_SECRET",
+            "nullable": true,
+            "type": "string"
+          },
+          "clientId": {
+            "example": "my-client-id",
+            "type": "string"
+          },
+          "clientType": {
+            "enum": [
+              "PUBLIC",
+              "CONFIDENTIAL"
+            ],
+            "example": "CONFIDENTIAL",
+            "nullable": true,
+            "type": "string"
+          },
+          "createdAt": {
+            "example": "2024-01-15T10:30:00Z",
+            "format": "date-time",
+            "type": "string"
+          },
+          "discoveryUrl": {
+            "example": "https://example.okta.com/.well-known/openid-configuration",
+            "type": "string"
+          },
+          "enabled": {
+            "example": true,
+            "type": "boolean"
+          },
+          "id": {
+            "example": "550e8400-e29b-41d4-a716-446655440000",
+            "type": "string"
+          },
+          "productUserMapping": {
+            "enum": [
+              "USERNAME",
+              "EMAIL"
+            ],
+            "example": "EMAIL",
+            "nullable": true,
+            "type": "string"
+          },
+          "productUsernameClaim": {
+            "example": "email",
+            "type": "string"
+          },
+          "redirectUris": {
+            "example": [
+              "https://app.jamf.com/callback"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "scopes": {
+            "example": [
+              "openid",
+              "profile"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "updatedAt": {
+            "example": "2024-01-16T08:45:00Z",
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "capabilities",
+          "clientAuthMethod",
+          "clientId",
+          "clientType",
+          "discoveryUrl",
+          "enabled",
+          "id",
+          "productUserMapping",
+          "redirectUris",
+          "scopes"
+        ],
+        "type": "object"
+      },
+      "OidcBrokerConfigUpdate": {
+        "description": "Full-replacement update of the tenant's broker IdP configuration. The config to update is the tenant's stored broker selection; it is not part of this body. Every non-secret field is replaced with the value sent here, so all of them must be supplied on every update; only the secret fields are kept when omitted — except when this request changes clientAuthMethod, which requires the new method's credential to be supplied. The clientType (always CONFIDENTIAL) is set by Jamf Pro, and the capabilities and redirect URIs are carried over from the stored configuration unchanged; none of the three can be supplied here.",
+        "properties": {
+          "clientAuthMethod": {
+            "description": "Selects which credential the authentication service stores and which it clears — the credential belonging to the other method is discarded. Changing this value therefore requires the new method's credential in the same request.",
+            "enum": [
+              "CLIENT_SECRET",
+              "PRIVATE_KEY_JWT"
+            ],
+            "example": "CLIENT_SECRET",
+            "type": "string"
+          },
+          "clientId": {
+            "example": "my-client-id",
+            "type": "string"
+          },
+          "clientSecret": {
+            "description": "Omit to keep the currently stored secret; supply to rotate it. Required when this request changes clientAuthMethod to CLIENT_SECRET, or when clientAuthMethod is CLIENT_SECRET and no secret is currently stored.",
+            "example": "***",
+            "format": "password",
+            "type": "string",
+            "writeOnly": true
+          },
+          "discoveryUrl": {
+            "example": "https://example.okta.com/.well-known/openid-configuration",
+            "type": "string"
+          },
+          "enabled": {
+            "description": "Required. The authentication service replaces this value on every update, so omitting it would silently re-enable a disabled configuration.",
+            "example": true,
+            "type": "boolean"
+          },
+          "privateKeyJwt": {
+            "description": "Omit to keep the currently stored key; supply to rotate it. Required when this request changes clientAuthMethod to PRIVATE_KEY_JWT, or when clientAuthMethod is PRIVATE_KEY_JWT and no key is currently stored.",
+            "example": "***",
+            "format": "password",
+            "type": "string",
+            "writeOnly": true
+          },
+          "productUserMapping": {
+            "enum": [
+              "USERNAME",
+              "EMAIL"
+            ],
+            "example": "EMAIL",
+            "type": "string"
+          },
+          "productUsernameClaim": {
+            "example": "email",
+            "type": "string"
+          },
+          "scopes": {
+            "example": [
+              "openid",
+              "profile"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": [
+          "clientAuthMethod",
+          "clientId",
+          "discoveryUrl",
+          "enabled",
+          "productUserMapping",
+          "scopes"
+        ],
         "type": "object"
       },
       "OidcDirectIdpLoginSkipUrl": {
@@ -19674,6 +20025,11 @@
             "readOnly": true,
             "type": "string"
           },
+          "lockdownModeEnabled": {
+            "description": "Whether Lockdown Mode is enabled.",
+            "example": false,
+            "type": "boolean"
+          },
           "passcodeCompliant": {
             "example": true,
             "type": "boolean"
@@ -21464,6 +21820,47 @@
         ],
         "type": "object"
       },
+      "SystemHealthV2": {
+        "description": "System health status for device components. Reported for iOS devices.",
+        "properties": {
+          "baseband": {
+            "example": "ok",
+            "maxLength": 255,
+            "type": "string"
+          },
+          "camera": {
+            "example": "ok",
+            "maxLength": 255,
+            "type": "string"
+          },
+          "display": {
+            "example": "ok",
+            "maxLength": 255,
+            "type": "string"
+          },
+          "faceId": {
+            "example": "ok",
+            "maxLength": 255,
+            "type": "string"
+          },
+          "nfc": {
+            "example": "ok",
+            "maxLength": 255,
+            "type": "string"
+          },
+          "touchId": {
+            "example": "ok",
+            "maxLength": 255,
+            "type": "string"
+          },
+          "ultraWideband": {
+            "example": "ok",
+            "maxLength": 255,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "TeacherFeatures": {
         "properties": {
           "isAllowAppLock": {
@@ -21842,7 +22239,8 @@
             "description": "Type of the account",
             "enum": [
               "DEFAULT",
-              "FEDERATED"
+              "FEDERATED",
+              "MIGRATED"
             ],
             "type": "string"
           },
@@ -23065,7 +23463,7 @@
     "description": "Comprehensive Jamf Pro management API for enterprise device management, configuration, and automation.",
     "termsOfService": "https://www.jamf.com/developer-resources/api-license-agreement/",
     "title": "Jamf Pro API",
-    "version": "11.31.0"
+    "version": "11.32.0"
   },
   "openapi": "3.0.1",
   "paths": {
@@ -40843,7 +41241,7 @@
     },
     "/v1/managed-software-updates/available-updates": {
       "get": {
-        "description": "Retrieves available macOS and iOS Managed Software Updates\n\nReplaces `GET /v1/macos-managed-software-updates/available-updates`. The response schema is `AvailableOsUpdates`, in which `availableUpdates` is an object holding separate `macOS` and `iOS` version arrays; in the `AvailableUpdates` schema of the replaced operation the same field was a single flat array of macOS versions.\n",
+        "description": "Retrieves available macOS and iOS Managed Software Updates\n",
         "parameters": [
           {
             "$ref": "#/components/parameters/X-Tenant-Id"
@@ -43260,6 +43658,40 @@
       }
     },
     "/v1/notifications": {
+      "delete": {
+        "description": "Dismisses all dismissible notifications for the user and site.\n\n\n**Required Permissions:** `dismiss-notifications:execute`",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/X-Tenant-Id"
+          },
+          {
+            "$ref": "#/components/parameters/X-Environment-Id"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful deletion"
+          }
+        },
+        "security": [
+          {
+            "oauth2": [
+              "dismiss-notifications:execute"
+            ]
+          }
+        ],
+        "summary": "Dismiss all notifications\n",
+        "tags": [
+          "jamf-pro-notifications"
+        ],
+        "x-jamf-expected-status": 204,
+        "x-required-privileges": [
+          "dismiss-notifications:execute"
+        ],
+        "x-required-privileges-legacy": [
+          "Dismiss Notifications"
+        ]
+      },
       "get": {
         "description": "Gets notifications for user and site\n",
         "parameters": [
@@ -43331,7 +43763,7 @@
         ],
         "responses": {
           "204": {
-            "description": "Sucessful deletion"
+            "description": "Successful deletion"
           }
         },
         "security": [
@@ -60483,7 +60915,7 @@
             "style": "form"
           },
           {
-            "description": "Query in the RSQL format, allowing to filter mobile device collection.\nDefault filter is empty query - returning all results for the requested page.\n\nFields allowed in the query: `airPlayPassword`, `appAnalyticsEnabled`, `assetTag`, `availableSpaceMb`,\n`batteryLevel`, `bluetoothLowEnergyCapable`, `bluetoothMacAddress`, `capacityMb`,\n`declarativeDeviceManagementEnabled`, `deviceId`, `deviceLocatorServiceEnabled`, `devicePhoneNumber`,\n`diagnosticAndUsageReportingEnabled`, `displayName`, `doNotDisturbEnabled`, `exchangeDeviceId`,\n`cloudBackupEnabled`, `osBuild`, `osSupplementalBuildVersion`, `osVersion`, `osRapidSecurityResponse`,\n`ipAddress`, `itunesStoreAccountActive`, `mobileDeviceId`, `managementId`, `languages`, `lastContactDate`, `lastInventoryUpdateDate`, `locales`,\n`locationServicesForSelfServiceMobileEnabled`, `lostModeEnabled`, `managed`, `model`,\n`modelIdentifier`, `modelNumber`, `modemFirmwareVersion`, `preferredVoiceNumber`, `quotaSize`,\n`residentUsers`, `serialNumber`, `sharedIpad`, `supervised`,\n`tethered`, `timeZone`, `udid`, `usedSpacePercentage`,\n`wifiMacAddress`, `building`, `department`, `emailAddress`,\n`fullName`, `userPhoneNumber`, `position`, `room`,\n`username`, `appleCareId`, `lifeExpectancyYears`, `poNumber`,\n`purchasePrice`, `purchasedOrLeased`, `purchasingAccount`, `purchasingContact`,\n`vendor`, `activationLockEnabled`, `blockEncryptionCapable`, `dataProtection`,\n`fileEncryptionCapable`, `passcodeCompliant`, `passcodeCompliantWithProfile`, `passcodeLockGracePeriodEnforcedSeconds`,\n`passcodePresent`, `carrierSettingsVersion`, `currentCarrierNetwork`,\n`currentMobileCountryCode`, `currentMobileNetworkCode`, `dataRoamingEnabled`, `eid`,\n`network`, `homeMobileCountryCode`, `homeMobileNetworkCode`, `iccid`,\n`imei`, `imei2`, `meid`, `personalHotspotEnabled`,\n`roaming`, `lastLoggedInUsernameSelfService`, `lastLoggedInUsernameSelfServiceTimestamp`, `lastLoggedInUsernameMdm`, `lastLoggedInUsernameMdmTimestamp`,\n`groupId`, `groupName`\n\nThis param can be combined with paging and sorting.\nExample: `filter=displayName==\"iPad\"`\n",
+            "description": "Query in the RSQL format, allowing to filter mobile device collection.\nDefault filter is empty query - returning all results for the requested page.\n\nFields allowed in the query: `airPlayPassword`, `appAnalyticsEnabled`, `assetTag`, `availableSpaceMb`,\n`batteryLevel`, `bluetoothLowEnergyCapable`, `bluetoothMacAddress`, `capacityMb`,\n`declarativeDeviceManagementEnabled`, `deviceId`, `deviceLocatorServiceEnabled`, `devicePhoneNumber`,\n`diagnosticAndUsageReportingEnabled`, `displayName`, `doNotDisturbEnabled`, `exchangeDeviceId`,\n`cloudBackupEnabled`, `osBuild`, `osSupplementalBuildVersion`, `osVersion`, `osRapidSecurityResponse`,\n`ipAddress`, `itunesStoreAccountActive`, `mobileDeviceId`, `managementId`, `languages`, `lastContactDate`, `lastInventoryUpdateDate`, `locales`,\n`locationServicesForSelfServiceMobileEnabled`, `lostModeEnabled`, `managed`, `model`,\n`modelIdentifier`, `modelNumber`, `modemFirmwareVersion`, `preferredVoiceNumber`, `quotaSize`,\n`residentUsers`, `serialNumber`, `sharedIpad`, `supervised`,\n`tethered`, `timeZone`, `udid`, `usedSpacePercentage`,\n`wifiMacAddress`, `building`, `department`, `emailAddress`,\n`fullName`, `userPhoneNumber`, `position`, `room`,\n`username`, `appleCareId`, `lifeExpectancyYears`, `poNumber`,\n`purchasePrice`, `purchasedOrLeased`, `purchasingAccount`, `purchasingContact`,\n`vendor`, `activationLockEnabled`, `awaitingConfiguration`, `blockEncryptionCapable`, `dataProtection`,\n`fileEncryptionCapable`, `lockdownModeEnabled`, `passcodeCompliant`, `passcodeCompliantWithProfile`, `passcodeLockGracePeriodEnforcedSeconds`,\n`passcodePresent`, `returnToServiceEnabled`, `carrierSettingsVersion`, `currentCarrierNetwork`,\n`currentMobileCountryCode`, `currentMobileNetworkCode`, `dataRoamingEnabled`, `eid`,\n`network`, `homeMobileCountryCode`, `homeMobileNetworkCode`, `iccid`,\n`imei`, `imei2`, `meid`, `personalHotspotEnabled`,\n`roaming`, `lastLoggedInUsernameSelfService`, `lastLoggedInUsernameSelfServiceTimestamp`, `lastLoggedInUsernameMdm`, `lastLoggedInUsernameMdmTimestamp`,\n`groupId`, `groupName`\n\nThis param can be combined with paging and sorting.\nExample: `filter=displayName==\"iPad\"`\n",
             "explode": true,
             "in": "query",
             "name": "filter",
@@ -60996,7 +61428,7 @@
     },
     "/v2/oidc/dispatch": {
       "post": {
-        "description": "Provide the url to redirect for OIDC login based on email\n\nReplaces `POST /v1/oidc/dispatch`. The response schema is `OidcLoginDispatchResponseV2`, which returns an `idpRedirects` array of per-IdP objects; the `OidcLoginDispatchResponse` schema of the replaced operation returned a single top-level `redirectUrl` string.",
+        "description": "Provide the url to redirect for OIDC login based on email",
         "parameters": [
           {
             "$ref": "#/components/parameters/X-Tenant-Id"
@@ -62297,7 +62729,7 @@
     },
     "/v3/account-preferences": {
       "get": {
-        "description": "Get Jamf Pro account preferences\n\nReplaces `GET /v2/account-preferences`. The response schema is `AccountPreferencesV6`, which omits the `computerFontSearchMethod` and `computerPluginSearchMethod` fields carried by the `AccountPreferencesV5` schema of the replaced operation.\n",
+        "description": "Get Jamf Pro account preferences\n",
         "parameters": [
           {
             "$ref": "#/components/parameters/X-Tenant-Id"
@@ -62339,7 +62771,7 @@
         ]
       },
       "patch": {
-        "description": "Update Jamf Pro account preferences\n\nReplaces `PATCH /v2/account-preferences`. This operation responds `204 No Content` with an empty body; the replaced operation responded `200` with the updated preferences, so a client that reads the response body must fetch it separately.\n",
+        "description": "Update Jamf Pro account preferences\n",
         "parameters": [
           {
             "$ref": "#/components/parameters/X-Tenant-Id"
@@ -67701,6 +68133,132 @@
         ]
       }
     },
+    "/v3/sso/oidc-broker-config": {
+      "get": {
+        "description": "Returns the tenant's currently selected OIDC broker configuration from the remote\nauthentication service. Secret fields are never included in the response.\n\n\n**Required Permissions:** `sso-settings:read`",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/X-Tenant-Id"
+          },
+          {
+            "$ref": "#/components/parameters/X-Environment-Id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OidcBrokerConfig"
+                }
+              }
+            },
+            "description": "The broker configuration for this tenant."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Not Found. Either no broker configuration is selected for this tenant, or the configuration could not be read because a prerequisite is unavailable — the OIDC identity provider configuration feature is disabled, or machine-to-machine credentials are not configured."
+          }
+        },
+        "security": [
+          {
+            "oauth2": [
+              "sso-settings:read"
+            ]
+          }
+        ],
+        "summary": "Get the OIDC broker configuration\n",
+        "tags": [
+          "sso-settings"
+        ],
+        "x-required-privileges": [
+          "sso-settings:read"
+        ],
+        "x-required-privileges-legacy": [
+          "Read SSO Settings"
+        ]
+      },
+      "put": {
+        "description": "Full-replacement update of the tenant's selected broker configuration's contents on the\nremote authentication service. Omit clientSecret/privateKeyJwt to keep the currently\nstored value; supply either to rotate it — except when this request changes\nclientAuthMethod, which requires the new method's credential to be supplied, because the\nauthentication service clears the credential belonging to the method being left. The\nconfiguration is always written as an ADMIN_SSO capability, CONFIDENTIAL client; neither\nvalue is settable through this request.\n\n\n**Required Permissions:** `sso-settings:update`",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/X-Tenant-Id"
+          },
+          {
+            "$ref": "#/components/parameters/X-Environment-Id"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OidcBrokerConfigUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "The broker configuration was updated."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Bad Request. No broker configuration UUID is stored for this tenant; the request changes clientAuthMethod without supplying the credential the new method requires; a required field is missing or invalid; or the authentication service rejected the submitted configuration."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Not Found. The authentication service no longer holds the broker configuration stored for this tenant."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Service Unavailable. The update could not be attempted or completed — either a prerequisite is unavailable (the OIDC identity provider configuration feature is disabled, or machine-to-machine credentials are not configured) or the authentication service could not be reached."
+          }
+        },
+        "security": [
+          {
+            "oauth2": [
+              "sso-settings:update"
+            ]
+          }
+        ],
+        "summary": "Update the OIDC broker configuration\n",
+        "tags": [
+          "sso-settings"
+        ],
+        "x-jamf-expected-status": 204,
+        "x-required-privileges": [
+          "sso-settings:update"
+        ],
+        "x-required-privileges-legacy": [
+          "Update SSO Settings"
+        ]
+      }
+    },
     "/v4/computers-inventory": {
       "get": {
         "description": "Return paginated Computer Inventory records\n\n**Required Permissions:** `devices:read`",
@@ -67753,7 +68311,7 @@
             "style": "form"
           },
           {
-            "description": "Query in the RSQL format, allowing to filter computer inventory collection.\nDefault filter is empty query - returning all results for the requested page.\n\nFields allowed in the query: `general.name`, `udid`, `id`, `general.assetTag`, `general.barcode1`, `general.barcode2`,\n`general.enrolledViaAutomatedDeviceEnrollment`, `general.lastIpAddress`, `general.itunesStoreAccountActive`,\n`general.jamfBinaryVersion`, `general.lastCheckIn`, `general.lastContact`, `general.lastEnrolledDate`, `general.lastCloudBackupDate`,\n`general.reportDate`, `general.lastReportedIp`, `general.lastReportedIpV4`, `general.lastReportedIpV6`, `general.managementId`, `general.remoteManagement.managed`,\n`general.mdmCapable.capable`, `general.mdmCertificateExpiration`, `general.platform`, `general.supervised`, `general.userApprovedMdm`, `general.declarativeDeviceManagementEnabled`,\n`general.lastLoggedInUsernameSelfService`, `general.lastLoggedInUsernameSelfServiceTimestamp`,\n`general.lastLoggedInUsernameBinary`, `general.lastLoggedInUsernameBinaryTimestamp`,\n`general.lastLoggedInUsernameMdm`, `general.lastLoggedInUsernameMdmTimestamp`,\n`hardware.bleCapable`, `hardware.macAddress`, `hardware.make`, `hardware.model`, `hardware.modelIdentifier`, `hardware.serialNumber`,\n`hardware.supportsIosAppInstalls`,`hardware.appleSilicon`, `operatingSystem.activeDirectoryStatus`, `operatingSystem.fileVault2Status`,\n`operatingSystem.build`, `operatingSystem.supplementalBuildVersion`, `operatingSystem.rapidSecurityResponse`, `operatingSystem.name`, `operatingSystem.version`, `security.activationLockEnabled`,\n`security.recoveryLockEnabled`,`security.firewallEnabled`,`userAndLocation.buildingId`, `userAndLocation.departmentId`, `userAndLocation.email`, `userAndLocation.realname`,\n`userAndLocation.phone`, `userAndLocation.position`,`userAndLocation.room`, `userAndLocation.username`, `diskEncryption.fileVault2Enabled`,\n`purchasing.appleCareId`, `purchasing.lifeExpectancy`, `purchasing.purchased`, `purchasing.leased`, `purchasing.vendor`, `purchasing.warrantyDate`,\n\nThis param can be combined with paging and sorting.\nExample: `filter=general.name==\"Orchard\"`\n",
+            "description": "Query in the RSQL format, allowing to filter computer inventory collection.\nDefault filter is empty query - returning all results for the requested page.\n\nFields allowed in the query: `general.name`, `udid`, `id`, `general.assetTag`, `general.awaitingConfiguration`, `general.barcode1`, `general.barcode2`,\n`general.enrolledViaAutomatedDeviceEnrollment`, `general.lastIpAddress`, `general.itunesStoreAccountActive`,\n`general.jamfBinaryVersion`, `general.lastCheckIn`, `general.lastContact`, `general.lastEnrolledDate`, `general.lastCloudBackupDate`,\n`general.reportDate`, `general.lastReportedIp`, `general.lastReportedIpV4`, `general.lastReportedIpV6`, `general.managementId`, `general.remoteManagement.managed`,\n`general.mdmCapable.capable`, `general.mdmCertificateExpiration`, `general.platform`, `general.supervised`, `general.userApprovedMdm`, `general.declarativeDeviceManagementEnabled`,\n`general.lastLoggedInUsernameSelfService`, `general.lastLoggedInUsernameSelfServiceTimestamp`,\n`general.lastLoggedInUsernameBinary`, `general.lastLoggedInUsernameBinaryTimestamp`,\n`general.lastLoggedInUsernameMdm`, `general.lastLoggedInUsernameMdmTimestamp`,\n`hardware.bleCapable`, `hardware.macAddress`, `hardware.make`, `hardware.model`, `hardware.modelIdentifier`, `hardware.serialNumber`,\n`hardware.supportsIosAppInstalls`,`hardware.appleSilicon`, `operatingSystem.activeDirectoryStatus`, `operatingSystem.fileVault2Status`,\n`operatingSystem.build`, `operatingSystem.supplementalBuildVersion`, `operatingSystem.rapidSecurityResponse`, `operatingSystem.name`, `operatingSystem.version`, `security.activationLockEnabled`,\n`security.lockdownModeEnabled`, `security.recoveryLockEnabled`,`security.firewallEnabled`,`userAndLocation.buildingId`, `userAndLocation.departmentId`, `userAndLocation.email`, `userAndLocation.realname`,\n`userAndLocation.phone`, `userAndLocation.position`,`userAndLocation.room`, `userAndLocation.username`, `diskEncryption.fileVault2Enabled`,\n`purchasing.appleCareId`, `purchasing.lifeExpectancy`, `purchasing.purchased`, `purchasing.leased`, `purchasing.vendor`, `purchasing.warrantyDate`,\n\nThis param can be combined with paging and sorting.\nExample: `filter=general.name==\"Orchard\"`\n",
             "explode": true,
             "in": "query",
             "name": "filter",

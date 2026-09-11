@@ -2943,6 +2943,15 @@
           "name": "DownloadSsoMetadataV3"
         },
         {
+          "op": "GET /v3/sso/oidc-broker-config",
+          "name": "GetSsoOidcBrokerConfigV3"
+        },
+        {
+          "op": "PUT /v3/sso/oidc-broker-config",
+          "name": "UpdateSsoOidcBrokerConfigV3",
+          "expectedStatus": 204
+        },
+        {
           "op": "GET /v1/cloud-distribution-point",
           "name": "GetCloudDistributionPointV1"
         },
@@ -4168,6 +4177,11 @@
         {
           "op": "GET /v1/notifications",
           "name": "ListNotificationsV1"
+        },
+        {
+          "op": "DELETE /v1/notifications",
+          "name": "DismissAllNotificationsV1",
+          "expectedStatus": 204
         },
         {
           "op": "DELETE /v1/notifications/{type}/{id}",
