@@ -416,7 +416,9 @@ that fails when the block lifts (`acc_pro_gateway_and_hosted_limits_test.go`):
 - `GET /v1/dss-declarations/{declarationId}`. Declared with `declarations:read`,
   and the credential holds it — the two `ddmreport` operations requiring the same
   string (`ListDeclarationReportClients`, `GetDeviceDeclarationReport`) both
-  answer 200 for it.
+  answer 200 for it. **Superseded 2026-09-11: this one is now routed and 500s
+  unconditionally** — see "`GET /v1/dss-declarations/{declarationId}` is routed
+  now" below. The other three refusals below still stand.
 - `POST /v1/jamf-pro-server-url/history`, while **GET on the same path is routed
   and answers 200** — a method-level gap. Declared with `jss-url:update`, and the
   credential holds it: `PUT /pro/v1/jamf-pro-server-url` reaches Jamf Pro and
@@ -1188,15 +1190,14 @@ the same invocation as the refusals. So the two-path form of the classification
 is decisive here and a second credential was not needed: the same token passes
 the capability check on a neighbouring path.
 
-**`jamf/authorization-policies` explains it and the fix is in flight.** `main`
-at `1450318` carries no allow rule for any of the three:
-`jamf_pro_dismiss_notifications.rego` matches only
-`["api","pro","v1","notifications",type,id]`, and `jamf_pro_sso_settings.rego`
+**The gateway's authorization policy explains it and the fix is in flight.**
+Its `main` carries no allow rule for any of the three. The Pro
+dismiss-notifications policy matches only
+`["api","pro","v1","notifications",type,id]`, and the Pro SSO-settings policy
 has a rule for every other `/v3/sso/*` sibling (`dependencies`, `disable`,
-`history`, `metadata/download`) but not `oidc-broker-config`. **PR #283**
-("API-396: Add authz rules for three new jpapi 11.32 endpoints", open,
-2026-09-10) adds exactly those three and states the same reading in its own
-body — "without these rules the endpoints publish in docs but 403 for every
+`history`, `metadata/download`) but not `oidc-broker-config`. A policy change
+opened 2026-09-10 adds exactly those three and states the same reading in its
+own body — "without these rules the endpoints publish in docs but 403 for every
 caller". So this is a known gap awaiting a merge and a bundle deploy, not a
 disagreement.
 
@@ -1304,6 +1305,49 @@ deleted the property and left its name in the parent's `required` list, so
 not declare — an invalid spec handed to consumers. It now prunes `required` too,
 pinned by `TestApplyPropertyRemovalsAlsoDropsTheRequiredEntry`. There was no
 test for that function at all before this.
+
+### `GET /v1/dss-declarations/{declarationId}` is routed now, and broken for every identifier (2026-09-11)
+
+Recorded here since 2026-08-31 as **unrouted at the gateway** — 403
+`BAD_PERMISSIONS`, the compact gateway form. It has moved layers. Probed
+2026-09-11 under environment scope on `eu`, six times across three identifier
+shapes, with two controls in the same invocation:
+
+```
+control  GET /pro/v1/jamf-pro-version                        -> 200  {"version":"11.31.1-…"}
+control  GET /pro/v1/zzz-not-a-real-endpoint                 -> 403  compact {"errors":[{"code":"BAD_PERMISSIONS"…
+         GET /pro/v1/dss-declarations/00000000-…-000000000000             -> 500  (3/3)
+         GET /pro/v1/dss-declarations/not-a-uuid                          -> 500
+         GET /pro/v1/dss-declarations/Blueprint_25859abd-…_s1_c1_sys_act1  -> 500  (2/2)
+
+every 500 byte-identical:
+{
+  "httpStatus" : 500,
+  "errors" : [ ]
+}
+```
+
+The body is **pretty-printed**, which is Jamf Pro's format and not the
+gateway's — the discriminator recorded above. So the gateway routes the path and
+the service behind it faults.
+
+**The identifier is not the cause.** The last probe uses a live declaration
+identifier taken from `GET /ddm/report/v1/devices/{id}/declarations?filter=active==true`,
+and `GET /ddm/report/v1/declarations/{that identifier}/devices` answers **200
+with 3 devices** in the same invocation. So a real, resolvable declaration gets
+the same empty-`errors` 500 as a nonexistent one: the endpoint is
+unconditionally broken, exactly like `GET /proclassic/patches/name/{name}`.
+Report upstream.
+
+**The pin was skipping past this, and that is the lesson.**
+`TestAcceptance_Pro_DssDeclarationsUnroutedAtGateway` called
+`skipOnServerError` before its `gatewayUnrouted` check, so from the day the
+routing landed it reported SKIP rather than a changed refusal — the failure mode
+CLAUDE.md names, of applying the transient-5xx convention to a permanent one.
+Renamed `TestAcceptance_Pro_DssDeclarationsBrokenForEveryIdentifier`, it now
+asserts the 500, and fails both when the endpoint starts working and if it
+returns to `BAD_PERMISSIONS` (which would be an un-routing, a different
+regression with a different owner).
 
 ### Self Service categories: `display_in` is what stores them, and only the mobile profile hides it (2026-09-07)
 
@@ -1623,6 +1667,90 @@ value; `protect` and `PROTECT` both answer 200. The spec constrains the param to
 no enum, so the vocabulary is wire-only.
 
 ---
+
+## Blueprints (`blueprints`) — environment scope
+
+### Blueprints do not support sites; sites reach the platform as *divisions* (2026-09-11)
+
+Probed under environment scope on `eu`, on a tenant that has one Jamf Pro site
+(`{"id":"1","divisionId":"e9529a6b-4077-41fc-800b-e019865edce8","name":"AGATA"}`
+from `GET /pro/v1/sites`), so divisions exist there.
+
+**No site or division field exists on the blueprints API, in either direction.**
+`CreateScope` and `BlueprintScope` carry `deviceGroups` and nothing else, and
+all 23 blueprints on the tenant returned exactly the declared key set — list,
+detail, `report` and both `blueprint-components` reads included, with no
+undeclared key anywhere.
+
+**A 201 proves nothing here, because the create ignores unknown fields.**
+`POST /blueprints/v1/blueprints` with `{"totallyBogusField":"x"}` answers 400
+naming only the three missing required fields, so Jackson is lenient and every
+guessed spelling is silently dropped. One create carrying `siteId`, `sites`,
+`site{id,name}` at the top level *and* inside `scope`, plus a second round of
+`siteIds`, `siteIdentifier`, `siteName`, `jamfProSiteId`, `siteScope`, all
+read back absent. **The read-back is the only oracle** — do not read an
+accepted body as support for a field.
+
+The spec agrees and is not merely lagging: `external/blueprints` is
+**byte-identical from v2082 through v2176**, and no Platform spec in
+`external/`, `internal/stage` or `internal/dev` contains the string `site`.
+
+**Divisions are the real mechanism, and the API refuses to touch them.** The
+blueprints spec documents them in prose only — no schema property, so the
+SDK cannot even express one:
+
+```
+PATCH {"divisionId":"e9529a6b-…"}  -> 400 [DIVISION_ASSIGNMENT_NOT_ALLOWED] divisionId:
+                                          "Field 'divisionId' cannot be set through the public API for blueprint '…'."
+PATCH {"divisionId":null}          -> 400 identical — matches the spec's "whether it carries a value or `null`"
+PATCH {"description":"…"}          -> 400 Size steps (the ordinary body validation), so the division check runs FIRST
+POST  {…,"divisionId":"e9529a6b-…"} -> 201, silently ignored
+```
+
+The POST asymmetry is worth reporting: PATCH refuses loudly, POST swallows it,
+and the POST description says nothing about divisions. That the create really
+did *not* assign is established by oracle rather than by reading: a follow-up
+patch to that blueprint answers the ordinary `400 Size steps`, not the
+`409 DIVISION_PATCH_NOT_ALLOWED` the spec declares for an assigned blueprint.
+That 409 remains untested — the tenant has no division-assigned blueprint, and
+one cannot be created through this API.
+
+### A blueprint created with no steps can never be patched (2026-09-11)
+
+`CreateBlueprintRequest.steps` declares `minItems: 0` and the create accepts
+`[]`. `PATCH` is `application/merge-patch+json`, the server validates the
+**merged** entity, and it enforces `steps` size 1..100 on the result — so a
+blueprint stored with no steps rejects every patch, including one that never
+mentions steps:
+
+```
+POST   {…,"steps":[]}                                   -> 201
+PATCH  {"description":"merge-patch works"}              -> 400 Size steps: "size must be between 1 and 100"
+```
+
+Established by contrast, not by reading the message: the identical
+description-only patch against a blueprint created with one
+`com.jamf.ddm.math-settings` step answers **204** and its step survives. So the
+rejection is the stored state. `UpdateBlueprintRequest.steps` declares no
+bounds at all, so the constraint is undeclared on the operation that applies it,
+and `CreateBlueprint` + `UpdateBlueprint` is an unreachable SDK sequence.
+Pinned by `TestAcceptance_Blueprint_EmptyStepsCannotBePatched`. Report upstream.
+
+### The create's `href` names an internal host (2026-09-11)
+
+`POST /blueprints/v1/blueprints` answers `{id, href}` with both `href` and the
+`Location` header pointing at an internal gateway service hostname, on the path
+`/api/blueprints/v1/blueprints/{id}` — so it carries both a host a consumer
+cannot reach and the `/api` prefix the GA gateway does not serve. It is not callable by this SDK or by a consumer. Same defect class as
+App Installers' create href; `CreateResponse.ID` is the usable identifier.
+
+### PATCH requires `application/merge-patch+json`
+
+The spec declares that as the only request content type and the server enforces
+it: `Content-Type: application/json` answers
+`415 UNSUPPORTED_MEDIA_TYPE — "Supported types: [application/merge-patch+json]"`.
+`UpdateBlueprint` already routes through `DoWithContentType` with that value, so
+this is pinned by construction rather than by a test.
 
 ## Jamf Security Cloud (`securitycloud`)
 

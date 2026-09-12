@@ -710,7 +710,7 @@
   "paths": {
     "/v1/policies": {
       "get": {
-        "description": "Returns a paginated list of active AI governance policies for the authenticated\ntenant. schemaDrift indicates whether a policy's draft settings were authored\nagainst an older schema version. hasDraft indicates whether unpublished changes\nexist.\n\n\n**Required Permissions:** `ai-policies:read`",
+        "description": "**Preview endpoint.** Expected to reach general availability by 2027-03-03,\npending feedback on request and response shape.\n\nReturns a paginated list of active AI governance policies for the authenticated\ntenant. schemaDrift indicates whether a policy's draft settings were authored\nagainst an older schema version. hasDraft indicates whether unpublished changes\nexist.\n\n\n**Required Permissions:** `ai-policies:read`",
         "operationId": "listPolicies",
         "parameters": [
           {
@@ -777,7 +777,7 @@
         ]
       },
       "post": {
-        "description": "Validates settings against the vendor JSON Schema, creates a policy with draft\nsettings, and returns the policy ID. The policy starts with hasDraft=true. Call\nPOST /policies/{policyId}/publish to create the first published version.\n\n\n**Required Permissions:** `ai-policies:create`",
+        "description": "**Preview endpoint.** Expected to reach general availability by 2027-03-03,\npending feedback on request and response shape.\n\nValidates settings against the vendor JSON Schema, creates a policy with draft\nsettings, and returns the policy ID. The policy starts with hasDraft=true. Call\nPOST /policies/{policyId}/publish to create the first published version.\n\n\n**Required Permissions:** `ai-policies:create`",
         "operationId": "createPolicy",
         "parameters": [
           {
@@ -847,7 +847,7 @@
     },
     "/v1/policies/{policyId}": {
       "delete": {
-        "description": "Archives the policy. All published versions are retained for audit trail\nintegrity. Returns 409 (POLICY_IN_USE) if one or more Blueprints currently\nreference this policy — remove the policy from all Blueprints before archiving.\n\n\n**Required Permissions:** `ai-policies:delete`",
+        "description": "**Preview endpoint.** Expected to reach general availability by 2027-03-03,\npending feedback on request and response shape.\n\nArchives the policy. All published versions are retained for audit trail\nintegrity. Returns 409 (POLICY_IN_USE) if one or more Blueprints currently\nreference this policy — remove the policy from all Blueprints before archiving.\n\n\n**Required Permissions:** `ai-policies:delete`",
         "operationId": "archivePolicy",
         "parameters": [
           {
@@ -909,7 +909,7 @@
         ]
       },
       "get": {
-        "description": "Returns the policy with its current draft settings. schemaDrift indicates whether\nthe draft was authored against an older schema version. hasDraft indicates whether\nunpublished changes exist.\n\nThe response carries a strong ETag derived from the optimistic-lock version\ncounter (omitted for legacy documents that predate versioning). Pass this value\nback in an If-Match header on PATCH to guard against lost updates.\n\n\n**Required Permissions:** `ai-policies:read`",
+        "description": "**Preview endpoint.** Expected to reach general availability by 2027-03-03,\npending feedback on request and response shape.\n\nReturns the policy with its current draft settings. schemaDrift indicates whether\nthe draft was authored against an older schema version. hasDraft indicates whether\nunpublished changes exist.\n\nThe response carries a strong ETag derived from the optimistic-lock version\ncounter (omitted for legacy documents that predate versioning). Pass this value\nback in an If-Match header on PATCH to guard against lost updates.\n\n\n**Required Permissions:** `ai-policies:read`",
         "operationId": "getPolicy",
         "parameters": [
           {
@@ -970,7 +970,7 @@
         }
       ],
       "patch": {
-        "description": "Validates settings against the vendor schema and updates the draft settings on\nthe policy. Does NOT create a published version. Call POST /policies/{policyId}/publish\nto snapshot the draft into an immutable version.\n\nSupports optimistic concurrency control for concurrent draft edits. Supply the\nETag returned by GET in an If-Match header; if the policy's version has since\nadvanced, the write is rejected with 409 (POLICY_VERSION_CONFLICT) and no changes\nare made. Omit If-Match (or send `*`) for an unconditional update.\n\n\n**Required Permissions:** `ai-policies:update`",
+        "description": "**Preview endpoint.** Expected to reach general availability by 2027-03-03,\npending feedback on request and response shape.\n\nValidates settings against the vendor schema and updates the draft settings on\nthe policy. Does NOT create a published version. Call POST /policies/{policyId}/publish\nto snapshot the draft into an immutable version.\n\nSupports optimistic concurrency control for concurrent draft edits. Supply the\nETag returned by GET in an If-Match header; if the policy's version has since\nadvanced, the write is rejected with 409 (POLICY_VERSION_CONFLICT) and no changes\nare made. Omit If-Match (or send `*`) for an unconditional update.\n\n\n**Required Permissions:** `ai-policies:update`",
         "operationId": "updatePolicy",
         "parameters": [
           {
@@ -1043,7 +1043,7 @@
     },
     "/v1/policies/{policyId}/deployment": {
       "get": {
-        "description": "Returns deployment state for all blueprints referencing this policy. The response\ncontains a blueprints array with one entry per matching blueprint. If no blueprint\nreferences the policy, the array is empty. Returns 404 only when the policy ID\nitself does not exist.\n\n\n**Required Permissions:** `ai-policies:read`",
+        "description": "**Preview endpoint.** Expected to reach general availability by 2027-03-03,\npending feedback on request and response shape.\n\nReturns deployment state for all blueprints referencing this policy. The response\ncontains a blueprints array with one entry per matching blueprint. If no blueprint\nreferences the policy, the array is empty. Returns 404 only when the policy ID\nitself does not exist.\n\n\n**Required Permissions:** `ai-policies:read`",
         "operationId": "getPolicyDeployment",
         "parameters": [
           {
@@ -1114,7 +1114,7 @@
         }
       ],
       "post": {
-        "description": "Snapshots the current draft settings into a new immutable PolicyVersion. Returns\n409 if the draft settings match the latest published version (no changes to\npublish). The publish re-validates settings against the vendor schema before\ncreating the version.\n\n\n**Required Permissions:** `ai-policies:update`",
+        "description": "**Preview endpoint.** Expected to reach general availability by 2027-03-03,\npending feedback on request and response shape.\n\nSnapshots the current draft settings into a new immutable PolicyVersion. Returns\n409 if the draft settings match the latest published version (no changes to\npublish). The publish re-validates settings against the vendor schema before\ncreating the version.\n\n\n**Required Permissions:** `ai-policies:update`",
         "operationId": "publishPolicy",
         "parameters": [
           {
@@ -1185,7 +1185,7 @@
     },
     "/v1/policies/{policyId}/versions": {
       "get": {
-        "description": "Returns a paginated list of all published versions for the specified policy.\n\n**Required Permissions:** `ai-policies:read`",
+        "description": "**Preview endpoint.** Expected to reach general availability by 2027-03-03,\npending feedback on request and response shape.\n\nReturns a paginated list of all published versions for the specified policy.\n\n\n**Required Permissions:** `ai-policies:read`",
         "operationId": "listPolicyVersions",
         "parameters": [
           {
@@ -1250,7 +1250,7 @@
     },
     "/v1/policies/{policyId}/versions/{versionNumber}": {
       "get": {
-        "description": "Returns the immutable settings snapshot for a specific published version of the policy.\n\n**Required Permissions:** `ai-policies:read`",
+        "description": "**Preview endpoint.** Expected to reach general availability by 2027-03-03,\npending feedback on request and response shape.\n\nReturns the immutable settings snapshot for a specific published version of the policy.\n\n\n**Required Permissions:** `ai-policies:read`",
         "operationId": "getPolicyVersion",
         "parameters": [
           {
@@ -1319,7 +1319,7 @@
     },
     "/v1/tools": {
       "get": {
-        "description": "Returns metadata for all available vendor tools, including their current schema\nversions. Use this to discover valid toolId values and schema versions when\ncreating or editing policies.\n\n\n**Required Permissions:** `ai-policies:read`",
+        "description": "**Preview endpoint.** Expected to reach general availability by 2027-03-03,\npending feedback on request and response shape.\n\nReturns metadata for all available vendor tools, including their current schema\nversions. Use this to discover valid toolId values and schema versions when\ncreating or editing policies.\n\n\n**Required Permissions:** `ai-policies:read`",
         "operationId": "listTools",
         "parameters": [
           {
@@ -1367,7 +1367,7 @@
     },
     "/v1/tools/{toolId}": {
       "get": {
-        "description": "Returns tool metadata including the current schema version and list of all\navailable schema versions. Returns 404 if the toolId is not known.\n\n\n**Required Permissions:** `ai-policies:read`",
+        "description": "**Preview endpoint.** Expected to reach general availability by 2027-03-03,\npending feedback on request and response shape.\n\nReturns tool metadata including the current schema version and list of all\navailable schema versions. Returns 404 if the toolId is not known.\n\n\n**Required Permissions:** `ai-policies:read`",
         "operationId": "getTool",
         "parameters": [
           {
@@ -1436,7 +1436,7 @@
     },
     "/v1/tools/{toolId}/schemas/{schemaVersion}": {
       "get": {
-        "description": "Returns the JSON Schema for the given tool and schema version pair. Use this\nschema to validate and render settings forms when creating or editing policies.\n\n\n**Required Permissions:** `ai-policies:read`",
+        "description": "**Preview endpoint.** Expected to reach general availability by 2027-03-03,\npending feedback on request and response shape.\n\nReturns the JSON Schema for the given tool and schema version pair. Use this\nschema to validate and render settings forms when creating or editing policies.\n\n\n**Required Permissions:** `ai-policies:read`",
         "operationId": "getToolSchema",
         "parameters": [
           {

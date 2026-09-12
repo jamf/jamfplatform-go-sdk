@@ -14,21 +14,26 @@ import (
 	"github.com/Jamf-Concepts/jamfplatform-go-sdk/jamfplatform/pro"
 )
 
-// Four pro operations that are correct as generated and structurally refused on
-// a Jamf Cloud tenant. Each test pins the *refusal*, and each is written to fail
+// Pro operations that are correct as generated and structurally refused on a
+// Jamf Cloud tenant. Each test pins the *refusal*, and each is written to fail
 // the day it lifts — at which point replace it with the real assertion rather
 // than deleting it.
 //
-// All four were classified on 2026-08-31 against eu.api.jamfcloud.com with a
-// known-good control (GET /pro/v1/jamf-pro-version) in the same invocation.
+// Each was classified against eu.api.jamfcloud.com with a known-good control
+// (GET /pro/v1/jamf-pro-version) in the same invocation, the first four on
+// 2026-08-31 and the v2154 additions on 2026-09-10.
 //
-// The two gateway cases are distinguishable from a privilege denial by response
+// A gateway refusal is distinguishable from a privilege denial by response
 // shape: the gateway emits compact JSON carrying a traceId and
 // errors[].code == BAD_PERMISSIONS, byte-for-byte the same as a deliberately
 // bogus path (GET /pro/v1/zzz-not-a-real-endpoint), whereas Jamf Pro's own
-// responses are pretty-printed. Both were additionally shown *not* to be
-// privilege denials by exercising a different, already-shipping operation that
+// responses are pretty-printed. Each was additionally shown *not* to be a
+// privilege denial by exercising a different, already-shipping operation that
 // requires the same privilege and succeeds — see each test.
+//
+// The refusals are not all at the same layer, and one has moved between them:
+// GET /v1/dss-declarations/{declarationId} was unrouted until 2026-09-04 and is
+// now routed and faulting, so it asserts a 500 rather than a 403.
 
 // gatewayUnrouted reports whether err is the gateway refusing to route a path
 // at all, as opposed to Jamf Pro denying an authenticated request.
@@ -54,26 +59,59 @@ func gatewayUnrouted(t *testing.T, method string, err error) bool {
 	return false
 }
 
-// TestAcceptance_Pro_DssDeclarationsUnroutedAtGateway pins
-// GET /v1/dss-declarations/{declarationId}.
+// TestAcceptance_Pro_DssDeclarationsBrokenForEveryIdentifier pins
+// GET /v1/dss-declarations/{declarationId}, which is now routed and broken.
 //
-// routes.yaml declares it with declarations:read, and this credential holds that
-// privilege — the ddmreport operations that require the same string
-// (ListDeclarationReportClients, GetDeviceDeclarationReport) both answer 200 for
-// it. So the 403 is the path, not the grant.
-func TestAcceptance_Pro_DssDeclarationsUnroutedAtGateway(t *testing.T) {
+// Renamed from ...UnroutedAtGateway on 2026-09-11, because the refusal moved
+// layers. It used to answer the gateway's compact 403 BAD_PERMISSIONS; it now
+// answers Jamf Pro's own pretty-printed 500 with an **empty errors array** —
+// 6/6 across identifiers, with GET /pro/v1/jamf-pro-version at 200 and
+// GET /pro/v1/zzz-not-a-real-endpoint at 403 BAD_PERMISSIONS in the same
+// invocation. So the gateway routes the path and the service behind it faults.
+//
+// The identifier is not the problem: the 500 is identical for a nonexistent
+// UUID, a non-UUID string, and a **live declaration identifier** that
+// GetDeclarationReportClients returns 200 for in the same invocation
+// (Blueprint_25859abd-…_s1_c1_sys_act1, 3 devices). So this is unconditional,
+// exactly like GET /proclassic/patches/name/{name}.
+//
+// It therefore asserts the 500 rather than calling skipOnServerError: that
+// convention is for a transient 5xx and precisely wrong for a permanent one,
+// and a test that skips can never report the fix. The old assertion did skip,
+// which is why the routing change went unnoticed between 2026-09-04 and
+// 2026-09-11.
+func TestAcceptance_Pro_DssDeclarationsBrokenForEveryIdentifier(t *testing.T) {
 	c := accClient(t)
 
-	_, err := pro.New(c).GetDssDeclarationsV1(context.Background(), "00000000-0000-0000-0000-000000000000")
+	got, err := pro.New(c).GetDssDeclarationsV1(context.Background(), "00000000-0000-0000-0000-000000000000")
 	if err == nil {
-		t.Fatal("GetDssDeclarationsV1 now answers — the gateway has started routing " +
-			"GET /pro/v1/dss-declarations/{declarationId}. Replace this test with real coverage: " +
-			"list declarations via the ddmreport package, then assert the returned Declarations payload.")
+		if got == nil {
+			t.Fatal("GetDssDeclarationsV1: nil response with nil error")
+		}
+		t.Fatal("GetDssDeclarationsV1 now answers — the endpoint has been fixed. Replace this " +
+			"assertion with real coverage: list a device's declarations via the ddmreport package, " +
+			"then read one of those identifiers back here and assert the returned payload.")
 	}
-	skipOnServerError(t, err)
-	if !gatewayUnrouted(t, "GetDssDeclarationsV1", err) {
-		t.Fatalf("GetDssDeclarationsV1 failed for an unexpected reason: %v", err)
+
+	apiErr := jamfplatform.AsAPIError(err)
+	if apiErr == nil {
+		t.Fatalf("GetDssDeclarationsV1: non-API error, the request did not reach the gateway: %v", err)
 	}
+	for _, d := range apiErr.Details() {
+		// A return to BAD_PERMISSIONS would mean the gateway had stopped routing
+		// a path it currently routes — a different regression with a different
+		// owner, and worth distinguishing rather than folding into "not 500".
+		if d.Code == "BAD_PERMISSIONS" {
+			t.Fatalf("GetDssDeclarationsV1: back to the gateway's 403 BAD_PERMISSIONS, so the path " +
+				"has been un-routed since it was classified on 2026-09-11 — that is a routing change, " +
+				"not the service fault this test pins")
+		}
+	}
+	if !apiErr.HasStatus(500) {
+		t.Fatalf("GetDssDeclarationsV1: want the recorded unconditional 500, got %d: %s",
+			apiErr.StatusCode, apiErr.Summary())
+	}
+	t.Logf("GetDssDeclarationsV1: 500 as recorded — routed and broken for every identifier (%s)", apiErr.Summary())
 }
 
 // TestAcceptance_Pro_JamfProServerURLHistoryNoteRefusedOnHostedInstance pins
@@ -230,12 +268,12 @@ func TestAcceptance_Pro_SendMacOsManagedSoftwareUpdatesV1SupersededByPlans(t *te
 }
 
 // The three operations v2154 (Jamf Pro API 11.32.0) added are published and
-// unrouted. `jamf/authorization-policies` carried no allow rule for any of them
-// on 2026-09-10 — `jamf_pro_dismiss_notifications.rego` covered only the
-// `{type}/{id}` variant, and `jamf_pro_sso_settings.rego` had a rule for every
-// other `/v3/sso/*` sibling but not `oidc-broker-config` — and PR #283
-// ("API-396: Add authz rules for three new jpapi 11.32 endpoints") is open with
-// that same reading in its own body. So the SDK reaches them and the gateway
+// unrouted. The gateway's authorization policy carried no allow rule for any of
+// them on 2026-09-10 — its Pro dismiss-notifications policy covered only the
+// `{type}/{id}` variant, and its Pro SSO-settings policy had a rule for every
+// other `/v3/sso/*` sibling but not `oidc-broker-config` — and a policy change
+// adding authz rules for the three new 11.32 endpoints is open with that same
+// reading in its own body. So the SDK reaches them and the gateway
 // does not, which the three tests below pin.
 //
 // Wire-classified 2026-09-10 against eu.api.jamfcloud.com under environment

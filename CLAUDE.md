@@ -443,7 +443,7 @@ the executable authority; this is the prose copy, and the two must agree.**
 | `securitycloud-uem-connect-api.yaml` | `external/uem-connect` | **v2082** |
 | `securitycloud-enrollment-api.yaml` | `external/securitycloud-enrollment` | **v2082** |
 | `securitycloud-device-groups-api.yaml` | `external/securitycloud-devices` | **v2082** |
-| `ai-governance-api.yaml` | `external/ai-governance` | **v2121** |
+| `ai-governance-api.yaml` | `external/ai-governance` | **v2176** |
 | `audit-api.yaml` | `external/audit` | **v2082** |
 | `account-licensing-api.yaml` | `external/account-licensing` | v1865 (**held**) |
 | `account-partners-api.yaml` | `external/account-partners` | **v2082** |
@@ -570,7 +570,8 @@ tenant routes reference is present under `environment`.
 
 ### Current position and holds
 
-**Ingested through v2154 (2026-09-10) for seventeen of the nineteen specs**;
+**Ingested through v2176 (2026-09-11) for seventeen of the nineteen specs** —
+v2176 moved `ai-governance` alone, so the other sixteen stand at v2154;
 `account-licensing` and `account-sso` stay **held at v1865**, and their v2154
 deltas are still the one field each their rows name plus the inert `servers`
 region narrowing — so there is nothing new to weigh and the 2026-09-09 re-probe
@@ -582,6 +583,61 @@ manifest, the two unified rollups and `_permissions/routes.yaml`.
 change is an environment rollout; `internal/dev` carries 814 `jpapi` operations
 against `external/`'s 704 and 606 `capi` against 589, so the v1942 publishing
 filter is still in place and still prod-only.
+
+**v2176 (2026-09-11) is `ai-governance` and nothing else, and the change is one
+sentence repeated twelve times.** Every other file in `external/` and
+`internal/stage` is byte-identical to v2154 — `_permissions/{routes,scopes}.yaml`
+included, `jpapi` and `capi` included — so the only other diffs in the archive
+are the manifest and the two unified rollups, whose counts did not move (837
+paths, 1314 schemas). All 22 `internal/dev` specs report as changed and that is
+the `x-generated` block alone: stripping it leaves every one except
+`ai-governance` semantically identical to v2154.
+
+The whole delta is a **`**Preview endpoint.** Expected to reach general
+availability by 2027-03-03, pending feedback on request and response shape.`
+paragraph prepended to all twelve operation `description`s. Structurally it is
+nil: zero paths, zero schemas, and a prose-stripped comparison of every schema
+and every operation is empty. `internal/stage` and `internal/dev` took the
+identical text, so this is not an environment rollout.
+
+**Generated impact: 12 lines of `api/ai_governance_policies_api.json` and zero
+Go**, because method comments come from the operation `summary` and never its
+`description` — the same reason v2005's rewritten `updateSyncSettings` text
+landed on no method. There is nothing on the wire to probe in a GA-date claim,
+so the check that mattered was the v1439 one — that a cosmetic diff is not a
+quiet build — and the ai-governance read lane passes unchanged: 3 tools, 2
+policies, all twelve read rejections with their recorded codes, and the
+`GetPolicyDeployment` blueprint-reference defect still reporting 0 for two
+policies two blueprints actually reference.
+
+**Two out-of-band wire findings came out of the same session, neither from the
+bundle.** Both are recorded with payloads in `docs/WIRE-FACTS.md`:
+
+- **`GET /pro/v1/dss-declarations/{declarationId}` is routed now and 500s for
+  every identifier**, including a live declaration identifier `ddm/report`
+  resolves at 200 in the same invocation. It has been recorded as *unrouted*
+  since 2026-08-31, and the pin had been **skipping** past the change since it
+  landed, because `skipOnServerError` ran before the routing check. The test is
+  renamed `TestAcceptance_Pro_DssDeclarationsBrokenForEveryIdentifier` and now
+  asserts the 500 — and separately fails if it ever returns to
+  `BAD_PERMISSIONS`, which would be an un-routing rather than this fault.
+  Evidence:
+  [WIRE-FACTS.md](docs/WIRE-FACTS.md#get-v1dss-declarationsdeclarationid-is-routed-now-and-broken-for-every-identifier-2026-09-11).
+- **Blueprints do not support sites, and the answer is not "not yet".** No site
+  or division field exists on the API in either direction, the spec is
+  byte-identical v2082 → v2176 in all three environments, and no Platform spec
+  mentions sites at all. A Jamf Pro site reaches the platform as a **division**
+  (`Site.divisionId`, `AuthToken.currentDivisionId`), and blueprints refuse to
+  touch one: `PATCH` with `divisionId` is `400 DIVISION_ASSIGNMENT_NOT_ALLOWED`
+  for a value and for `null` alike, checked *before* body validation, while
+  `POST` silently ignores it. The trap for anyone probing this is that the
+  create ignores unknown fields entirely, so **a 201 is not evidence and the
+  read-back is the only oracle**. Same session established that a blueprint
+  created with `steps: []` — which the create explicitly allows — can never be
+  patched, since merge-patch validates the merged entity against an undeclared
+  `steps` minimum of 1; `TestAcceptance_Blueprint_EmptyStepsCannotBePatched`
+  pins it. Both, plus the create `href` naming an internal tyk host:
+  [WIRE-FACTS.md](docs/WIRE-FACTS.md#blueprints-blueprints--environment-scope).
 
 **v2137 (2026-09-10) is a pure pipeline re-run and was not ingested — the
 fourth recorded no-op build.** Every per-family spec in `external/` and
@@ -607,11 +663,10 @@ answers 200 and the routed item-level
 answers 204 — so a sibling path settled the classification and a second
 credential was not needed.
 
-**`jamf/authorization-policies` explains it and the fix is open.** `main` at
-`1450318` has no rule for any of the three, and **PR #283** ("API-396: Add authz
-rules for three new jpapi 11.32 endpoints", opened 2026-09-10) adds exactly
-those three, its own body stating that without them "the endpoints publish in
-docs but 403 for every caller". So this is a known gap awaiting a merge and a
+**The gateway's authorization policy explains it and the fix is open.** Its
+`main` has no rule for any of the three, and a policy change opened 2026-09-10
+adds exactly those three, its own body stating that without them "the endpoints
+publish in docs but 403 for every caller". So this is a known gap awaiting a merge and a
 deploy, not a spec/wire disagreement. Both pinning tests fail the day it lands
 and each names the coverage to write in its place. Evidence:
 [WIRE-FACTS.md](docs/WIRE-FACTS.md#v2154s-three-new-jpapi-operations-are-published-and-unrouted-2026-09-10).
@@ -1744,7 +1799,7 @@ Layer-by-layer diagnosis of a refusal, per-package findings and the full evidenc
 | `blueprints`, `compliancebenchmarks`, `ddmreport` | as named | **environment** | v2082 declares all three environment-only. `ddmreport` still answers under tenant scope and is pinned; `blueprints` and `compliancebenchmarks` refuse a tenant credential with `403 BAD_PERMISSIONS`, unclassifiable against one credential but agreeing with the GA env-only decision, so deliberately unpinned |
 | `securitycloud` | `securitycloud` | tenant (own identifier) **or** environment (both declared as of v2082) | 52 ops across six specs — every spec at v2082 as of 2026-09-04, the `securitycloud-devices` hold having lifted and taken `GET /v1/groups` and `PUT /v1/groups/{groupId}` with it |
 | `account` | `licensing`, `partners`, `sso` | **organization** | three specs, one package — one Jamf product behind one api-product. **US only.** The only package whose privileges come from `requiredPrivileges` rather than the spec |
-| `aigovernance` | `ai/governance/policies` | environment | slashes; the spec's hyphens were corrected upstream at v1877 |
+| `aigovernance` | `ai/governance/policies` | environment | slashes; the spec's hyphens were corrected upstream at v1877. **All 12 operations declare themselves Preview as of v2176**, GA expected 2027-03-03, "pending feedback on request and response shape" — so treat request and response shapes here as less settled than elsewhere |
 | `audit` | `audit` | environment (**only**, as of v2056) | **reachable as of 2026-09-03** — a credential granted `audit:read` under `X-Environment-Id` reads it; 1014 events walked. `ListAuditEvents` needs `since` **and** one of `actor`/`audit-source`/`audit-type`/`resource-id`, neither expressed in the signature |
 
 `account` is the documented exception to package-follows-namespace. It is also the
