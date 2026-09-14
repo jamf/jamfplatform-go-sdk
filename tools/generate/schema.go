@@ -285,7 +285,16 @@ func applyPropertyRenames(doc *openapi3.T, renames map[string]map[string]string)
 	for schemaName, paths := range renames {
 		ref, ok := doc.Components.Schemas[schemaName]
 		if !ok || ref == nil || ref.Value == nil {
-			continue
+			// Panics rather than skipping, for the reason applyEnumAdditions
+			// panics on the same condition: an entry naming a schema the spec
+			// no longer publishes is a repair nobody applies, and a silent
+			// skip turns a config typo or an upstream schema rename into a
+			// whole no-op entry with no error and no failing test. Every other
+			// staleness condition in this function already panics — a missing
+			// intermediate path segment, a missing leaf property — so this was
+			// the one hole in the self-expiry these repairs are supposed to
+			// have.
+			panic(fmt.Sprintf("propertyRenames[%q]: no such component schema — delete or retarget the entry", schemaName))
 		}
 		for path, newKey := range paths {
 			parent, leaf, ok := walkPropertyPath(ref.Value, path)
@@ -295,6 +304,17 @@ func applyPropertyRenames(doc *openapi3.T, renames map[string]map[string]string)
 			cur, exists := parent.Properties[leaf]
 			if !exists {
 				panic(fmt.Sprintf("propertyRenames[%q]: property %q missing at path %q", schemaName, leaf, path))
+			}
+			// The old key's absence is only half the expiry. A spec that
+			// declares BOTH names — the plausible transitional step upstream
+			// takes when it renames a property, and this very property has
+			// already been renamed twice (authZeroRegion → authRegion → the
+			// wire's region) — would otherwise have its real newKey schema
+			// silently clobbered by the stale one, with renameKeyInExamples
+			// then rewriting the genuine examples to match. The old key is
+			// still present in that case, so nothing else here would fire.
+			if _, collides := parent.Properties[newKey]; collides {
+				panic(fmt.Sprintf("propertyRenames[%q]: the spec now declares both %q and %q at path %q — delete the entry so the upstream declaration is the only source", schemaName, leaf, newKey, path))
 			}
 			delete(parent.Properties, leaf)
 			parent.Properties[newKey] = cur
@@ -327,7 +347,11 @@ func applyPropertyRenames(doc *openapi3.T, renames map[string]map[string]string)
 
 // renameKeyInExamples rewrites one renamed property key inside the spec's own
 // examples, which applyPropertyRenames cannot reach by walking schemas: an
-// example is free-form JSON hanging off a media type, not a property.
+// example is free-form JSON, not a property, and the document hangs one off a
+// media type, a media type's own schema, any nested schema, a parameter, a
+// response header, a link and a callback's path items — so the walk below has
+// to visit all of them. Missing one is silent: the example keeps the stale key
+// and generation succeeds.
 //
 // It is shape-guarded rather than a blind key rewrite, because a property name
 // is not unique across a spec — Classic renames `categories`, `users` and
@@ -365,6 +389,40 @@ func renameKeyInExamples(doc *openapi3.T, allowed map[string]bool, oldKey, newKe
 		}
 	}
 
+	// A schema's own `example` can sit at any depth — on a property, on an
+	// array's items, on a merged allOf branch — not only on the component
+	// schema's root. api/pro_api.json alone carries 2802 nested property
+	// examples against 0 root ones, so scanning only the root missed the
+	// commonest shape there is. Cycle-guarded by SchemaRef identity: the
+	// carried specs self-reference (a tree node whose child items $ref their
+	// own parent), and kin-openapi resolves a $ref to the shared Value, so an
+	// unguarded walk does not terminate.
+	scannedSchemas := make(map[*openapi3.SchemaRef]bool)
+	var scanSchema func(ref *openapi3.SchemaRef)
+	scanSchema = func(ref *openapi3.SchemaRef) {
+		if ref == nil || ref.Value == nil || scannedSchemas[ref] {
+			return
+		}
+		scannedSchemas[ref] = true
+		scan(ref.Value.Example)
+		scan(ref.Value.Examples) // OpenAPI 3.1's plural form
+		for _, prop := range ref.Value.Properties {
+			scanSchema(prop)
+		}
+		scanSchema(ref.Value.Items)
+		scanSchema(ref.Value.AdditionalProperties.Schema)
+		scanSchema(ref.Value.Not)
+		for _, sub := range ref.Value.AllOf {
+			scanSchema(sub)
+		}
+		for _, sub := range ref.Value.AnyOf {
+			scanSchema(sub)
+		}
+		for _, sub := range ref.Value.OneOf {
+			scanSchema(sub)
+		}
+	}
+
 	scanContent := func(c openapi3.Content) {
 		for _, mt := range c {
 			if mt == nil {
@@ -376,20 +434,48 @@ func renameKeyInExamples(doc *openapi3.T, allowed map[string]bool, oldKey, newKe
 					scan(ex.Value.Value)
 				}
 			}
+			// The JSON-Schema-level `example` on the media type's own schema
+			// object, which is a third location beside the two above and live
+			// in the carried specs (17 in api/pro_api.json). Reached through
+			// scanSchema so a nested one is caught too, and deduped against
+			// the Components.Schemas sweep below, which walks the same shared
+			// Value when the media type is a $ref.
+			scanSchema(mt.Schema)
 		}
+	}
+	// Header and Parameter are the same object in OpenAPI — kin-openapi models
+	// Header as an embedded Parameter — so both carry the same
+	// Example/Examples/Content trio and both are scanned through here.
+	scanParameter := func(pv *openapi3.Parameter) {
+		if pv == nil {
+			return
+		}
+		scan(pv.Example)
+		for _, ex := range pv.Examples {
+			if ex != nil && ex.Value != nil {
+				scan(ex.Value.Value)
+			}
+		}
+		scanContent(pv.Content)
+		scanSchema(pv.Schema)
 	}
 	scanParams := func(ps openapi3.Parameters) {
 		for _, pr := range ps {
 			if pr == nil || pr.Value == nil {
 				continue
 			}
-			scan(pr.Value.Example)
-			for _, ex := range pr.Value.Examples {
-				if ex != nil && ex.Value != nil {
-					scan(ex.Value.Value)
-				}
+			scanParameter(pr.Value)
+		}
+	}
+	// Response headers are live example carriers in the carried specs — 15 in
+	// api/ai_governance_policies_api.json, 16 in api/securitycloud_dns_api.json
+	// — and scanning only a response's Content left every one of them behind.
+	scanHeaders := func(hs openapi3.Headers) {
+		for _, h := range hs {
+			if h == nil || h.Value == nil {
+				continue
 			}
-			scanContent(pr.Value.Content)
+			scanParameter(&h.Value.Parameter)
 		}
 	}
 	scanResponses := func(rs *openapi3.Responses) {
@@ -401,40 +487,38 @@ func renameKeyInExamples(doc *openapi3.T, allowed map[string]bool, oldKey, newKe
 				continue
 			}
 			scanContent(r.Value.Content)
+			scanHeaders(r.Value.Headers)
+		}
+	}
+	// A link's `parameters` map and `requestBody` are free-form JSON the same
+	// way an example is, and are published verbatim, so a stale key in one is
+	// the same self-inconsistency.
+	scanLinks := func(ls openapi3.Links) {
+		for _, l := range ls {
+			if l == nil || l.Value == nil {
+				continue
+			}
+			for _, v := range l.Value.Parameters {
+				scan(v)
+			}
+			scan(l.Value.RequestBody)
 		}
 	}
 
-	if doc.Components != nil {
-		for _, ex := range doc.Components.Examples {
-			if ex != nil && ex.Value != nil {
-				scan(ex.Value.Value)
-			}
+	// Callbacks nest whole path items, so the path sweep and the callback
+	// sweep share one walker. Guarded by PathItem identity rather than
+	// recursion depth because a callback's path item may carry callbacks of
+	// its own, in principle back to one already visited.
+	scannedItems := make(map[*openapi3.PathItem]bool)
+	// scanCallbacks is forward-declared because the two are mutually
+	// recursive: a path item's operations carry callbacks, and a callback
+	// carries path items.
+	var scanCallbacks func(cs openapi3.Callbacks)
+	scanPathItem := func(item *openapi3.PathItem) {
+		if item == nil || scannedItems[item] {
+			return
 		}
-		for _, sr := range doc.Components.Schemas {
-			if sr != nil && sr.Value != nil {
-				scan(sr.Value.Example)
-			}
-		}
-		for _, rb := range doc.Components.RequestBodies {
-			if rb != nil && rb.Value != nil {
-				scanContent(rb.Value.Content)
-			}
-		}
-		for _, r := range doc.Components.Responses {
-			if r != nil && r.Value != nil {
-				scanContent(r.Value.Content)
-			}
-		}
-		scanParams(slices.Collect(maps.Values(doc.Components.Parameters)))
-	}
-	if doc.Paths == nil {
-		return
-	}
-	for _, path := range doc.Paths.InMatchingOrder() {
-		item := doc.Paths.Find(path)
-		if item == nil {
-			continue
-		}
+		scannedItems[item] = true
 		scanParams(item.Parameters)
 		for _, op := range item.Operations() {
 			if op == nil {
@@ -445,7 +529,50 @@ func renameKeyInExamples(doc *openapi3.T, allowed map[string]bool, oldKey, newKe
 				scanContent(op.RequestBody.Value.Content)
 			}
 			scanResponses(op.Responses)
+			scanCallbacks(op.Callbacks)
 		}
+	}
+	scanCallbacks = func(cs openapi3.Callbacks) {
+		for _, cr := range cs {
+			if cr == nil || cr.Value == nil {
+				continue
+			}
+			for _, item := range cr.Value.Map() {
+				scanPathItem(item)
+			}
+		}
+	}
+
+	if doc.Components != nil {
+		for _, ex := range doc.Components.Examples {
+			if ex != nil && ex.Value != nil {
+				scan(ex.Value.Value)
+			}
+		}
+		for _, sr := range doc.Components.Schemas {
+			scanSchema(sr)
+		}
+		for _, rb := range doc.Components.RequestBodies {
+			if rb != nil && rb.Value != nil {
+				scanContent(rb.Value.Content)
+			}
+		}
+		for _, r := range doc.Components.Responses {
+			if r != nil && r.Value != nil {
+				scanContent(r.Value.Content)
+				scanHeaders(r.Value.Headers)
+			}
+		}
+		scanParams(slices.Collect(maps.Values(doc.Components.Parameters)))
+		scanHeaders(doc.Components.Headers)
+		scanLinks(doc.Components.Links)
+		scanCallbacks(doc.Components.Callbacks)
+	}
+	if doc.Paths == nil {
+		return
+	}
+	for _, path := range doc.Paths.InMatchingOrder() {
+		scanPathItem(doc.Paths.Find(path))
 	}
 }
 

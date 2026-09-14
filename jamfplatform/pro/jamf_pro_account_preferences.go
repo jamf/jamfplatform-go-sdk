@@ -39,6 +39,13 @@ func (c *Client) GetAccountPreferencesV3(ctx context.Context, acceptLanguage str
 //
 // Parameters:
 //   - acceptLanguage: Locale to be used, when user has not defined preferred language.
+//
+// Requires Jamf Pro 11.32 or later. `AccountPreferencesV6.showDirectoryGroupUuidColumn` is declared
+// required as of spec 11.32.0, so the SDK sends it on every call and cannot omit it; an 11.31 or
+// earlier tenant rejects the whole request with `400 [INVALID_CONTENT] Unrecognized field
+// showDirectoryGroupUuidColumn … not marked as ignorable`. Check the server with
+// `GetJamfProVersionV1` first if the tenant version is not known. The read half,
+// `GetAccountPreferencesV3`, is unaffected.
 func (c *Client) UpdateAccountPreferencesV3(ctx context.Context, request *AccountPreferencesV6, acceptLanguage string) error {
 	prefix := c.transport.APIPrefix("pro", "v3")
 	endpoint := prefix + "/account-preferences"

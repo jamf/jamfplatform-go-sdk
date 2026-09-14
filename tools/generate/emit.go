@@ -337,6 +337,9 @@ func processSpec(root string, cfg Config, spec SpecDef, specPath string, usedFal
 	if err := applyDocNotes(types, spec.DocNotes); err != nil {
 		return fmt.Errorf("%s: %w", spec.File, err)
 	}
+	if err := applyMethodNotes(methods, spec.MethodNotes); err != nil {
+		return fmt.Errorf("%s: %w", spec.File, err)
+	}
 
 	for _, t := range types {
 		emittedTypes[t.Name] = true
@@ -494,6 +497,9 @@ func processPackage(root string, cfg Config, pkgName string, specs []loadedSpec)
 		methods, err := extractMethods(doc, spec, namedEnumTypes(doc, refs))
 		if err != nil {
 			return fmt.Errorf("spec %s: %w", spec.File, err)
+		}
+		if err := applyMethodNotes(methods, spec.MethodNotes); err != nil {
+			return fmt.Errorf("%s: %w", spec.File, err)
 		}
 		allSpecs = append(allSpecs, specWithMethods{spec: spec, methods: methods, baseName: spec.baseName()})
 
@@ -671,6 +677,13 @@ func processPackageTypesOnly(root string, cfg Config, pkgDir, goPkgName string, 
 		currentFieldOrder = nil
 		if err := applyDocNotes(types, ls.spec.DocNotes); err != nil {
 			return fmt.Errorf("%s: %w", ls.spec.File, err)
+		}
+		// This path emits types and no methods, so there is nothing for a
+		// method note to attach to. Refuse rather than skip: a silently
+		// dropped note leaves the gap it was written to close.
+		if len(ls.spec.MethodNotes) > 0 {
+			return fmt.Errorf("%s: methodNotes is set on a types-only spec, which emits no methods: %s",
+				ls.spec.File, strings.Join(sortedKeys(ls.spec.MethodNotes), ", "))
 		}
 		for _, t := range types {
 			pkgEmitted[t.Name] = true

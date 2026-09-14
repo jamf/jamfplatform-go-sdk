@@ -136,6 +136,13 @@ func (c *Client) DownloadSsoMetadataV3(ctx context.Context) ([]byte, error) {
 // GetSsoOidcBrokerConfigV3 get the OIDC broker configuration.
 //
 // Required privileges: sso-settings:read. Legacy Jamf Pro privilege name(s): Read SSO Settings.
+//
+// Published but not routed at the gateway: every call answers `403 BAD_PERMISSIONS`, whatever
+// privileges the credential holds. `GET /v3/sso/dependencies` requires the same `sso-settings:read`
+// and answers 200, so the gap is the route and not the grant, and no OIDC broker configuration is
+// readable through the gateway until it is fixed.
+// `TestAcceptance_Pro_SsoOidcBrokerConfigUnroutedAtGateway` fails the day the route appears, which is
+// the notification to delete this note.
 func (c *Client) GetSsoOidcBrokerConfigV3(ctx context.Context) (*OidcBrokerConfig, error) {
 	prefix := c.transport.APIPrefix("pro", "v3")
 	var result OidcBrokerConfig
@@ -149,6 +156,12 @@ func (c *Client) GetSsoOidcBrokerConfigV3(ctx context.Context) (*OidcBrokerConfi
 // UpdateSsoOidcBrokerConfigV3 update the OIDC broker configuration.
 //
 // Required privileges: sso-settings:update. Legacy Jamf Pro privilege name(s): Update SSO Settings.
+//
+// Published but not routed at the gateway: every call answers `403 BAD_PERMISSIONS`, whatever
+// privileges the credential holds, and no write reaches the server. `GET /v3/sso/dependencies`
+// requires the sibling `sso-settings:read` and answers 200, so the gap is the route and not the grant.
+// `TestAcceptance_Pro_SsoOidcBrokerConfigUpdateUnroutedAtGateway` fails the day the route appears,
+// which is the notification to delete this note.
 func (c *Client) UpdateSsoOidcBrokerConfigV3(ctx context.Context, request *OidcBrokerConfigUpdate) error {
 	prefix := c.transport.APIPrefix("pro", "v3")
 	endpoint := prefix + "/sso/oidc-broker-config"

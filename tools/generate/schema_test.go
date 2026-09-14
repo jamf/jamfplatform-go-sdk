@@ -648,3 +648,184 @@ func TestApplyPropertyRenamesRewritesMatchingExamplesOnly(t *testing.T) {
 		t.Error("the rename leaked into an unrelated schema's example")
 	}
 }
+
+// The rename has to reach every place the OpenAPI document can hang an
+// example, not just the two — a media type's `example` and its `examples` map —
+// the walk started with. Each location below is live in the carried specs: a
+// media type's schema-level `example` (17 in api/pro_api.json), a nested
+// property's `example` (2802 there, against no root-level one at all), and a
+// response header's (15 in api/ai_governance_policies_api.json, 16 in
+// api/securitycloud_dns_api.json). Links and callbacks carry the same free-form
+// JSON and are published verbatim, so a stale key in one is the same
+// self-inconsistency even though no carried spec uses them today — the point of
+// pinning them is that the next bundle to add one is not a silent miss.
+func TestApplyPropertyRenamesReachesEveryExampleLocation(t *testing.T) {
+	newExample := func() map[string]any {
+		return map[string]any{"assignedConnection": "con_1", "authRegion": "US"}
+	}
+	// Same key beside one the target schema does not declare: the shape guard
+	// must leave every copy of this alone, in every location.
+	newForeign := func() map[string]any {
+		return map[string]any{"authRegion": "US", "unrelatedField": 7}
+	}
+
+	target := func() *openapi3.Schema {
+		s := openapi3.NewObjectSchema()
+		s.WithProperty("assignedConnection", openapi3.NewStringSchema())
+		s.WithProperty("authRegion", openapi3.NewStringSchema())
+		return s
+	}
+
+	// Each case builds the document around one example object and one foreign
+	// one, then asserts the first was rewritten and the second was not.
+	cases := map[string]func(ex, foreign map[string]any) *openapi3.T{
+		"media type schema example": func(ex, foreign map[string]any) *openapi3.T {
+			respSchema := openapi3.NewObjectSchema()
+			respSchema.Example = ex
+			foreignSchema := openapi3.NewObjectSchema()
+			foreignSchema.Example = foreign
+			return docWithResponse(openapi3.NewResponse().WithContent(openapi3.Content{
+				"application/json": openapi3.NewMediaType().WithSchema(respSchema),
+			}), openapi3.NewResponse().WithContent(openapi3.Content{
+				"application/json": openapi3.NewMediaType().WithSchema(foreignSchema),
+			}))
+		},
+		"nested property example": func(ex, foreign map[string]any) *openapi3.T {
+			// The commonest real shape: the example sits on a property of a
+			// component schema, not on the schema's own root.
+			item := openapi3.NewObjectSchema()
+			item.Example = ex
+			envelope := openapi3.NewObjectSchema()
+			envelope.WithProperty("connections", openapi3.NewArraySchema().WithItems(item))
+			foreignItem := openapi3.NewObjectSchema()
+			foreignItem.Example = foreign
+			foreignEnvelope := openapi3.NewObjectSchema()
+			foreignEnvelope.WithProperty("other", foreignItem)
+
+			doc := docWithResponse(openapi3.NewResponse(), openapi3.NewResponse())
+			doc.Components.Schemas["DomainAllocation"] = &openapi3.SchemaRef{Value: envelope}
+			doc.Components.Schemas["Unrelated"] = &openapi3.SchemaRef{Value: foreignEnvelope}
+			return doc
+		},
+		"response header example": func(ex, foreign map[string]any) *openapi3.T {
+			header := func(v map[string]any) openapi3.Headers {
+				return openapi3.Headers{"X-Thing": {Value: &openapi3.Header{
+					Parameter: openapi3.Parameter{Example: v},
+				}}}
+			}
+			resp := openapi3.NewResponse()
+			resp.Headers = header(ex)
+			foreignResp := openapi3.NewResponse()
+			foreignResp.Headers = header(foreign)
+			return docWithResponse(resp, foreignResp)
+		},
+		"component header example": func(ex, foreign map[string]any) *openapi3.T {
+			doc := docWithResponse(openapi3.NewResponse(), openapi3.NewResponse())
+			doc.Components.Headers = openapi3.Headers{
+				"X-Thing": {Value: &openapi3.Header{Parameter: openapi3.Parameter{Example: ex}}},
+				"X-Other": {Value: &openapi3.Header{Parameter: openapi3.Parameter{Example: foreign}}},
+			}
+			return doc
+		},
+		"component link": func(ex, foreign map[string]any) *openapi3.T {
+			doc := docWithResponse(openapi3.NewResponse(), openapi3.NewResponse())
+			doc.Components.Links = openapi3.Links{
+				"self":  {Value: &openapi3.Link{RequestBody: ex}},
+				"other": {Value: &openapi3.Link{Parameters: map[string]any{"body": foreign}}},
+			}
+			return doc
+		},
+		"operation callback": func(ex, foreign map[string]any) *openapi3.T {
+			callbackFor := func(v map[string]any) *openapi3.Callback {
+				responses := openapi3.NewResponses()
+				responses.Set("200", &openapi3.ResponseRef{
+					Value: openapi3.NewResponse().WithContent(openapi3.Content{
+						"application/json": {Example: v},
+					}),
+				})
+				cb := openapi3.NewCallback()
+				cb.Set("{$request.body#/url}", &openapi3.PathItem{
+					Post: &openapi3.Operation{Responses: responses},
+				})
+				return cb
+			}
+			doc := docWithResponse(openapi3.NewResponse(), openapi3.NewResponse())
+			op := doc.Paths.Find("/allocation").Get
+			op.Callbacks = openapi3.Callbacks{"onThing": {Value: callbackFor(ex)}}
+			other := doc.Paths.Find("/unrelated").Get
+			other.Callbacks = openapi3.Callbacks{"onThing": {Value: callbackFor(foreign)}}
+			return doc
+		},
+	}
+
+	for name, build := range cases {
+		t.Run(name, func(t *testing.T) {
+			ex, foreign := newExample(), newForeign()
+			doc := build(ex, foreign)
+			doc.Components.Schemas["DomainAllocationConnection"] = &openapi3.SchemaRef{Value: target()}
+
+			applyPropertyRenames(doc, map[string]map[string]string{
+				"DomainAllocationConnection": {"authRegion": "region"},
+			})
+
+			if _, still := ex["authRegion"]; still {
+				t.Error("the example kept the old key — this location is not being walked")
+			}
+			if got := ex["region"]; got != "US" {
+				t.Errorf("the example's renamed key = %v, want US", got)
+			}
+			if got, ok := foreign["authRegion"]; !ok || got != "US" {
+				t.Error("an unrelated schema's example was rewritten; the shape guard is not holding here")
+			}
+		})
+	}
+}
+
+// docWithResponse builds the two-path document the example-location cases share:
+// /allocation carries the example that must be rewritten and /unrelated the one
+// that must not, so every case exercises the shape guard as well as the walk.
+func docWithResponse(resp, foreign *openapi3.Response) *openapi3.T {
+	responses := openapi3.NewResponses()
+	responses.Set("200", &openapi3.ResponseRef{Value: resp})
+	foreignResponses := openapi3.NewResponses()
+	foreignResponses.Set("200", &openapi3.ResponseRef{Value: foreign})
+
+	paths := openapi3.NewPaths()
+	paths.Set("/allocation", &openapi3.PathItem{Get: &openapi3.Operation{Responses: responses}})
+	paths.Set("/unrelated", &openapi3.PathItem{Get: &openapi3.Operation{Responses: foreignResponses}})
+
+	return &openapi3.T{
+		Paths:      paths,
+		Components: &openapi3.Components{Schemas: openapi3.Schemas{}},
+	}
+}
+
+// The entry has to expire the way every other local spec repair does. Both
+// conditions below leave the rename a silent no-op or, worse, a silent
+// clobbering: a schema the spec no longer publishes means nobody is applying
+// the repair, and a spec declaring both names — the transitional step upstream
+// takes mid-rename — means the genuine new property is overwritten by the stale
+// one while the old key's presence keeps the existing guards quiet.
+func TestApplyPropertyRenamesPanicsOnStaleEntry(t *testing.T) {
+	bothNames := openapi3.NewObjectSchema()
+	bothNames.WithProperty("authRegion", openapi3.NewStringSchema())
+	bothNames.WithProperty("region", openapi3.NewStringSchema())
+
+	cases := map[string]openapi3.Schemas{
+		"no such schema": {},
+		"spec declares both the old and the new name": {
+			"DomainAllocationConnection": {Value: bothNames},
+		},
+	}
+	for name, schemas := range cases {
+		t.Run(name, func(t *testing.T) {
+			defer func() {
+				if recover() == nil {
+					t.Fatal("applyPropertyRenames returned without panicking")
+				}
+			}()
+			applyPropertyRenames(&openapi3.T{Components: &openapi3.Components{Schemas: schemas}},
+				map[string]map[string]string{"DomainAllocationConnection": {"authRegion": "region"}})
+		})
+	}
+}

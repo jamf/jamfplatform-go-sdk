@@ -10,6 +10,21 @@ All types, methods, and unit tests are generated from OpenAPI spec files. Publis
 go get github.com/Jamf-Concepts/jamfplatform-go-sdk
 ```
 
+> **Breaking changes in this release.**
+>
+> - `account.License.Type` is **removed**. The property is gone from the wire,
+>   not renamed, and nothing replaces it.
+> - `account.DomainAllocationConnection.AuthZeroRegion` is now `Region` — same
+>   `Region` type, same meaning. The wire renamed the property, and the SDK
+>   follows it rather than the published spec, which calls it `authRegion`.
+> - `proclassic.UpdateActivationCode` carries a `// Deprecated:` marker.
+>   Migrate to `pro.UpdateActivationCodeV1`.
+> - `proclassic.GetActivationCode` carries one **with no successor to migrate
+>   to.** No Jamf Pro API `GET /v1/activation-code` is published in any
+>   environment, so there is no replacement read — do not go looking for one.
+>   The Classic endpoint still answers. staticcheck's SA1019 is on by default,
+>   so suppress it on that call.
+
 ## Usage
 
 ```go

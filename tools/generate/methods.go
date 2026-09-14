@@ -1936,3 +1936,47 @@ func stringSliceRootExtension(doc *openapi3.T, key string) ([]string, error) {
 	}
 	return out, nil
 }
+
+// applyMethodNotes appends each configured note to the godoc of the method it
+// names. The mirror of applyDocNotes for methods: same keying by generated
+// name, same wrapping, and the same refusal when a key matches nothing, so a
+// note that has drifted off its operation fails the build instead of vanishing
+// — which is also how these notes get deleted when the fact they record
+// expires.
+//
+// The note lands after everything extractMethod already appended: the summary,
+// the rate-limit/no-retry paragraphs, the deprecation marker and the
+// required-privileges block. It therefore never splits an existing paragraph,
+// and the "Deprecated:" paragraph keeps its own line — go/doc and staticcheck
+// recognise it wherever it appears in the comment, not only last.
+func applyMethodNotes(methods []GoMethod, notes map[string]string) error {
+	if len(notes) == 0 {
+		return nil
+	}
+	applied := make(map[string]bool, len(notes))
+	for i := range methods {
+		note, ok := notes[methods[i].Name]
+		if !ok {
+			continue
+		}
+		applied[methods[i].Name] = true
+		lines := docParagraphs(note, typeDocWidth)
+		if len(lines) == 0 {
+			continue
+		}
+		if methods[i].Comment != "" {
+			methods[i].Comment += "\n//\n// "
+		}
+		methods[i].Comment += strings.Join(lines, "\n// ")
+	}
+	var missing []string
+	for _, name := range sortedKeys(notes) {
+		if !applied[name] {
+			missing = append(missing, name)
+		}
+	}
+	if len(missing) > 0 {
+		return fmt.Errorf("methodNotes names no emitted method: %s", strings.Join(missing, ", "))
+	}
+	return nil
+}

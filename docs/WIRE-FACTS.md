@@ -1757,7 +1757,7 @@ no enum, so the vocabulary is wire-only.
 ### Blueprints do not support sites; sites reach the platform as *divisions* (2026-09-11)
 
 Probed under environment scope on `eu`, on a tenant that has one Jamf Pro site
-(`{"id":"1","divisionId":"e9529a6b-4077-41fc-800b-e019865edce8","name":"AGATA"}`
+(`{"id":"1","divisionId":"<division-uuid>","name":"<division-1>"}`
 from `GET /pro/v1/sites`), so divisions exist there.
 
 **No site or division field exists on the blueprints API, in either direction.**
@@ -1784,11 +1784,11 @@ blueprints spec documents them in prose only — no schema property, so the
 SDK cannot even express one:
 
 ```
-PATCH {"divisionId":"e9529a6b-…"}  -> 400 [DIVISION_ASSIGNMENT_NOT_ALLOWED] divisionId:
-                                          "Field 'divisionId' cannot be set through the public API for blueprint '…'."
-PATCH {"divisionId":null}          -> 400 identical — matches the spec's "whether it carries a value or `null`"
-PATCH {"description":"…"}          -> 400 Size steps (the ordinary body validation), so the division check runs FIRST
-POST  {…,"divisionId":"e9529a6b-…"} -> 201, silently ignored
+PATCH {"divisionId":"<division-uuid>"}   -> 400 [DIVISION_ASSIGNMENT_NOT_ALLOWED] divisionId:
+                                            "Field 'divisionId' cannot be set through the public API for blueprint '…'."
+PATCH {"divisionId":null}                -> 400 identical — matches the spec's "whether it carries a value or `null`"
+PATCH {"description":"…"}                -> 400 Size steps (the ordinary body validation), so the division check runs FIRST
+POST  {…,"divisionId":"<division-uuid>"} -> 201, silently ignored
 ```
 
 The POST asymmetry is worth reporting: PATCH refuses loudly, POST swallows it,
@@ -2979,16 +2979,20 @@ region *values* are all the ones 2026-09-09 recorded:
 
 | domain | connection | org | region |
 |---|---|---|---|
-| `a.mockingbirduat.com` | `con_RMBLC9S3qpC6Bzv0` | `org_k7LP9cP4h3RijIaR` | `US` |
-| `o.mockingbirduat.com` | `con_u3yQq4trlgloTW7G` | `org_k7LP9cP4h3RijIaR` | `US` |
-| `g.mockingbirduat.com` | `con_TbLBMEZ6nZwZgBeC` | `org_xFX9cCznanOttdvx` | `JP` |
-| `ramp.mockingbirduat.com` | `con_Nl1aricY47ENorbJ` | `org_Z8iCGuswHrSZBeuS` | `RAMP` |
-| `jakeschultzointest.com` | `con_x55XzKyFGI2iW4ud` | `org_k7LP9cP4h3RijIaR` | `US` |
+| `<domain-1>` | `<con-1>` | `<org-a>` | `US` |
+| `<domain-2>` | `<con-2>` | `<org-a>` | `US` |
+| `<domain-3>` | `<con-3>` | `<org-c>` | `JP` |
+| `<domain-4>` | `<con-4>` | `<org-d>` | `RAMP` |
+| `<domain-5>` | `<con-5>` | `<org-a>` | `US` |
+
+Domain, connection and organization identifiers are placeholders throughout, the
+same placeholder for the same real value in every passage; the real ones are in
+the untracked `docs/local/internal-provenance.local.md`.
 
 Only the **key** moved:
 
 ```json
-{"assignedConnection":"con_RMBLC9S3qpC6Bzv0","assignedConnectionOrgId":"org_k7LP9cP4h3RijIaR","region":"US"}
+{"assignedConnection":"<con-1>","assignedConnectionOrgId":"<org-a>","region":"US"}
 ```
 
 against 2026-09-09's `"authZeroRegion":"US"` for the identical connection. So
@@ -3024,11 +3028,34 @@ not an empty column.
 the licensing spec's **only** operation, so that one body is the entire surface
 the hold was protecting — there is nowhere else `type` could still appear.
 
+**Corroborated on `<org-b>` the same day, which is the check that actually
+settles it.** The reading above is one tenant, and one tenant cannot tell a
+schema change from a staggered rollout however good its null control — so
+`<org-b>`, the second tenant of the 2026-09-04 pass below, was re-probed:
+**24 rows, the `type` key absent on all 24**, deterministic 2/2, HTTP 200 with
+`GET /licensing/v1/zzz-no-such-path` → `403` as the unrouted control in the same
+invocation. It is identifiably that tenant and not a third: 24 licences with
+`licenseType` non-null on 16 of them, matching its row in the table below.
+
+That matters more than a fresh tenant would, because it is a **before and after
+on the tenant that had the field**: the same 24-row list carried `type` populated
+on every row on 2026-09-04 and carries it on none now. The null control holds
+there too, and harder — row 0 comes back with six explicit nulls
+(`activationCode`, `addOnType`, `bundleProductCode`, `contactId`, `endDate`,
+`renewalDate`) against a 15-key row shape with no `type` anywhere. So both
+tenants that populated the property have stopped, the spec's deletion is the
+server's behaviour rather than an environment ahead of it, and the removal is
+safe to take.
+
 **The general lesson is about what an absent key proves.** A null-skipping
 serializer makes absence and emptiness indistinguishable, and a small sample
-makes both indistinguishable from variance. Here the same response carried three
-explicit nulls, which is what let one tenant settle it; had it not, the honest
-report would have been "unproven" rather than "gone".
+makes both indistinguishable from variance. Here the same response carried
+explicit nulls, which is what made one tenant *defensible*; it took the second
+to make it **settled**. The rule this yields: a null-serialization control
+licenses the claim "the property is off the DTO on this tenant", and nothing
+more. Generalising from that to "the property is gone" needs a second tenant,
+and the cheapest second tenant is the one an earlier pass already used — it
+turns a single reading into a before-and-after.
 
 ### Re-probed at v2100: both holds stand, and `partners` turns out to be granted (2026-09-09)
 
@@ -3045,7 +3072,7 @@ invocation and `GET /licensing/v1/nope-not-a-path` →
 - **SSO.** All five domains resolved through
   `GET /sso/v1/domains/allocation/{domain}` → 200, and every connection
   carries `authZeroRegion` and no `authRegion`:
-  `{"assignedConnection":"con_RMBLC9S3qpC6Bzv0","assignedConnectionOrgId":"org_k7LP9cP4h3RijIaR","authZeroRegion":"US"}`
+  `{"assignedConnection":"<con-1>","assignedConnectionOrgId":"<org-a>","authZeroRegion":"US"}`
   — **5/5**, values `US`×3, `JP`, `RAMP`. (`RAMP` is the undeclared region the
   SDK carries via `enumAdditions`; it is still on the wire.)
 
