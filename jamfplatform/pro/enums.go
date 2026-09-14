@@ -1751,6 +1751,35 @@ func ComputerExtensionAttributesManageExistingDataValues() []ComputerExtensionAt
 	}
 }
 
+// ComputerGeneralAppleEnrollmentType is the set of values accepted by ComputerGeneral.AppleEnrollmentType.
+type ComputerGeneralAppleEnrollmentType = string
+
+// ComputerGeneralAppleEnrollmentType values accepted by the Jamf API. The alias above is a string, so
+// these constants pass to any parameter or field declared as a plain string.
+const (
+	ComputerGeneralAppleEnrollmentTypeNone       ComputerGeneralAppleEnrollmentType = "none"
+	ComputerGeneralAppleEnrollmentTypeSupervised ComputerGeneralAppleEnrollmentType = "supervised"
+	ComputerGeneralAppleEnrollmentTypeDevice     ComputerGeneralAppleEnrollmentType = "device"
+	ComputerGeneralAppleEnrollmentTypeUser       ComputerGeneralAppleEnrollmentType = "user"
+	ComputerGeneralAppleEnrollmentTypeUnknown    ComputerGeneralAppleEnrollmentType = "unknown"
+)
+
+// ComputerGeneralAppleEnrollmentTypeValues returns every value the Jamf API accepts for ComputerGeneralAppleEnrollmentType,
+// in the order the spec declares them. Returns a fresh slice per call, so no
+// caller can corrupt the set for the rest of the process — which a package
+// level var would allow. Suits attribute validation (Terraform's
+// stringvalidator.OneOf, say) and anything that needs to enumerate the set
+// rather than name one member.
+func ComputerGeneralAppleEnrollmentTypeValues() []ComputerGeneralAppleEnrollmentType {
+	return []ComputerGeneralAppleEnrollmentType{
+		ComputerGeneralAppleEnrollmentTypeNone,
+		ComputerGeneralAppleEnrollmentTypeSupervised,
+		ComputerGeneralAppleEnrollmentTypeDevice,
+		ComputerGeneralAppleEnrollmentTypeUser,
+		ComputerGeneralAppleEnrollmentTypeUnknown,
+	}
+}
+
 // ComputerGeneralCreatePlatform is the set of values accepted by ComputerGeneralCreate.Platform.
 type ComputerGeneralCreatePlatform = string
 
@@ -1798,6 +1827,35 @@ func ComputerGeneralCreateV4PlatformValues() []ComputerGeneralCreateV4Platform {
 		ComputerGeneralCreateV4PlatformWindows,
 		ComputerGeneralCreateV4PlatformMac,
 		ComputerGeneralCreateV4PlatformNone,
+	}
+}
+
+// ComputerGeneralV4AppleEnrollmentType is the set of values accepted by ComputerGeneralV4.AppleEnrollmentType.
+type ComputerGeneralV4AppleEnrollmentType = string
+
+// ComputerGeneralV4AppleEnrollmentType values accepted by the Jamf API. The alias above is a string, so
+// these constants pass to any parameter or field declared as a plain string.
+const (
+	ComputerGeneralV4AppleEnrollmentTypeNone       ComputerGeneralV4AppleEnrollmentType = "none"
+	ComputerGeneralV4AppleEnrollmentTypeSupervised ComputerGeneralV4AppleEnrollmentType = "supervised"
+	ComputerGeneralV4AppleEnrollmentTypeDevice     ComputerGeneralV4AppleEnrollmentType = "device"
+	ComputerGeneralV4AppleEnrollmentTypeUser       ComputerGeneralV4AppleEnrollmentType = "user"
+	ComputerGeneralV4AppleEnrollmentTypeUnknown    ComputerGeneralV4AppleEnrollmentType = "unknown"
+)
+
+// ComputerGeneralV4AppleEnrollmentTypeValues returns every value the Jamf API accepts for ComputerGeneralV4AppleEnrollmentType,
+// in the order the spec declares them. Returns a fresh slice per call, so no
+// caller can corrupt the set for the rest of the process — which a package
+// level var would allow. Suits attribute validation (Terraform's
+// stringvalidator.OneOf, say) and anything that needs to enumerate the set
+// rather than name one member.
+func ComputerGeneralV4AppleEnrollmentTypeValues() []ComputerGeneralV4AppleEnrollmentType {
+	return []ComputerGeneralV4AppleEnrollmentType{
+		ComputerGeneralV4AppleEnrollmentTypeNone,
+		ComputerGeneralV4AppleEnrollmentTypeSupervised,
+		ComputerGeneralV4AppleEnrollmentTypeDevice,
+		ComputerGeneralV4AppleEnrollmentTypeUser,
+		ComputerGeneralV4AppleEnrollmentTypeUnknown,
 	}
 }
 
@@ -3240,6 +3298,35 @@ func InternalRecipientFrequencyValues() []InternalRecipientFrequency {
 	}
 }
 
+// InventoryListMobileDeviceAppleEnrollmentType is the set of values accepted by InventoryListMobileDevice.AppleEnrollmentType.
+type InventoryListMobileDeviceAppleEnrollmentType = string
+
+// InventoryListMobileDeviceAppleEnrollmentType values accepted by the Jamf API. The alias above is a string, so
+// these constants pass to any parameter or field declared as a plain string.
+const (
+	InventoryListMobileDeviceAppleEnrollmentTypeNone       InventoryListMobileDeviceAppleEnrollmentType = "none"
+	InventoryListMobileDeviceAppleEnrollmentTypeSupervised InventoryListMobileDeviceAppleEnrollmentType = "supervised"
+	InventoryListMobileDeviceAppleEnrollmentTypeDevice     InventoryListMobileDeviceAppleEnrollmentType = "device"
+	InventoryListMobileDeviceAppleEnrollmentTypeUser       InventoryListMobileDeviceAppleEnrollmentType = "user"
+	InventoryListMobileDeviceAppleEnrollmentTypeUnknown    InventoryListMobileDeviceAppleEnrollmentType = "unknown"
+)
+
+// InventoryListMobileDeviceAppleEnrollmentTypeValues returns every value the Jamf API accepts for InventoryListMobileDeviceAppleEnrollmentType,
+// in the order the spec declares them. Returns a fresh slice per call, so no
+// caller can corrupt the set for the rest of the process — which a package
+// level var would allow. Suits attribute validation (Terraform's
+// stringvalidator.OneOf, say) and anything that needs to enumerate the set
+// rather than name one member.
+func InventoryListMobileDeviceAppleEnrollmentTypeValues() []InventoryListMobileDeviceAppleEnrollmentType {
+	return []InventoryListMobileDeviceAppleEnrollmentType{
+		InventoryListMobileDeviceAppleEnrollmentTypeNone,
+		InventoryListMobileDeviceAppleEnrollmentTypeSupervised,
+		InventoryListMobileDeviceAppleEnrollmentTypeDevice,
+		InventoryListMobileDeviceAppleEnrollmentTypeUser,
+		InventoryListMobileDeviceAppleEnrollmentTypeUnknown,
+	}
+}
+
 // InventoryListMobileDeviceBatteryHealth is the set of values accepted by InventoryListMobileDevice.BatteryHealth.
 type InventoryListMobileDeviceBatteryHealth = string
 
@@ -3715,6 +3802,35 @@ func MobileDeviceCertificateV2LifecycleStatusValues() []MobileDeviceCertificateV
 	}
 }
 
+// MobileDeviceDetailsGetV2AppleEnrollmentType is the set of values accepted by MobileDeviceDetailsGetV2.AppleEnrollmentType.
+type MobileDeviceDetailsGetV2AppleEnrollmentType = string
+
+// MobileDeviceDetailsGetV2AppleEnrollmentType values accepted by the Jamf API. The alias above is a string, so
+// these constants pass to any parameter or field declared as a plain string.
+const (
+	MobileDeviceDetailsGetV2AppleEnrollmentTypeNone       MobileDeviceDetailsGetV2AppleEnrollmentType = "none"
+	MobileDeviceDetailsGetV2AppleEnrollmentTypeSupervised MobileDeviceDetailsGetV2AppleEnrollmentType = "supervised"
+	MobileDeviceDetailsGetV2AppleEnrollmentTypeDevice     MobileDeviceDetailsGetV2AppleEnrollmentType = "device"
+	MobileDeviceDetailsGetV2AppleEnrollmentTypeUser       MobileDeviceDetailsGetV2AppleEnrollmentType = "user"
+	MobileDeviceDetailsGetV2AppleEnrollmentTypeUnknown    MobileDeviceDetailsGetV2AppleEnrollmentType = "unknown"
+)
+
+// MobileDeviceDetailsGetV2AppleEnrollmentTypeValues returns every value the Jamf API accepts for MobileDeviceDetailsGetV2AppleEnrollmentType,
+// in the order the spec declares them. Returns a fresh slice per call, so no
+// caller can corrupt the set for the rest of the process — which a package
+// level var would allow. Suits attribute validation (Terraform's
+// stringvalidator.OneOf, say) and anything that needs to enumerate the set
+// rather than name one member.
+func MobileDeviceDetailsGetV2AppleEnrollmentTypeValues() []MobileDeviceDetailsGetV2AppleEnrollmentType {
+	return []MobileDeviceDetailsGetV2AppleEnrollmentType{
+		MobileDeviceDetailsGetV2AppleEnrollmentTypeNone,
+		MobileDeviceDetailsGetV2AppleEnrollmentTypeSupervised,
+		MobileDeviceDetailsGetV2AppleEnrollmentTypeDevice,
+		MobileDeviceDetailsGetV2AppleEnrollmentTypeUser,
+		MobileDeviceDetailsGetV2AppleEnrollmentTypeUnknown,
+	}
+}
+
 // MobileDeviceDetailsGetV2Type is the set of values accepted by MobileDeviceDetailsGetV2.Type.
 type MobileDeviceDetailsGetV2Type = string
 
@@ -3741,6 +3857,35 @@ func MobileDeviceDetailsGetV2TypeValues() []MobileDeviceDetailsGetV2Type {
 		MobileDeviceDetailsGetV2TypeWatchos,
 		MobileDeviceDetailsGetV2TypeVisionos,
 		MobileDeviceDetailsGetV2TypeUnknown,
+	}
+}
+
+// MobileDeviceDetailsV2AppleEnrollmentType is the set of values accepted by MobileDeviceDetailsV2.AppleEnrollmentType.
+type MobileDeviceDetailsV2AppleEnrollmentType = string
+
+// MobileDeviceDetailsV2AppleEnrollmentType values accepted by the Jamf API. The alias above is a string, so
+// these constants pass to any parameter or field declared as a plain string.
+const (
+	MobileDeviceDetailsV2AppleEnrollmentTypeNone       MobileDeviceDetailsV2AppleEnrollmentType = "none"
+	MobileDeviceDetailsV2AppleEnrollmentTypeSupervised MobileDeviceDetailsV2AppleEnrollmentType = "supervised"
+	MobileDeviceDetailsV2AppleEnrollmentTypeDevice     MobileDeviceDetailsV2AppleEnrollmentType = "device"
+	MobileDeviceDetailsV2AppleEnrollmentTypeUser       MobileDeviceDetailsV2AppleEnrollmentType = "user"
+	MobileDeviceDetailsV2AppleEnrollmentTypeUnknown    MobileDeviceDetailsV2AppleEnrollmentType = "unknown"
+)
+
+// MobileDeviceDetailsV2AppleEnrollmentTypeValues returns every value the Jamf API accepts for MobileDeviceDetailsV2AppleEnrollmentType,
+// in the order the spec declares them. Returns a fresh slice per call, so no
+// caller can corrupt the set for the rest of the process — which a package
+// level var would allow. Suits attribute validation (Terraform's
+// stringvalidator.OneOf, say) and anything that needs to enumerate the set
+// rather than name one member.
+func MobileDeviceDetailsV2AppleEnrollmentTypeValues() []MobileDeviceDetailsV2AppleEnrollmentType {
+	return []MobileDeviceDetailsV2AppleEnrollmentType{
+		MobileDeviceDetailsV2AppleEnrollmentTypeNone,
+		MobileDeviceDetailsV2AppleEnrollmentTypeSupervised,
+		MobileDeviceDetailsV2AppleEnrollmentTypeDevice,
+		MobileDeviceDetailsV2AppleEnrollmentTypeUser,
+		MobileDeviceDetailsV2AppleEnrollmentTypeUnknown,
 	}
 }
 
@@ -3877,6 +4022,35 @@ func MobileDeviceExtensionAttributesInventoryDisplayTypeValues() []MobileDeviceE
 	}
 }
 
+// MobileDeviceGeneralAppleEnrollmentType is the set of values accepted by MobileDeviceGeneral.AppleEnrollmentType.
+type MobileDeviceGeneralAppleEnrollmentType = string
+
+// MobileDeviceGeneralAppleEnrollmentType values accepted by the Jamf API. The alias above is a string, so
+// these constants pass to any parameter or field declared as a plain string.
+const (
+	MobileDeviceGeneralAppleEnrollmentTypeNone       MobileDeviceGeneralAppleEnrollmentType = "none"
+	MobileDeviceGeneralAppleEnrollmentTypeSupervised MobileDeviceGeneralAppleEnrollmentType = "supervised"
+	MobileDeviceGeneralAppleEnrollmentTypeDevice     MobileDeviceGeneralAppleEnrollmentType = "device"
+	MobileDeviceGeneralAppleEnrollmentTypeUser       MobileDeviceGeneralAppleEnrollmentType = "user"
+	MobileDeviceGeneralAppleEnrollmentTypeUnknown    MobileDeviceGeneralAppleEnrollmentType = "unknown"
+)
+
+// MobileDeviceGeneralAppleEnrollmentTypeValues returns every value the Jamf API accepts for MobileDeviceGeneralAppleEnrollmentType,
+// in the order the spec declares them. Returns a fresh slice per call, so no
+// caller can corrupt the set for the rest of the process — which a package
+// level var would allow. Suits attribute validation (Terraform's
+// stringvalidator.OneOf, say) and anything that needs to enumerate the set
+// rather than name one member.
+func MobileDeviceGeneralAppleEnrollmentTypeValues() []MobileDeviceGeneralAppleEnrollmentType {
+	return []MobileDeviceGeneralAppleEnrollmentType{
+		MobileDeviceGeneralAppleEnrollmentTypeNone,
+		MobileDeviceGeneralAppleEnrollmentTypeSupervised,
+		MobileDeviceGeneralAppleEnrollmentTypeDevice,
+		MobileDeviceGeneralAppleEnrollmentTypeUser,
+		MobileDeviceGeneralAppleEnrollmentTypeUnknown,
+	}
+}
+
 // MobileDeviceGeneralDeviceOwnershipType is the set of values accepted by MobileDeviceGeneral.DeviceOwnershipType.
 type MobileDeviceGeneralDeviceOwnershipType = string
 
@@ -3930,6 +4104,35 @@ func MobileDeviceHardwareBatteryHealthValues() []MobileDeviceHardwareBatteryHeal
 		MobileDeviceHardwareBatteryHealthServiceRecommended,
 		MobileDeviceHardwareBatteryHealthUnknown,
 		MobileDeviceHardwareBatteryHealthUnsupported,
+	}
+}
+
+// MobileDeviceIosGeneralAppleEnrollmentType is the set of values accepted by MobileDeviceIosGeneral.AppleEnrollmentType.
+type MobileDeviceIosGeneralAppleEnrollmentType = string
+
+// MobileDeviceIosGeneralAppleEnrollmentType values accepted by the Jamf API. The alias above is a string, so
+// these constants pass to any parameter or field declared as a plain string.
+const (
+	MobileDeviceIosGeneralAppleEnrollmentTypeNone       MobileDeviceIosGeneralAppleEnrollmentType = "none"
+	MobileDeviceIosGeneralAppleEnrollmentTypeSupervised MobileDeviceIosGeneralAppleEnrollmentType = "supervised"
+	MobileDeviceIosGeneralAppleEnrollmentTypeDevice     MobileDeviceIosGeneralAppleEnrollmentType = "device"
+	MobileDeviceIosGeneralAppleEnrollmentTypeUser       MobileDeviceIosGeneralAppleEnrollmentType = "user"
+	MobileDeviceIosGeneralAppleEnrollmentTypeUnknown    MobileDeviceIosGeneralAppleEnrollmentType = "unknown"
+)
+
+// MobileDeviceIosGeneralAppleEnrollmentTypeValues returns every value the Jamf API accepts for MobileDeviceIosGeneralAppleEnrollmentType,
+// in the order the spec declares them. Returns a fresh slice per call, so no
+// caller can corrupt the set for the rest of the process — which a package
+// level var would allow. Suits attribute validation (Terraform's
+// stringvalidator.OneOf, say) and anything that needs to enumerate the set
+// rather than name one member.
+func MobileDeviceIosGeneralAppleEnrollmentTypeValues() []MobileDeviceIosGeneralAppleEnrollmentType {
+	return []MobileDeviceIosGeneralAppleEnrollmentType{
+		MobileDeviceIosGeneralAppleEnrollmentTypeNone,
+		MobileDeviceIosGeneralAppleEnrollmentTypeSupervised,
+		MobileDeviceIosGeneralAppleEnrollmentTypeDevice,
+		MobileDeviceIosGeneralAppleEnrollmentTypeUser,
+		MobileDeviceIosGeneralAppleEnrollmentTypeUnknown,
 	}
 }
 
@@ -4124,6 +4327,35 @@ func MobileDeviceSmartGroupCriteriaV2AndOrValues() []MobileDeviceSmartGroupCrite
 	}
 }
 
+// MobileDeviceTvOsGeneralAppleEnrollmentType is the set of values accepted by MobileDeviceTvOsGeneral.AppleEnrollmentType.
+type MobileDeviceTvOsGeneralAppleEnrollmentType = string
+
+// MobileDeviceTvOsGeneralAppleEnrollmentType values accepted by the Jamf API. The alias above is a string, so
+// these constants pass to any parameter or field declared as a plain string.
+const (
+	MobileDeviceTvOsGeneralAppleEnrollmentTypeNone       MobileDeviceTvOsGeneralAppleEnrollmentType = "none"
+	MobileDeviceTvOsGeneralAppleEnrollmentTypeSupervised MobileDeviceTvOsGeneralAppleEnrollmentType = "supervised"
+	MobileDeviceTvOsGeneralAppleEnrollmentTypeDevice     MobileDeviceTvOsGeneralAppleEnrollmentType = "device"
+	MobileDeviceTvOsGeneralAppleEnrollmentTypeUser       MobileDeviceTvOsGeneralAppleEnrollmentType = "user"
+	MobileDeviceTvOsGeneralAppleEnrollmentTypeUnknown    MobileDeviceTvOsGeneralAppleEnrollmentType = "unknown"
+)
+
+// MobileDeviceTvOsGeneralAppleEnrollmentTypeValues returns every value the Jamf API accepts for MobileDeviceTvOsGeneralAppleEnrollmentType,
+// in the order the spec declares them. Returns a fresh slice per call, so no
+// caller can corrupt the set for the rest of the process — which a package
+// level var would allow. Suits attribute validation (Terraform's
+// stringvalidator.OneOf, say) and anything that needs to enumerate the set
+// rather than name one member.
+func MobileDeviceTvOsGeneralAppleEnrollmentTypeValues() []MobileDeviceTvOsGeneralAppleEnrollmentType {
+	return []MobileDeviceTvOsGeneralAppleEnrollmentType{
+		MobileDeviceTvOsGeneralAppleEnrollmentTypeNone,
+		MobileDeviceTvOsGeneralAppleEnrollmentTypeSupervised,
+		MobileDeviceTvOsGeneralAppleEnrollmentTypeDevice,
+		MobileDeviceTvOsGeneralAppleEnrollmentTypeUser,
+		MobileDeviceTvOsGeneralAppleEnrollmentTypeUnknown,
+	}
+}
+
 // MobileDeviceTvOsGeneralDeviceOwnershipType is the set of values accepted by MobileDeviceTvOsGeneral.DeviceOwnershipType.
 type MobileDeviceTvOsGeneralDeviceOwnershipType = string
 
@@ -4180,6 +4412,35 @@ func MobileDeviceV2TypeValues() []MobileDeviceV2Type {
 	}
 }
 
+// MobileDeviceVisionOsGeneralAppleEnrollmentType is the set of values accepted by MobileDeviceVisionOsGeneral.AppleEnrollmentType.
+type MobileDeviceVisionOsGeneralAppleEnrollmentType = string
+
+// MobileDeviceVisionOsGeneralAppleEnrollmentType values accepted by the Jamf API. The alias above is a string, so
+// these constants pass to any parameter or field declared as a plain string.
+const (
+	MobileDeviceVisionOsGeneralAppleEnrollmentTypeNone       MobileDeviceVisionOsGeneralAppleEnrollmentType = "none"
+	MobileDeviceVisionOsGeneralAppleEnrollmentTypeSupervised MobileDeviceVisionOsGeneralAppleEnrollmentType = "supervised"
+	MobileDeviceVisionOsGeneralAppleEnrollmentTypeDevice     MobileDeviceVisionOsGeneralAppleEnrollmentType = "device"
+	MobileDeviceVisionOsGeneralAppleEnrollmentTypeUser       MobileDeviceVisionOsGeneralAppleEnrollmentType = "user"
+	MobileDeviceVisionOsGeneralAppleEnrollmentTypeUnknown    MobileDeviceVisionOsGeneralAppleEnrollmentType = "unknown"
+)
+
+// MobileDeviceVisionOsGeneralAppleEnrollmentTypeValues returns every value the Jamf API accepts for MobileDeviceVisionOsGeneralAppleEnrollmentType,
+// in the order the spec declares them. Returns a fresh slice per call, so no
+// caller can corrupt the set for the rest of the process — which a package
+// level var would allow. Suits attribute validation (Terraform's
+// stringvalidator.OneOf, say) and anything that needs to enumerate the set
+// rather than name one member.
+func MobileDeviceVisionOsGeneralAppleEnrollmentTypeValues() []MobileDeviceVisionOsGeneralAppleEnrollmentType {
+	return []MobileDeviceVisionOsGeneralAppleEnrollmentType{
+		MobileDeviceVisionOsGeneralAppleEnrollmentTypeNone,
+		MobileDeviceVisionOsGeneralAppleEnrollmentTypeSupervised,
+		MobileDeviceVisionOsGeneralAppleEnrollmentTypeDevice,
+		MobileDeviceVisionOsGeneralAppleEnrollmentTypeUser,
+		MobileDeviceVisionOsGeneralAppleEnrollmentTypeUnknown,
+	}
+}
+
 // MobileDeviceVisionOsGeneralDeviceOwnershipType is the set of values accepted by MobileDeviceVisionOsGeneral.DeviceOwnershipType.
 type MobileDeviceVisionOsGeneralDeviceOwnershipType = string
 
@@ -4207,6 +4468,35 @@ func MobileDeviceVisionOsGeneralDeviceOwnershipTypeValues() []MobileDeviceVision
 	}
 }
 
+// MobileDeviceWatchOsGeneralAppleEnrollmentType is the set of values accepted by MobileDeviceWatchOsGeneral.AppleEnrollmentType.
+type MobileDeviceWatchOsGeneralAppleEnrollmentType = string
+
+// MobileDeviceWatchOsGeneralAppleEnrollmentType values accepted by the Jamf API. The alias above is a string, so
+// these constants pass to any parameter or field declared as a plain string.
+const (
+	MobileDeviceWatchOsGeneralAppleEnrollmentTypeNone       MobileDeviceWatchOsGeneralAppleEnrollmentType = "none"
+	MobileDeviceWatchOsGeneralAppleEnrollmentTypeSupervised MobileDeviceWatchOsGeneralAppleEnrollmentType = "supervised"
+	MobileDeviceWatchOsGeneralAppleEnrollmentTypeDevice     MobileDeviceWatchOsGeneralAppleEnrollmentType = "device"
+	MobileDeviceWatchOsGeneralAppleEnrollmentTypeUser       MobileDeviceWatchOsGeneralAppleEnrollmentType = "user"
+	MobileDeviceWatchOsGeneralAppleEnrollmentTypeUnknown    MobileDeviceWatchOsGeneralAppleEnrollmentType = "unknown"
+)
+
+// MobileDeviceWatchOsGeneralAppleEnrollmentTypeValues returns every value the Jamf API accepts for MobileDeviceWatchOsGeneralAppleEnrollmentType,
+// in the order the spec declares them. Returns a fresh slice per call, so no
+// caller can corrupt the set for the rest of the process — which a package
+// level var would allow. Suits attribute validation (Terraform's
+// stringvalidator.OneOf, say) and anything that needs to enumerate the set
+// rather than name one member.
+func MobileDeviceWatchOsGeneralAppleEnrollmentTypeValues() []MobileDeviceWatchOsGeneralAppleEnrollmentType {
+	return []MobileDeviceWatchOsGeneralAppleEnrollmentType{
+		MobileDeviceWatchOsGeneralAppleEnrollmentTypeNone,
+		MobileDeviceWatchOsGeneralAppleEnrollmentTypeSupervised,
+		MobileDeviceWatchOsGeneralAppleEnrollmentTypeDevice,
+		MobileDeviceWatchOsGeneralAppleEnrollmentTypeUser,
+		MobileDeviceWatchOsGeneralAppleEnrollmentTypeUnknown,
+	}
+}
+
 // MobileDeviceWatchOsGeneralDeviceOwnershipType is the set of values accepted by MobileDeviceWatchOsGeneral.DeviceOwnershipType.
 type MobileDeviceWatchOsGeneralDeviceOwnershipType = string
 
@@ -4231,6 +4521,148 @@ func MobileDeviceWatchOsGeneralDeviceOwnershipTypeValues() []MobileDeviceWatchOs
 		MobileDeviceWatchOsGeneralDeviceOwnershipTypeUserEnrollment,
 		MobileDeviceWatchOsGeneralDeviceOwnershipTypeAccountDrivenUserEnrollment,
 		MobileDeviceWatchOsGeneralDeviceOwnershipTypeAccountDrivenDeviceEnrollment,
+	}
+}
+
+// OidcBrokerConfigCapabilities is the set of values accepted by OidcBrokerConfig.Capabilities.
+type OidcBrokerConfigCapabilities = string
+
+// OidcBrokerConfigCapabilities values accepted by the Jamf API. The alias above is a string, so
+// these constants pass to any parameter or field declared as a plain string.
+const (
+	OidcBrokerConfigCapabilitiesIosSelfServicePlus      OidcBrokerConfigCapabilities = "IOS_SELF_SERVICE_PLUS"
+	OidcBrokerConfigCapabilitiesMacSelfServicePlus      OidcBrokerConfigCapabilities = "MAC_SELF_SERVICE_PLUS"
+	OidcBrokerConfigCapabilitiesUserInitiatedEnrollment OidcBrokerConfigCapabilities = "USER_INITIATED_ENROLLMENT"
+	OidcBrokerConfigCapabilitiesAdminSso                OidcBrokerConfigCapabilities = "ADMIN_SSO"
+)
+
+// OidcBrokerConfigCapabilitiesValues returns every value the Jamf API accepts for OidcBrokerConfigCapabilities,
+// in the order the spec declares them. Returns a fresh slice per call, so no
+// caller can corrupt the set for the rest of the process — which a package
+// level var would allow. Suits attribute validation (Terraform's
+// stringvalidator.OneOf, say) and anything that needs to enumerate the set
+// rather than name one member.
+func OidcBrokerConfigCapabilitiesValues() []OidcBrokerConfigCapabilities {
+	return []OidcBrokerConfigCapabilities{
+		OidcBrokerConfigCapabilitiesIosSelfServicePlus,
+		OidcBrokerConfigCapabilitiesMacSelfServicePlus,
+		OidcBrokerConfigCapabilitiesUserInitiatedEnrollment,
+		OidcBrokerConfigCapabilitiesAdminSso,
+	}
+}
+
+// OidcBrokerConfigClientAuthMethod is the set of values accepted by OidcBrokerConfig.ClientAuthMethod.
+type OidcBrokerConfigClientAuthMethod = string
+
+// OidcBrokerConfigClientAuthMethod values accepted by the Jamf API. The alias above is a string, so
+// these constants pass to any parameter or field declared as a plain string.
+const (
+	OidcBrokerConfigClientAuthMethodClientSecret  OidcBrokerConfigClientAuthMethod = "CLIENT_SECRET"
+	OidcBrokerConfigClientAuthMethodPrivateKeyJwt OidcBrokerConfigClientAuthMethod = "PRIVATE_KEY_JWT"
+)
+
+// OidcBrokerConfigClientAuthMethodValues returns every value the Jamf API accepts for OidcBrokerConfigClientAuthMethod,
+// in the order the spec declares them. Returns a fresh slice per call, so no
+// caller can corrupt the set for the rest of the process — which a package
+// level var would allow. Suits attribute validation (Terraform's
+// stringvalidator.OneOf, say) and anything that needs to enumerate the set
+// rather than name one member.
+func OidcBrokerConfigClientAuthMethodValues() []OidcBrokerConfigClientAuthMethod {
+	return []OidcBrokerConfigClientAuthMethod{
+		OidcBrokerConfigClientAuthMethodClientSecret,
+		OidcBrokerConfigClientAuthMethodPrivateKeyJwt,
+	}
+}
+
+// OidcBrokerConfigClientType is the set of values accepted by OidcBrokerConfig.ClientType.
+type OidcBrokerConfigClientType = string
+
+// OidcBrokerConfigClientType values accepted by the Jamf API. The alias above is a string, so
+// these constants pass to any parameter or field declared as a plain string.
+const (
+	OidcBrokerConfigClientTypePublic       OidcBrokerConfigClientType = "PUBLIC"
+	OidcBrokerConfigClientTypeConfidential OidcBrokerConfigClientType = "CONFIDENTIAL"
+)
+
+// OidcBrokerConfigClientTypeValues returns every value the Jamf API accepts for OidcBrokerConfigClientType,
+// in the order the spec declares them. Returns a fresh slice per call, so no
+// caller can corrupt the set for the rest of the process — which a package
+// level var would allow. Suits attribute validation (Terraform's
+// stringvalidator.OneOf, say) and anything that needs to enumerate the set
+// rather than name one member.
+func OidcBrokerConfigClientTypeValues() []OidcBrokerConfigClientType {
+	return []OidcBrokerConfigClientType{
+		OidcBrokerConfigClientTypePublic,
+		OidcBrokerConfigClientTypeConfidential,
+	}
+}
+
+// OidcBrokerConfigProductUserMapping is the set of values accepted by OidcBrokerConfig.ProductUserMapping.
+type OidcBrokerConfigProductUserMapping = string
+
+// OidcBrokerConfigProductUserMapping values accepted by the Jamf API. The alias above is a string, so
+// these constants pass to any parameter or field declared as a plain string.
+const (
+	OidcBrokerConfigProductUserMappingUsername OidcBrokerConfigProductUserMapping = "USERNAME"
+	OidcBrokerConfigProductUserMappingEmail    OidcBrokerConfigProductUserMapping = "EMAIL"
+)
+
+// OidcBrokerConfigProductUserMappingValues returns every value the Jamf API accepts for OidcBrokerConfigProductUserMapping,
+// in the order the spec declares them. Returns a fresh slice per call, so no
+// caller can corrupt the set for the rest of the process — which a package
+// level var would allow. Suits attribute validation (Terraform's
+// stringvalidator.OneOf, say) and anything that needs to enumerate the set
+// rather than name one member.
+func OidcBrokerConfigProductUserMappingValues() []OidcBrokerConfigProductUserMapping {
+	return []OidcBrokerConfigProductUserMapping{
+		OidcBrokerConfigProductUserMappingUsername,
+		OidcBrokerConfigProductUserMappingEmail,
+	}
+}
+
+// OidcBrokerConfigUpdateClientAuthMethod is the set of values accepted by OidcBrokerConfigUpdate.ClientAuthMethod.
+type OidcBrokerConfigUpdateClientAuthMethod = string
+
+// OidcBrokerConfigUpdateClientAuthMethod values accepted by the Jamf API. The alias above is a string, so
+// these constants pass to any parameter or field declared as a plain string.
+const (
+	OidcBrokerConfigUpdateClientAuthMethodClientSecret  OidcBrokerConfigUpdateClientAuthMethod = "CLIENT_SECRET"
+	OidcBrokerConfigUpdateClientAuthMethodPrivateKeyJwt OidcBrokerConfigUpdateClientAuthMethod = "PRIVATE_KEY_JWT"
+)
+
+// OidcBrokerConfigUpdateClientAuthMethodValues returns every value the Jamf API accepts for OidcBrokerConfigUpdateClientAuthMethod,
+// in the order the spec declares them. Returns a fresh slice per call, so no
+// caller can corrupt the set for the rest of the process — which a package
+// level var would allow. Suits attribute validation (Terraform's
+// stringvalidator.OneOf, say) and anything that needs to enumerate the set
+// rather than name one member.
+func OidcBrokerConfigUpdateClientAuthMethodValues() []OidcBrokerConfigUpdateClientAuthMethod {
+	return []OidcBrokerConfigUpdateClientAuthMethod{
+		OidcBrokerConfigUpdateClientAuthMethodClientSecret,
+		OidcBrokerConfigUpdateClientAuthMethodPrivateKeyJwt,
+	}
+}
+
+// OidcBrokerConfigUpdateProductUserMapping is the set of values accepted by OidcBrokerConfigUpdate.ProductUserMapping.
+type OidcBrokerConfigUpdateProductUserMapping = string
+
+// OidcBrokerConfigUpdateProductUserMapping values accepted by the Jamf API. The alias above is a string, so
+// these constants pass to any parameter or field declared as a plain string.
+const (
+	OidcBrokerConfigUpdateProductUserMappingUsername OidcBrokerConfigUpdateProductUserMapping = "USERNAME"
+	OidcBrokerConfigUpdateProductUserMappingEmail    OidcBrokerConfigUpdateProductUserMapping = "EMAIL"
+)
+
+// OidcBrokerConfigUpdateProductUserMappingValues returns every value the Jamf API accepts for OidcBrokerConfigUpdateProductUserMapping,
+// in the order the spec declares them. Returns a fresh slice per call, so no
+// caller can corrupt the set for the rest of the process — which a package
+// level var would allow. Suits attribute validation (Terraform's
+// stringvalidator.OneOf, say) and anything that needs to enumerate the set
+// rather than name one member.
+func OidcBrokerConfigUpdateProductUserMappingValues() []OidcBrokerConfigUpdateProductUserMapping {
+	return []OidcBrokerConfigUpdateProductUserMapping{
+		OidcBrokerConfigUpdateProductUserMappingUsername,
+		OidcBrokerConfigUpdateProductUserMappingEmail,
 	}
 }
 
@@ -6057,6 +6489,7 @@ type UserAccountAccountType = string
 const (
 	UserAccountAccountTypeDefault   UserAccountAccountType = "DEFAULT"
 	UserAccountAccountTypeFederated UserAccountAccountType = "FEDERATED"
+	UserAccountAccountTypeMigrated  UserAccountAccountType = "MIGRATED"
 )
 
 // UserAccountAccountTypeValues returns every value the Jamf API accepts for UserAccountAccountType,
@@ -6069,6 +6502,7 @@ func UserAccountAccountTypeValues() []UserAccountAccountType {
 	return []UserAccountAccountType{
 		UserAccountAccountTypeDefault,
 		UserAccountAccountTypeFederated,
+		UserAccountAccountTypeMigrated,
 	}
 }
 

@@ -416,7 +416,9 @@ that fails when the block lifts (`acc_pro_gateway_and_hosted_limits_test.go`):
 - `GET /v1/dss-declarations/{declarationId}`. Declared with `declarations:read`,
   and the credential holds it — the two `ddmreport` operations requiring the same
   string (`ListDeclarationReportClients`, `GetDeviceDeclarationReport`) both
-  answer 200 for it.
+  answer 200 for it. **Superseded 2026-09-11: this one is now routed and 500s
+  unconditionally** — see "`GET /v1/dss-declarations/{declarationId}` is routed
+  now" below. The other three refusals below still stand.
 - `POST /v1/jamf-pro-server-url/history`, while **GET on the same path is routed
   and answers 200** — a method-level gap. Declared with `jss-url:update`, and the
   credential holds it: `PUT /pro/v1/jamf-pro-server-url` reaches Jamf Pro and
@@ -1164,6 +1166,273 @@ two rows, so the generated `strings.Join(uuids, ",")` needs no override.
 The endpoint still sends `Deprecation: date="Mon, 16 Oct 2023 00:00:00 GMT"`,
 which the transport logs.
 
+### `GET /v2/mdm/commands` needs a filter, ignores an unknown field, and 500s on a bad value (2026-09-14)
+
+The v1 point lookup above had been probed; the v2 paginated list had not, beyond
+its pagination. Probed on the EU environment tenant at Jamf Pro **11.32.0**, with
+`GET /pro/v1/jamf-pro-version` → 200 as the control in the same invocation.
+
+**All three defects reproduce on the Jamf Pro API directly, so none of them is
+the gateway's.** The same matrix run against a standalone instance
+(`/api/v2/mdm/commands`, no platform gateway in the path, its own
+`/v1/jamf-pro-version` as the control) gives the identical answers on different
+data: no filter → 400, `notAField` and `commandType` both → the unfiltered total
+of 731, a real `command==` filter → 241, malformed uuid → 500,
+out-of-vocabulary status → 500. Two independent instances, one gatewayed and one
+not, so **report these to the Jamf Pro API team rather than the gateway team** —
+and note the technique, since a defect that survives the direct path is the only
+kind you can attribute to the service itself.
+
+| `filter` | status | `totalCount` |
+|---|---|---|
+| *absent* (with or without valid `page`, `page-size`, `sort`) | **400** | `{"httpStatus":400,"errors":[]}` — deterministic 2/2 |
+| `status=="Pending"` | 200 | 86 |
+| `status=="Acknowledged"` | 200 | 604 |
+| `command=="INSTALL_PROFILE"` | 200 | 59 |
+| `command=="DECLARATIVE_MANAGEMENT"` | 200 | 185 |
+| `commandType=="DECLARATIVE_MANAGEMENT"` | **200** | **690 — the unfiltered total** |
+| `commandType=="TOTAL_NONSENSE"` | **200** | **690** |
+| `notAField=="x"` | **200** | **690** |
+| `active==true` | 200 | 690 |
+| `uuid==00000000-0000-0000-0000-000000000000` | 200 | 0 |
+| `clientManagementId==00000000-0000-0000-0000-000000000000` | 200 | 0 |
+| `uuid=="nope"` | **500** | `{"httpStatus":500,"errors":[]}` |
+| `status=="NotAStatus"` | **500** | `{"httpStatus":500,"errors":[]}` |
+
+**Three things to report upstream, and the middle one returns wrong data
+silently.**
+
+**`filter` is mandatory and declared `required: false`.** Upstream states the
+requirement only in the parameter's own prose — "All url must contain minimum one
+filter field" — so nothing structural carries it and `ListMdmCommandsV2` takes an
+optional `*string` for something without which the call can never succeed. Same
+unexpressed-requirement shape as `ListAuditEvents` needing `since` plus one of
+four, and worth the same treatment in the method godoc.
+
+**An unrecognised filter field is silently ignored and the whole collection comes
+back.** This is the one to press: `commandType` is not in the filter vocabulary —
+the field is `command` — but `commandType` is exactly what the *response* calls
+it, so it is the name a caller reaching for the obvious thing will write. It
+answers 200 with all 690 rows, identically to outright nonsense, so a misspelled
+field is indistinguishable from a filter that matched everything. There is no
+error at any layer and the caller's own paging walks the wrong set to completion.
+A 400 naming the field would be correct; the spec does enumerate the legal ones
+(`uuid`, `clientManagementId`, `command`, `status`, `clientType`, `dateSent`,
+`validAfter`, `dateCompleted`, `profileId`, `profileIdentifier`, `active`).
+
+**A malformed *value* is a 500, not a 400.** An unparseable UUID and a status
+outside the vocabulary both 500, while a well-formed UUID that matches nothing
+correctly answers 200 with `totalCount: 0` — so it is value parsing that faults,
+not the lookup. As on v1, every 400 and 500 here carries an **empty `errors`
+array**, so a caller has nothing to attribute the refusal to.
+
+`TestAcceptance_Pro_MdmCommandsV2FilterIsMandatory`,
+`…V2IgnoresAnUnknownFilterField` and `…V2FaultsOnAMalformedFilterValue` assert
+all three, each with its control in the same test, so every one fails the day it
+is fixed. The middle one is the awkward one to pin, because the defect's symptom
+is a **success**: it compares two *different* nonsense filters, which must return
+the identical count if both are being discarded, against a real filter returning
+fewer — equal counts are the evidence, and the real filter proves filtering works
+on that tenant's data at all. It skips rather than passes when the tenant's data
+cannot tell the two apart.
+
+**`POST` is not allowed, and this is not the publishing filter hiding it.**
+`/v2/mdm/commands` declares `GET` alone in `external`, `internal/stage` **and**
+`internal/dev`, and the gateway agrees: `POST`, `PUT`, `PATCH` and `DELETE` all
+answer the unrouted `403 BAD_PERMISSIONS` with no `Allow` header, against `GET`
+on the same path at 200 and a bogus path in the same namespace also 403 in the
+same invocation. The only MDM writes any spec declares are
+`POST /v2/mdm/blank-push` and `POST /v1/mdm/renew-profile`.
+
+**v1 is unchanged at 11.32.0.** Re-probed in the same session: neither parameter
+→ 400 with an empty `errors` array, **both** → 500 deterministic 2/2, a single
+parameter → 200, and the `Deprecation: date="Mon, 16 Oct 2023 00:00:00 GMT"`
+header still sent. So `TestAcceptance_Pro_MdmUpdates_ListMdmCommandsV1`'s
+assertion of the 500 is still the correct pin.
+
+### v2154's three new `jpapi` operations are published and unrouted (2026-09-10)
+
+GitOps v2154 / Jamf Pro API 11.32.0 adds three operations, and the gateway
+routes none of them. Probed under environment scope against
+`eu.api.jamfcloud.com`, with `GET /pro/v1/jamf-pro-version` at **200**
+(`11.31.1-t1787060595569`) and a bogus path in the same namespace at
+**403 `BAD_PERMISSIONS`** as controls in the same invocation, and every 403
+reproduced on a second round:
+
+| operation | result |
+|---|---|
+| `DELETE /pro/v1/notifications` | 403 `BAD_PERMISSIONS` (2/2) |
+| `GET /pro/v3/sso/oidc-broker-config` | 403 `BAD_PERMISSIONS` (2/2) |
+| `PUT /pro/v3/sso/oidc-broker-config` | 403 `BAD_PERMISSIONS` (2/2) |
+
+**The credential is short of neither capability, which is what makes this a
+routing gap rather than a grant.** `GET /pro/v3/sso/dependencies` — the same
+`sso-settings:read` — answers **200** (`{"dependencies": []}`), and the routed
+item-level `DELETE /pro/v1/notifications/PATCH_UPDATE/999999999` — the same
+`dismiss-notifications:execute` — answers **204**. Both sibling probes ran in
+the same invocation as the refusals. So the two-path form of the classification
+is decisive here and a second credential was not needed: the same token passes
+the capability check on a neighbouring path.
+
+**The gateway's authorization policy explains it and the fix is in flight.**
+Its `main` carries no allow rule for any of the three. The Pro
+dismiss-notifications policy matches only
+`["api","pro","v1","notifications",type,id]`, and the Pro SSO-settings policy
+has a rule for every other `/v3/sso/*` sibling (`dependencies`, `disable`,
+`history`, `metadata/download`) but not `oidc-broker-config`. A policy change
+opened 2026-09-10 adds exactly those three and states the same reading in its
+own body — "without these rules the endpoints publish in docs but 403 for every
+caller". So this is a known gap awaiting a merge and a bundle deploy, not a
+disagreement.
+
+All three are whitelisted anyway, per the house rule that a published operation
+is generated and its refusal pinned.
+`TestAcceptance_Pro_DismissAllNotificationsUnroutedAtGateway` and
+`TestAcceptance_Pro_SsoOidcBrokerConfigUnroutedAtGateway` each fail the day the
+rule lands, and each names the real coverage to write in its place.
+
+One caution recorded in the test rather than left to a reader: the `PUT` is a
+**full replacement**, so the day it starts routing, a replacement test must read
+the current configuration first. The unrouted probe sends the spec's six
+required fields with `enabled: false` and a throwaway client id precisely so an
+unexpected success is loud rather than a silent partial write.
+
+**A wire fact that came out of the sibling control**: the routed
+`DELETE /pro/v1/notifications/{type}/{id}` answers **204 for a notification that
+does not exist** — a bogus type and id both — so `DeleteNotificationV1` cannot
+distinguish "dismissed" from "was never there".
+
+### v2154's `AccountPreferencesV6.showDirectoryGroupUuidColumn`: rejected on 11.31.1, live on 11.32.0 (2026-09-10, resolved 2026-09-11)
+
+**A shipped break for the duration of the ingest, resolved by the server
+catching up a day later.** The property is new at v2154 and the spec adds it to
+`AccountPreferencesV6`'s `required` list, which makes the generated field a
+non-pointer `bool` with no `omitempty` — so *every* `UpdateAccountPreferencesV3`
+call sends the key.
+
+**On 11.31.1 the server has no such field.** Probed under environment scope,
+control in the same invocation:
+
+- `GET /pro/v3/account-preferences` → **200**, 26 keys, and
+  `showDirectoryGroupUuidColumn` **absent entirely**. Not null-valued; the DTO
+  does not carry it.
+- `PATCH /pro/v3/account-preferences` with the GET's own body plus that one key
+  → **400**:
+
+  ```
+  [INVALID_CONTENT] Unrecognized field "showDirectoryGroupUuidColumn"
+  (class com.jamfsoftware.useraccounts.web.dto.AccountPreferencesDtoV6),
+  not marked as ignorable
+  ```
+
+  The same body **without** the key answers 2xx, which is the control isolating
+  the field as the cause. Re-confirmed 2026-09-11, so this is the standing
+  behaviour of an 11.31 tenant and not a transient.
+
+**On 11.32.0 it is fully live.** Probed 2026-09-11 under tenant scope on
+`5c4425d9-…`, with `GET /pro/v1/jamf-pro-version` → `11.32.0-t1787580540993` as
+the control in the same invocation:
+
+- `GET /pro/v3/account-preferences` → **200**, **27 keys**, the field present as
+  `false`.
+- `PATCH` setting it → **204**, and the value **reads back**: `false → true`,
+  then `true → false`, each confirmed by a re-read. Asserting the read-back
+  matters — this server accepts and silently ignores plenty of input, and a bare
+  204 would have passed against that.
+- `PATCH` **omitting** the key → 204 with the field unchanged, so this operation
+  merges rather than replaces.
+
+**Two other wire laws came out of the same probe, neither in the spec.**
+
+- **The PATCH is atomic.** A 12-key body carrying one invalid value
+  (`configProfilesSortingMethod: "BY_TYPE"`) was rejected whole — `400
+  INVALID_CONTENT`, `field: configProfilesSortingMethod` — and **none of the
+  other 11 valid values applied**, verified by read-back. So a partial write is
+  not a failure mode here.
+- **`configProfilesSortingMethod` has an undeclared enum.** The spec types it a
+  bare `string` with no `enum` and no description; the server enforces
+  `ALPHABETICALLY` / `STANDARD` and names both in the error. `dateFormat`,
+  `timezone` and `resultsPerPage` are likewise bare and unconstrained in the
+  spec. Report upstream; candidates for `enumAdditions` if the constants are
+  wanted.
+
+**The removal is gone and the coverage is version-gated.** `propertyRemovals`,
+the `AccountPreferencesV6` docNote and the limitation test are all deleted.
+`TestAcceptance_Pro_AccountPreferencesShowDirectoryGroupUuidColumn` branches on
+`proServerAtLeast(t, c, 11, 32)`: at or past 11.32 it round-trips the field,
+below it asserts the absence and the refusal. **Both halves are assertions and
+both were run against real tenants on 2026-09-11**; the pre-11.32 branch fails
+the day its tenant rolls forward, which is the notification to delete it.
+
+**Self-expiry belonged in the acceptance suite rather than in config, and this is
+the worked example.** `propertyRemovals` panics when the *spec* stops declaring
+the path — the wrong trigger, because the event to wait for was the *server*
+catching up, which no config mechanism can observe. The test was the only thing
+that could see it, and it is what fired.
+
+**Following the spec costs pre-11.32 callers this method, deliberately.** No
+config key forces a declared-required property optional, and inventing one for a
+niche per-credential preferences write was not justified: nothing in
+`terraform-provider-jamfplatform` calls `AccountPreferences`, so the blast radius
+is the SDK's own method.
+
+**Unrelated but discovered alongside: these preferences are per-account and
+invisible to a browsing admin.** Setting 12 of them through the API and then
+reading the Jamf Pro UI as a human showed the UI's own values, because the UI is
+session-cookie scoped to the signed-in user while the API writes the M2M
+credential's own row. So `UpdateAccountPreferencesV3` cannot be verified through
+the interface, and its practical value to a consumer is close to nil.
+
+**The removal also exposed a latent generator bug.** `applyPropertyRemovals`
+deleted the property and left its name in the parent's `required` list, so
+`api/pro_api.json` would have published a schema requiring a property it does
+not declare — an invalid spec handed to consumers. It now prunes `required` too,
+pinned by `TestApplyPropertyRemovalsAlsoDropsTheRequiredEntry`. There was no
+test for that function at all before this.
+
+### `GET /v1/dss-declarations/{declarationId}` is routed now, and broken for every identifier (2026-09-11)
+
+Recorded here since 2026-08-31 as **unrouted at the gateway** — 403
+`BAD_PERMISSIONS`, the compact gateway form. It has moved layers. Probed
+2026-09-11 under environment scope on `eu`, six times across three identifier
+shapes, with two controls in the same invocation:
+
+```
+control  GET /pro/v1/jamf-pro-version                        -> 200  {"version":"11.31.1-…"}
+control  GET /pro/v1/zzz-not-a-real-endpoint                 -> 403  compact {"errors":[{"code":"BAD_PERMISSIONS"…
+         GET /pro/v1/dss-declarations/00000000-…-000000000000             -> 500  (3/3)
+         GET /pro/v1/dss-declarations/not-a-uuid                          -> 500
+         GET /pro/v1/dss-declarations/Blueprint_25859abd-…_s1_c1_sys_act1  -> 500  (2/2)
+
+every 500 byte-identical:
+{
+  "httpStatus" : 500,
+  "errors" : [ ]
+}
+```
+
+The body is **pretty-printed**, which is Jamf Pro's format and not the
+gateway's — the discriminator recorded above. So the gateway routes the path and
+the service behind it faults.
+
+**The identifier is not the cause.** The last probe uses a live declaration
+identifier taken from `GET /ddm/report/v1/devices/{id}/declarations?filter=active==true`,
+and `GET /ddm/report/v1/declarations/{that identifier}/devices` answers **200
+with 3 devices** in the same invocation. So a real, resolvable declaration gets
+the same empty-`errors` 500 as a nonexistent one: the endpoint is
+unconditionally broken, exactly like `GET /proclassic/patches/name/{name}`.
+Report upstream.
+
+**The pin was skipping past this, and that is the lesson.**
+`TestAcceptance_Pro_DssDeclarationsUnroutedAtGateway` called
+`skipOnServerError` before its `gatewayUnrouted` check, so from the day the
+routing landed it reported SKIP rather than a changed refusal — the failure mode
+CLAUDE.md names, of applying the transient-5xx convention to a permanent one.
+Renamed `TestAcceptance_Pro_DssDeclarationsBrokenForEveryIdentifier`, it now
+asserts the 500, and fails both when the endpoint starts working and if it
+returns to `BAD_PERMISSIONS` (which would be an un-routing, a different
+regression with a different owner).
+
 ### Self Service categories: `display_in` is what stores them, and only the mobile profile hides it (2026-09-07)
 
 All six Classic resources carrying a `self_service.self_service_categories`
@@ -1482,6 +1751,90 @@ value; `protect` and `PROTECT` both answer 200. The spec constrains the param to
 no enum, so the vocabulary is wire-only.
 
 ---
+
+## Blueprints (`blueprints`) — environment scope
+
+### Blueprints do not support sites; sites reach the platform as *divisions* (2026-09-11)
+
+Probed under environment scope on `eu`, on a tenant that has one Jamf Pro site
+(`{"id":"1","divisionId":"<division-uuid>","name":"<division-1>"}`
+from `GET /pro/v1/sites`), so divisions exist there.
+
+**No site or division field exists on the blueprints API, in either direction.**
+`CreateScope` and `BlueprintScope` carry `deviceGroups` and nothing else, and
+all 23 blueprints on the tenant returned exactly the declared key set — list,
+detail, `report` and both `blueprint-components` reads included, with no
+undeclared key anywhere.
+
+**A 201 proves nothing here, because the create ignores unknown fields.**
+`POST /blueprints/v1/blueprints` with `{"totallyBogusField":"x"}` answers 400
+naming only the three missing required fields, so Jackson is lenient and every
+guessed spelling is silently dropped. One create carrying `siteId`, `sites`,
+`site{id,name}` at the top level *and* inside `scope`, plus a second round of
+`siteIds`, `siteIdentifier`, `siteName`, `jamfProSiteId`, `siteScope`, all
+read back absent. **The read-back is the only oracle** — do not read an
+accepted body as support for a field.
+
+The spec agrees and is not merely lagging: `external/blueprints` is
+**byte-identical from v2082 through v2176**, and no Platform spec in
+`external/`, `internal/stage` or `internal/dev` contains the string `site`.
+
+**Divisions are the real mechanism, and the API refuses to touch them.** The
+blueprints spec documents them in prose only — no schema property, so the
+SDK cannot even express one:
+
+```
+PATCH {"divisionId":"<division-uuid>"}   -> 400 [DIVISION_ASSIGNMENT_NOT_ALLOWED] divisionId:
+                                            "Field 'divisionId' cannot be set through the public API for blueprint '…'."
+PATCH {"divisionId":null}                -> 400 identical — matches the spec's "whether it carries a value or `null`"
+PATCH {"description":"…"}                -> 400 Size steps (the ordinary body validation), so the division check runs FIRST
+POST  {…,"divisionId":"<division-uuid>"} -> 201, silently ignored
+```
+
+The POST asymmetry is worth reporting: PATCH refuses loudly, POST swallows it,
+and the POST description says nothing about divisions. That the create really
+did *not* assign is established by oracle rather than by reading: a follow-up
+patch to that blueprint answers the ordinary `400 Size steps`, not the
+`409 DIVISION_PATCH_NOT_ALLOWED` the spec declares for an assigned blueprint.
+That 409 remains untested — the tenant has no division-assigned blueprint, and
+one cannot be created through this API.
+
+### A blueprint created with no steps can never be patched (2026-09-11)
+
+`CreateBlueprintRequest.steps` declares `minItems: 0` and the create accepts
+`[]`. `PATCH` is `application/merge-patch+json`, the server validates the
+**merged** entity, and it enforces `steps` size 1..100 on the result — so a
+blueprint stored with no steps rejects every patch, including one that never
+mentions steps:
+
+```
+POST   {…,"steps":[]}                                   -> 201
+PATCH  {"description":"merge-patch works"}              -> 400 Size steps: "size must be between 1 and 100"
+```
+
+Established by contrast, not by reading the message: the identical
+description-only patch against a blueprint created with one
+`com.jamf.ddm.math-settings` step answers **204** and its step survives. So the
+rejection is the stored state. `UpdateBlueprintRequest.steps` declares no
+bounds at all, so the constraint is undeclared on the operation that applies it,
+and `CreateBlueprint` + `UpdateBlueprint` is an unreachable SDK sequence.
+Pinned by `TestAcceptance_Blueprint_EmptyStepsCannotBePatched`. Report upstream.
+
+### The create's `href` names an internal host (2026-09-11)
+
+`POST /blueprints/v1/blueprints` answers `{id, href}` with both `href` and the
+`Location` header pointing at an internal gateway service hostname, on the path
+`/api/blueprints/v1/blueprints/{id}` — so it carries both a host a consumer
+cannot reach and the `/api` prefix the GA gateway does not serve. It is not callable by this SDK or by a consumer. Same defect class as
+App Installers' create href; `CreateResponse.ID` is the usable identifier.
+
+### PATCH requires `application/merge-patch+json`
+
+The spec declares that as the only request content type and the server enforces
+it: `Content-Type: application/json` answers
+`415 UNSUPPORTED_MEDIA_TYPE — "Supported types: [application/merge-patch+json]"`.
+`UpdateBlueprint` already routes through `DoWithContentType` with that value, so
+this is pinned by construction rather than by a test.
 
 ## Jamf Security Cloud (`securitycloud`)
 
@@ -2610,6 +2963,100 @@ covered as calls, not as outcomes.
 
 ## Jamf Account (`account`) — organization scope
 
+### Both holds lifted: the server dropped `License.type` and renamed `authZeroRegion` to `region` (2026-09-14)
+
+The two v1865 account holds came off together, five days after the v2100 re-probe
+below confirmed both. This is the **same tenant** as that probe — `<org-a>`, US
+gateway, organization scope so no scope header — with
+`GET /licensing/v1/licenses` → 200 as the control in the same invocation and
+`GET /licensing/v1/zzz-no-such-path` → `403 BAD_PERMISSIONS` as the unrouted
+control.
+
+**Establish the tenant identity before reading either result**, because tenant
+variance is otherwise the obvious explanation and it is the wrong one here. The
+five domains, the connection identifiers, the organization identifiers and the
+region *values* are all the ones 2026-09-09 recorded:
+
+| domain | connection | org | region |
+|---|---|---|---|
+| `<domain-1>` | `<con-1>` | `<org-a>` | `US` |
+| `<domain-2>` | `<con-2>` | `<org-a>` | `US` |
+| `<domain-3>` | `<con-3>` | `<org-c>` | `JP` |
+| `<domain-4>` | `<con-4>` | `<org-d>` | `RAMP` |
+| `<domain-5>` | `<con-5>` | `<org-a>` | `US` |
+
+Domain, connection and organization identifiers are placeholders throughout, the
+same placeholder for the same real value in every passage; the real ones are in
+the untracked `docs/local/internal-provenance.local.md`.
+
+Only the **key** moved:
+
+```json
+{"assignedConnection":"<con-1>","assignedConnectionOrgId":"<org-a>","region":"US"}
+```
+
+against 2026-09-09's `"authZeroRegion":"US"` for the identical connection. So
+`region` on **5/5**, `authZeroRegion` on **0/5**, `authRegion` on **0/5**.
+(`RAMP` is still on the wire, so the `enumAdditions` entry carrying it stays.)
+
+**The spec renamed the same property to `authRegion`, so the spec is wrong too,
+and that is what made the hold pointless rather than protective.** Holding at
+v1865 leaves `AuthZeroRegion` permanently empty; ingesting v2176 leaves
+`AuthRegion` permanently empty. The spec is its own evidence that `authRegion` is
+an authoring slip: `Connection`, `ConnectionSummary` and `BaseConnectionSettings`
+all name the identical `Region` component `region`, the wire agrees with those
+three, and `DomainAllocationConnection` is the only schema in the file that does
+not. `propertyRenames` corrects it, which panics the day the spec declares
+`region` — the notification to delete the entry. Report the slip upstream.
+
+**Licensing: `type` is off the DTO, not merely unpopulated.** 19 rows, the key
+absent on **all 19**, deterministic 2/2 — against 2026-09-09's 16 rows with
+`type` non-null on **16/16**. The distinguishing control is that this service
+**serializes nulls**: `addOnType`, `bundleProductCode` and `contactId` all come
+back as explicit `null` in the same row, so an absent key is a schema change and
+not an empty column.
+
+```json
+{"activationCode":"…","addOnType":null,"assetId":"…","bundleProductCode":null,
+ "contactId":null,"endDate":"2030-02-28T06:00:00.000Z","licenseType":"BETA",
+ "productName":"Jamf Pro for iOS","productParent":"PRO","productTopLine":"PRO",
+ "purchasedSeats":10,"renewalDate":"2030-02-28T06:00:00.000Z","sku":"PRO-COM-IOS",
+ "startDate":"2025-02-28T06:00:00.000Z","title":"Jamf Pro for iOS"}
+```
+
+`licenseType` is non-null on 11 of the 19 and unaffected. `GET /v1/licenses` is
+the licensing spec's **only** operation, so that one body is the entire surface
+the hold was protecting — there is nowhere else `type` could still appear.
+
+**Corroborated on `<org-b>` the same day, which is the check that actually
+settles it.** The reading above is one tenant, and one tenant cannot tell a
+schema change from a staggered rollout however good its null control — so
+`<org-b>`, the second tenant of the 2026-09-04 pass below, was re-probed:
+**24 rows, the `type` key absent on all 24**, deterministic 2/2, HTTP 200 with
+`GET /licensing/v1/zzz-no-such-path` → `403` as the unrouted control in the same
+invocation. It is identifiably that tenant and not a third: 24 licences with
+`licenseType` non-null on 16 of them, matching its row in the table below.
+
+That matters more than a fresh tenant would, because it is a **before and after
+on the tenant that had the field**: the same 24-row list carried `type` populated
+on every row on 2026-09-04 and carries it on none now. The null control holds
+there too, and harder — row 0 comes back with six explicit nulls
+(`activationCode`, `addOnType`, `bundleProductCode`, `contactId`, `endDate`,
+`renewalDate`) against a 15-key row shape with no `type` anywhere. So both
+tenants that populated the property have stopped, the spec's deletion is the
+server's behaviour rather than an environment ahead of it, and the removal is
+safe to take.
+
+**The general lesson is about what an absent key proves.** A null-skipping
+serializer makes absence and emptiness indistinguishable, and a small sample
+makes both indistinguishable from variance. Here the same response carried
+explicit nulls, which is what made one tenant *defensible*; it took the second
+to make it **settled**. The rule this yields: a null-serialization control
+licenses the claim "the property is off the DTO on this tenant", and nothing
+more. Generalising from that to "the property is gone" needs a second tenant,
+and the cheapest second tenant is the one an earlier pass already used — it
+turns a single reading into a before-and-after.
+
 ### Re-probed at v2100: both holds stand, and `partners` turns out to be granted (2026-09-09)
 
 v2100 changed neither held spec, so the hold question is unchanged; the probe
@@ -2625,7 +3072,7 @@ invocation and `GET /licensing/v1/nope-not-a-path` →
 - **SSO.** All five domains resolved through
   `GET /sso/v1/domains/allocation/{domain}` → 200, and every connection
   carries `authZeroRegion` and no `authRegion`:
-  `{"assignedConnection":"con_RMBLC9S3qpC6Bzv0","assignedConnectionOrgId":"org_k7LP9cP4h3RijIaR","authZeroRegion":"US"}`
+  `{"assignedConnection":"<con-1>","assignedConnectionOrgId":"<org-a>","authZeroRegion":"US"}`
   — **5/5**, values `US`×3, `JP`, `RAMP`. (`RAMP` is the undeclared region the
   SDK carries via `enumAdditions`; it is still on the wire.)
 
@@ -3052,6 +3499,60 @@ probe at the top of this section.
 ---
 
 ## AI Governance (`aigovernance`) — environment scope
+
+### Every 2xx really does carry `Jamf-Preview: true`, and the SDK cannot show it to a caller (2026-09-14)
+
+v2192's `info.description` asserts that "every successful (2xx) response
+carries a `Jamf-Preview: true` header"; v2121 had already declared the header
+on all twelve operations. It is true on the wire. Probed with an EU environment
+credential — the same environment every ai-governance probe in this section
+uses, identifiable by its 3 tools and 2 policies — with a bogus path in the
+same namespace as the control in the same invocation:
+
+```
+$ curl -D - .../ai/governance/policies/v1/nonexistent-control
+HTTP/2 403                          # unrouted control
+
+$ curl -D - .../ai/governance/policies/v1/tools
+HTTP/2 200
+content-type: application/json
+jamf-preview: true
+{"totalCount":3,"results":[{"id":"com.anthropic.claudecode",…
+
+$ curl -D - .../ai/governance/policies/v1/policies
+HTTP/2 200
+jamf-preview: true
+{"totalCount":2,"results":[…
+```
+
+Two operations were probed rather than one — a collection and an item — so a
+header attached to a single handler rather than to the product could not pass.
+
+**No caller can see it and no generated-method test can either**: the
+transport discards response headers on a success. That is why
+`TestAcceptance_AiGovernancePreviewHeader` reaches through
+`Transport().HTTPClient()` and stamps the scope header itself from
+`Client.Scope()` — `setScopeHeader` runs inside `Do`, not in a RoundTripper,
+so a raw request through the OAuth client carries the bearer but not the
+scope. The test **asserts** the header instead of logging it: the day it stops
+arriving is the day these endpoints have graduated out of preview, and that
+should fail loudly and send the reader to the package table.
+
+The same build made the preview state structured — `x-preview: true` per
+operation, where before there was only a document-level flag and prose — and
+prefixed all twelve summaries with `Preview - `. Since the summary becomes the
+method's godoc sentence, that prefix is the reason the generator now carries
+preview as its own doc line; mechanism in
+[CLAUDE.md](../CLAUDE.md#current-position-and-holds). It also deleted
+`x-preview-owners: [ai-policy-builder-backend]`, an internal service name
+`api/ai_governance_policies_api.json` had been publishing.
+
+The whole read and write lane was re-run at v2192 and is unchanged: 3 tools, 2
+policies, all twelve read rejections with their recorded codes, the
+`GetPolicyDeployment` blueprint-reference defect below still reporting 0, and
+the full write lifecycle — create, `409 NO_DRAFT_TO_PUBLISH`, wholesale
+settings replacement, both `If-Match` forms conflicting on a stale version,
+rename, archive-then-404 — passing whole.
 
 ### v2121's optimistic-concurrency mechanism is live, and the SDK cannot reach half of it (2026-09-09)
 

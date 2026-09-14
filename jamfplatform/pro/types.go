@@ -112,6 +112,7 @@ type AccountPreferencesV6 struct {
 	MobileDeviceAppSearchMethod     AccountPreferencesSearchType                `json:"mobileDeviceAppSearchMethod"`
 	MobileDeviceSearchMethod        AccountPreferencesSearchType                `json:"mobileDeviceSearchMethod"`
 	ResultsPerPage                  int                                         `json:"resultsPerPage"`
+	ShowDirectoryGroupUUIDColumn    bool                                        `json:"showDirectoryGroupUuidColumn"`
 	Timezone                        string                                      `json:"timezone"`
 	UserAllContentSearchMethod      AccountPreferencesSearchType                `json:"userAllContentSearchMethod"`
 	UserEbookSearchMethod           AccountPreferencesSearchType                `json:"userEbookSearchMethod"`
@@ -1700,7 +1701,12 @@ type ComputerExtensionAttributes struct {
 
 // ComputerGeneral represents a computer general.
 type ComputerGeneral struct {
-	AssetTag                                 string                       `json:"assetTag"`
+	// The enrollment type reported by Apple.
+	// Allowed values: see the ComputerGeneralAppleEnrollmentType constants.
+	AppleEnrollmentType string `json:"appleEnrollmentType"`
+	AssetTag            string `json:"assetTag"`
+	// Whether the device is awaiting configuration.
+	AwaitingConfiguration                    bool                         `json:"awaitingConfiguration"`
 	Barcode1                                 string                       `json:"barcode1"`
 	Barcode2                                 string                       `json:"barcode2"`
 	DeclarativeDeviceManagementEnabled       bool                         `json:"declarativeDeviceManagementEnabled"`
@@ -1806,7 +1812,12 @@ type ComputerGeneralUpdate struct {
 
 // ComputerGeneralV4 represents a computer general v4.
 type ComputerGeneralV4 struct {
-	AssetTag                                 string                       `json:"assetTag"`
+	// The enrollment type reported by Apple.
+	// Allowed values: see the ComputerGeneralV4AppleEnrollmentType constants.
+	AppleEnrollmentType string `json:"appleEnrollmentType"`
+	AssetTag            string `json:"assetTag"`
+	// Whether the device is awaiting configuration.
+	AwaitingConfiguration                    bool                         `json:"awaitingConfiguration"`
 	Barcode1                                 string                       `json:"barcode1"`
 	Barcode2                                 string                       `json:"barcode2"`
 	DeclarativeDeviceManagementEnabled       bool                         `json:"declarativeDeviceManagementEnabled"`
@@ -2332,30 +2343,30 @@ type ComputerPrestageV3 struct {
 	Language                          *string               `json:"language,omitempty"`
 	LocationInformation               LocationInformationV2 `json:"locationInformation"`
 	Mandatory                         bool                  `json:"mandatory"`
-	// The URL to the manifest file for the Platform SSO (PSSO) application 403 workflow. This URL is used
-	// when deploying the PSSO app to devices during the setup process.
+	// The URL to the manifest file for the Platform SSO (PSSO) application Identity first workflow. This
+	// URL is used when deploying the PSSO app to devices during the setup process.
 	ManifestURL              *string `json:"manifestUrl,omitempty"`
 	MDMRemovable             bool    `json:"mdmRemovable"`
 	MinimumOsSpecificVersion *string `json:"minimumOsSpecificVersion,omitempty"`
-	// The bundle identifier for the Platform SSO (PSSO) application unattended workflow. This identifier
+	// The bundle identifier for the Platform SSO (PSSO) application Device first workflow. This identifier
 	// is used to specify which PSSO app should be deployed to devices during the setup process.
 	PlatformSsoAppBundleID      *string  `json:"platformSsoAppBundleId,omitempty"`
 	PrestageInstalledProfileIds []string `json:"prestageInstalledProfileIds"`
 	// Allowed values: see the ComputerPrestageV3PrestageMinimumOsTargetVersionType constants.
 	PrestageMinimumOsTargetVersionType *string `json:"prestageMinimumOsTargetVersionType,omitempty"`
 	PreventActivationLock              bool    `json:"preventActivationLock"`
-	// The URL to the configuration profile for the Platform SSO (PSSO) application 403 workflow. This URL
-	// is used when deploying the PSSO app to devices during the setup process. Users should use either
-	// profileUrl or populate pssoConfigProfileId, but not both.
+	// The URL to the configuration profile for the Platform SSO (PSSO) application Identity first
+	// workflow. This URL is used when deploying the PSSO app to devices during the setup process. Users
+	// should use either profileUrl or populate pssoConfigProfileId, but not both.
 	ProfileURL *string `json:"profileUrl,omitempty"`
-	// The identifier for the configuration profile associated with the Platform SSO (PSSO) application 403
-	// workflow. This ID is used to specify which configuration profile should be applied to devices during
-	// the setup process when PSSO is enabled. Users should use either pssoConfigProfileId or populate
-	// profileUrl, but not both.
+	// The identifier for the configuration profile associated with the Platform SSO (PSSO) application
+	// Identity first workflow. This ID is used to specify which configuration profile should be applied to
+	// devices during the setup process when PSSO is enabled. Users should use either pssoConfigProfileId
+	// or populate profileUrl, but not both.
 	PssoConfigProfileID *string `json:"pssoConfigProfileId,omitempty"`
-	// Indicates whether Platform SSO (PSSO) is enabled for this computer prestage, regardless of
-	// unattended or 403 workflows. When enabled, the PSSO application will be deployed to devices during
-	// the setup process to facilitate single sign-on (SSO) for users.
+	// Indicates whether Platform SSO (PSSO) is enabled for this computer prestage, regardless of Device
+	// first or Identity first workflows. When enabled, the PSSO application will be deployed to devices
+	// during the setup process to facilitate single sign-on (SSO) for users.
 	PssoEnabled           *bool                           `json:"pssoEnabled,omitempty"`
 	PurchasingInformation PrestagePurchasingInformationV2 `json:"purchasingInformation"`
 	// Allowed values: see the ComputerPrestageV3RecoveryLockPasswordType constants.
@@ -2449,7 +2460,9 @@ type ComputerSecurity struct {
 	GatekeeperStatus          string `json:"gatekeeperStatus"`
 	LastAttestationAttempt    string `json:"lastAttestationAttempt"`
 	LastSuccessfulAttestation string `json:"lastSuccessfulAttestation"`
-	RecoveryLockEnabled       bool   `json:"recoveryLockEnabled"`
+	// Whether Lockdown Mode is enabled.
+	LockdownModeEnabled bool `json:"lockdownModeEnabled"`
+	RecoveryLockEnabled bool `json:"recoveryLockEnabled"`
 	// Collected for macOS 10.14.4 or later.
 	RemoteDesktopEnabled bool `json:"remoteDesktopEnabled"`
 	// Collected for macOS 10.15.0 or later.
@@ -2866,11 +2879,15 @@ type DetailsV2 struct {
 	PercentageUsed              int                                `json:"percentageUsed"`
 	ProvisioningProfiles        []MobileDeviceProvisioningProfiles `json:"provisioningProfiles"`
 	Purchasing                  *PurchasingV2                      `json:"purchasing,omitempty"`
-	Security                    *SecurityV2                        `json:"security,omitempty"`
-	ServiceSubscriptions        []MobileDeviceServiceSubscriptions `json:"serviceSubscriptions"`
-	Shared                      bool                               `json:"shared"`
-	Supervised                  bool                               `json:"supervised"`
-	UnlockToken                 string                             `json:"unlockToken"`
+	// Whether Return to Service is enabled.
+	ReturnToServiceEnabled bool                               `json:"returnToServiceEnabled"`
+	Security               *SecurityV2                        `json:"security,omitempty"`
+	ServiceSubscriptions   []MobileDeviceServiceSubscriptions `json:"serviceSubscriptions"`
+	Shared                 bool                               `json:"shared"`
+	Supervised             bool                               `json:"supervised"`
+	// System health status for device components. Reported for iOS devices.
+	SystemHealth *SystemHealthV2 `json:"systemHealth,omitempty"`
+	UnlockToken  string          `json:"unlockToken"`
 }
 
 // DeviceCommonDetails represents a device common details.
@@ -3627,31 +3644,31 @@ type GetComputerPrestageV3 struct {
 	Language                          string                 `json:"language"`
 	LocationInformation               *LocationInformationV2 `json:"locationInformation,omitempty"`
 	Mandatory                         bool                   `json:"mandatory"`
-	// The URL to the manifest file for the Platform SSO (PSSO) application 403 workflow. This URL is used
-	// when deploying the PSSO app to devices during the setup process.
+	// The URL to the manifest file for the Platform SSO (PSSO) application Identity first workflow. This
+	// URL is used when deploying the PSSO app to devices during the setup process.
 	ManifestURL              *string `json:"manifestUrl,omitempty"`
 	MDMRemovable             bool    `json:"mdmRemovable"`
 	MinimumOsSpecificVersion string  `json:"minimumOsSpecificVersion"`
-	// The bundle identifier for the Platform SSO (PSSO) application unattended workflow. This identifier
+	// The bundle identifier for the Platform SSO (PSSO) application Device first workflow. This identifier
 	// is used to specify which PSSO app should be deployed to devices during the setup process.
 	PlatformSsoAppBundleID      string   `json:"platformSsoAppBundleId"`
 	PrestageInstalledProfileIds []string `json:"prestageInstalledProfileIds"`
 	// Allowed values: see the GetComputerPrestageV3PrestageMinimumOsTargetVersionType constants.
 	PrestageMinimumOsTargetVersionType string `json:"prestageMinimumOsTargetVersionType"`
 	PreventActivationLock              bool   `json:"preventActivationLock"`
-	// The URL to the configuration profile for the Platform SSO (PSSO) application 403 workflow. This URL
-	// is used when deploying the PSSO app to devices during the setup process. Users should use either
-	// profileUrl or populate pssoConfigProfileId, but not both.
+	// The URL to the configuration profile for the Platform SSO (PSSO) application Identity first
+	// workflow. This URL is used when deploying the PSSO app to devices during the setup process. Users
+	// should use either profileUrl or populate pssoConfigProfileId, but not both.
 	ProfileURL  *string `json:"profileUrl,omitempty"`
 	ProfileUUID string  `json:"profileUuid"`
-	// The identifier for the configuration profile associated with the Platform SSO (PSSO) application 403
-	// workflow. This ID is used to specify which configuration profile should be applied to devices during
-	// the setup process when PSSO is enabled. Users should use either pssoConfigProfileId or populate
-	// profileUrl, but not both.
+	// The identifier for the configuration profile associated with the Platform SSO (PSSO) application
+	// Identity first workflow. This ID is used to specify which configuration profile should be applied to
+	// devices during the setup process when PSSO is enabled. Users should use either pssoConfigProfileId
+	// or populate profileUrl, but not both.
 	PssoConfigProfileID *string `json:"pssoConfigProfileId,omitempty"`
-	// Indicates whether Platform SSO (PSSO) is enabled for this computer prestage, regardless of
-	// unattended or 403 workflows. When enabled, the PSSO application will be deployed to devices during
-	// the setup process to facilitate single sign-on (SSO) for users.
+	// Indicates whether Platform SSO (PSSO) is enabled for this computer prestage, regardless of Device
+	// first or Identity first workflows. When enabled, the PSSO application will be deployed to devices
+	// during the setup process to facilitate single sign-on (SSO) for users.
 	PssoEnabled           bool                             `json:"pssoEnabled"`
 	PurchasingInformation *PrestagePurchasingInformationV2 `json:"purchasingInformation,omitempty"`
 	// Allowed values: see the GetComputerPrestageV3RecoveryLockPasswordType constants.
@@ -4036,8 +4053,13 @@ type InventoryListMobileDevice struct {
 	AirPlayPassword     string `json:"airPlayPassword"`
 	AppAnalyticsEnabled bool   `json:"appAnalyticsEnabled"`
 	AppleCareID         string `json:"appleCareId"`
+	// The enrollment type reported by Apple.
+	// Allowed values: see the InventoryListMobileDeviceAppleEnrollmentType constants.
+	AppleEnrollmentType string `json:"appleEnrollmentType"`
 	AssetTag            string `json:"assetTag"`
 	AvailableSpaceMb    int    `json:"availableSpaceMb"`
+	// Whether the device is awaiting configuration.
+	AwaitingConfiguration bool `json:"awaitingConfiguration"`
 	// - NON_GENUINE: The battery isn't a genuine Apple battery. - NORMAL: The battery is operating
 	// normally. - SERVICE_RECOMMENDED: The system recommends battery service. - UNKNOWN: The system
 	// couldn't determine battery health information. - UNSUPPORTED: The device doesn't support battery
@@ -4099,26 +4121,28 @@ type InventoryListMobileDevice struct {
 	LifeExpectancyYears                         int                       `json:"lifeExpectancyYears"`
 	Locales                                     string                    `json:"locales"`
 	LocationServicesForSelfServiceMobileEnabled bool                      `json:"locationServicesForSelfServiceMobileEnabled"`
-	LostModeEnabled                             bool                      `json:"lostModeEnabled"`
-	LostModeEnabledDate                         *time.Time                `json:"lostModeEnabledDate,omitempty"`
-	Managed                                     bool                      `json:"managed"`
-	ManagementID                                string                    `json:"managementId"`
-	MDMProfileExpirationDate                    *time.Time                `json:"mdmProfileExpirationDate,omitempty"`
-	Meid                                        string                    `json:"meid"`
-	MobileDeviceID                              string                    `json:"mobileDeviceId"`
-	Model                                       string                    `json:"model"`
-	ModelIdentifier                             string                    `json:"modelIdentifier"`
-	ModelNumber                                 string                    `json:"modelNumber"`
-	ModemFirmwareVersion                        string                    `json:"modemFirmwareVersion"`
-	OsBuild                                     string                    `json:"osBuild"`
-	OsRapidSecurityResponse                     string                    `json:"osRapidSecurityResponse"`
-	OsSupplementalBuildVersion                  string                    `json:"osSupplementalBuildVersion"`
-	OsVersion                                   string                    `json:"osVersion"`
-	PairedDevices                               int                       `json:"pairedDevices"`
-	PasscodeCompliant                           bool                      `json:"passcodeCompliant"`
-	PasscodeCompliantWithProfile                bool                      `json:"passcodeCompliantWithProfile"`
-	PasscodeLockGracePeriodEnforcedSeconds      int                       `json:"passcodeLockGracePeriodEnforcedSeconds"`
-	PasscodePresent                             bool                      `json:"passcodePresent"`
+	// Whether Lockdown Mode is enabled.
+	LockdownModeEnabled                    bool       `json:"lockdownModeEnabled"`
+	LostModeEnabled                        bool       `json:"lostModeEnabled"`
+	LostModeEnabledDate                    *time.Time `json:"lostModeEnabledDate,omitempty"`
+	Managed                                bool       `json:"managed"`
+	ManagementID                           string     `json:"managementId"`
+	MDMProfileExpirationDate               *time.Time `json:"mdmProfileExpirationDate,omitempty"`
+	Meid                                   string     `json:"meid"`
+	MobileDeviceID                         string     `json:"mobileDeviceId"`
+	Model                                  string     `json:"model"`
+	ModelIdentifier                        string     `json:"modelIdentifier"`
+	ModelNumber                            string     `json:"modelNumber"`
+	ModemFirmwareVersion                   string     `json:"modemFirmwareVersion"`
+	OsBuild                                string     `json:"osBuild"`
+	OsRapidSecurityResponse                string     `json:"osRapidSecurityResponse"`
+	OsSupplementalBuildVersion             string     `json:"osSupplementalBuildVersion"`
+	OsVersion                              string     `json:"osVersion"`
+	PairedDevices                          int        `json:"pairedDevices"`
+	PasscodeCompliant                      bool       `json:"passcodeCompliant"`
+	PasscodeCompliantWithProfile           bool       `json:"passcodeCompliantWithProfile"`
+	PasscodeLockGracePeriodEnforcedSeconds int        `json:"passcodeLockGracePeriodEnforcedSeconds"`
+	PasscodePresent                        bool       `json:"passcodePresent"`
 	// **Deprecated as of 11.25.** This field always returns false.
 	PersonalDeviceProfileCurrent bool       `json:"personalDeviceProfileCurrent"`
 	PersonalHotspotEnabled       bool       `json:"personalHotspotEnabled"`
@@ -4132,21 +4156,23 @@ type InventoryListMobileDevice struct {
 	PurchasingContact            string     `json:"purchasingContact"`
 	QuotaSize                    int        `json:"quotaSize"`
 	ResidentUsers                int        `json:"residentUsers"`
-	Roaming                      bool       `json:"roaming"`
-	Room                         string     `json:"room"`
-	SerialNumber                 string     `json:"serialNumber"`
-	SharedIpad                   bool       `json:"sharedIpad"`
-	Supervised                   bool       `json:"supervised"`
-	Tethered                     bool       `json:"tethered"`
-	TimeZone                     string     `json:"timeZone"`
-	UDID                         string     `json:"udid"`
-	UsedSpacePercentage          int        `json:"usedSpacePercentage"`
-	UserPhoneNumber              string     `json:"userPhoneNumber"`
-	Username                     string     `json:"username"`
-	Vendor                       string     `json:"vendor"`
-	VoiceRoamingEnabled          string     `json:"voiceRoamingEnabled"`
-	WarrantyExpirationDate       *time.Time `json:"warrantyExpirationDate,omitempty"`
-	WifiMacAddress               string     `json:"wifiMacAddress"`
+	// Whether Return to Service is enabled.
+	ReturnToServiceEnabled bool       `json:"returnToServiceEnabled"`
+	Roaming                bool       `json:"roaming"`
+	Room                   string     `json:"room"`
+	SerialNumber           string     `json:"serialNumber"`
+	SharedIpad             bool       `json:"sharedIpad"`
+	Supervised             bool       `json:"supervised"`
+	Tethered               bool       `json:"tethered"`
+	TimeZone               string     `json:"timeZone"`
+	UDID                   string     `json:"udid"`
+	UsedSpacePercentage    int        `json:"usedSpacePercentage"`
+	UserPhoneNumber        string     `json:"userPhoneNumber"`
+	Username               string     `json:"username"`
+	Vendor                 string     `json:"vendor"`
+	VoiceRoamingEnabled    string     `json:"voiceRoamingEnabled"`
+	WarrantyExpirationDate *time.Time `json:"warrantyExpirationDate,omitempty"`
+	WifiMacAddress         string     `json:"wifiMacAddress"`
 }
 
 // InventoryListMobileDeviceSearchResults represents a inventory list mobile device search results.
@@ -4964,7 +4990,12 @@ type MobileDeviceCertificateV2 struct {
 
 // MobileDeviceDetailsGetV2 represents a mobile device details get v2.
 type MobileDeviceDetailsGetV2 struct {
-	AssetTag                           string `json:"assetTag"`
+	// The enrollment type reported by Apple.
+	// Allowed values: see the MobileDeviceDetailsGetV2AppleEnrollmentType constants.
+	AppleEnrollmentType string `json:"appleEnrollmentType"`
+	AssetTag            string `json:"assetTag"`
+	// Whether the device is awaiting configuration.
+	AwaitingConfiguration              bool   `json:"awaitingConfiguration"`
 	BluetoothMacAddress                string `json:"bluetoothMacAddress"`
 	DeclarativeDeviceManagementEnabled bool   `json:"declarativeDeviceManagementEnabled"`
 	DeviceOwnershipLevel               string `json:"deviceOwnershipLevel"`
@@ -5014,7 +5045,12 @@ type MobileDeviceDetailsGetV2 struct {
 
 // MobileDeviceDetailsV2 represents a mobile device details v2.
 type MobileDeviceDetailsV2 struct {
-	AssetTag                           string `json:"assetTag"`
+	// The enrollment type reported by Apple.
+	// Allowed values: see the MobileDeviceDetailsV2AppleEnrollmentType constants.
+	AppleEnrollmentType string `json:"appleEnrollmentType"`
+	AssetTag            string `json:"assetTag"`
+	// Whether the device is awaiting configuration.
+	AwaitingConfiguration              bool   `json:"awaitingConfiguration"`
 	BluetoothMacAddress                string `json:"bluetoothMacAddress"`
 	DeclarativeDeviceManagementEnabled bool   `json:"declarativeDeviceManagementEnabled"`
 	DeviceOwnershipLevel               string `json:"deviceOwnershipLevel"`
@@ -5137,8 +5173,13 @@ type MobileDeviceExtensionAttributes struct {
 
 // MobileDeviceGeneral represents a mobile device general.
 type MobileDeviceGeneral struct {
-	AssetTag                           string `json:"assetTag"`
-	DeclarativeDeviceManagementEnabled bool   `json:"declarativeDeviceManagementEnabled"`
+	// The enrollment type reported by Apple.
+	// Allowed values: see the MobileDeviceGeneralAppleEnrollmentType constants.
+	AppleEnrollmentType string `json:"appleEnrollmentType"`
+	AssetTag            string `json:"assetTag"`
+	// Whether the device is awaiting configuration.
+	AwaitingConfiguration              bool `json:"awaitingConfiguration"`
+	DeclarativeDeviceManagementEnabled bool `json:"declarativeDeviceManagementEnabled"`
 	// The enrollment method used for the device. **Note:** The `PersonalDeviceProfile` enrollment method
 	// was removed as of 11.25.
 	// Allowed values: see the MobileDeviceGeneralDeviceOwnershipType constants.
@@ -5199,8 +5240,10 @@ type MobileDeviceHardware struct {
 	ModelNumber               string                           `json:"modelNumber"`
 	ModemFirmwareVersion      string                           `json:"modemFirmwareVersion"`
 	SerialNumber              string                           `json:"serialNumber"`
-	UsedSpacePercentage       int                              `json:"usedSpacePercentage"`
-	WifiMacAddress            string                           `json:"wifiMacAddress"`
+	// System health status for device components. Reported for iOS devices.
+	SystemHealth        *MobileDeviceSystemHealth `json:"systemHealth,omitempty"`
+	UsedSpacePercentage int                       `json:"usedSpacePercentage"`
+	WifiMacAddress      string                    `json:"wifiMacAddress"`
 }
 
 // MobileDeviceInventory represents a mobile device inventory.
@@ -5233,11 +5276,16 @@ type MobileDeviceInventorySearchResults struct {
 
 // MobileDeviceIosGeneral represents a mobile device ios general.
 type MobileDeviceIosGeneral struct {
-	AppAnalyticsEnabled                bool   `json:"appAnalyticsEnabled"`
-	AssetTag                           string `json:"assetTag"`
-	CloudBackupEnabled                 bool   `json:"cloudBackupEnabled"`
-	DeclarativeDeviceManagementEnabled bool   `json:"declarativeDeviceManagementEnabled"`
-	DeviceLocatorServiceEnabled        bool   `json:"deviceLocatorServiceEnabled"`
+	AppAnalyticsEnabled bool `json:"appAnalyticsEnabled"`
+	// The enrollment type reported by Apple.
+	// Allowed values: see the MobileDeviceIosGeneralAppleEnrollmentType constants.
+	AppleEnrollmentType string `json:"appleEnrollmentType"`
+	AssetTag            string `json:"assetTag"`
+	// Whether the device is awaiting configuration.
+	AwaitingConfiguration              bool `json:"awaitingConfiguration"`
+	CloudBackupEnabled                 bool `json:"cloudBackupEnabled"`
+	DeclarativeDeviceManagementEnabled bool `json:"declarativeDeviceManagementEnabled"`
+	DeviceLocatorServiceEnabled        bool `json:"deviceLocatorServiceEnabled"`
 	// The enrollment method used for the device. **Note:** The `PersonalDeviceProfile` enrollment method
 	// was removed as of 11.25.
 	// Allowed values: see the MobileDeviceIosGeneralDeviceOwnershipType constants.
@@ -5272,14 +5320,16 @@ type MobileDeviceIosGeneral struct {
 	OsVersion                                   string     `json:"osVersion"`
 	QuotaSize                                   int        `json:"quotaSize"`
 	ResidentUsers                               int        `json:"residentUsers"`
-	SharedIpad                                  bool       `json:"sharedIpad"`
-	SiteID                                      string     `json:"siteId"`
-	SoftwareUpdateDeviceID                      string     `json:"softwareUpdateDeviceId"`
-	Supervised                                  bool       `json:"supervised"`
-	SyncedToComputer                            int        `json:"syncedToComputer"`
-	TemporarySessionOnly                        bool       `json:"temporarySessionOnly"`
-	TemporarySessionTimeout                     int        `json:"temporarySessionTimeout"`
-	Tethered                                    bool       `json:"tethered"`
+	// Whether Return to Service is enabled.
+	ReturnToServiceEnabled  bool   `json:"returnToServiceEnabled"`
+	SharedIpad              bool   `json:"sharedIpad"`
+	SiteID                  string `json:"siteId"`
+	SoftwareUpdateDeviceID  string `json:"softwareUpdateDeviceId"`
+	Supervised              bool   `json:"supervised"`
+	SyncedToComputer        int    `json:"syncedToComputer"`
+	TemporarySessionOnly    bool   `json:"temporarySessionOnly"`
+	TemporarySessionTimeout int    `json:"temporarySessionTimeout"`
+	Tethered                bool   `json:"tethered"`
 	// IANA time zone database name.
 	TimeZone           string `json:"timeZone"`
 	UDID               string `json:"udid"`
@@ -5535,13 +5585,15 @@ type MobileDeviceSecurity struct {
 	BlockLevelEncryptionCapable bool   `json:"blockLevelEncryptionCapable"`
 	// Indicates the bootstrap token escrow status for the device.
 	// Allowed values: see the MobileDeviceSecurityBootstrapTokenEscrowed constants.
-	BootstrapTokenEscrowed                 string                        `json:"bootstrapTokenEscrowed"`
-	DataProtected                          bool                          `json:"dataProtected"`
-	FileLevelEncryptionCapable             bool                          `json:"fileLevelEncryptionCapable"`
-	HardwareEncryption                     int                           `json:"hardwareEncryption"`
-	JailBreakDetected                      bool                          `json:"jailBreakDetected"`
-	LastAttestationAttemptDate             *time.Time                    `json:"lastAttestationAttemptDate,omitempty"`
-	LastSuccessfulAttestationDate          *time.Time                    `json:"lastSuccessfulAttestationDate,omitempty"`
+	BootstrapTokenEscrowed        string     `json:"bootstrapTokenEscrowed"`
+	DataProtected                 bool       `json:"dataProtected"`
+	FileLevelEncryptionCapable    bool       `json:"fileLevelEncryptionCapable"`
+	HardwareEncryption            int        `json:"hardwareEncryption"`
+	JailBreakDetected             bool       `json:"jailBreakDetected"`
+	LastAttestationAttemptDate    *time.Time `json:"lastAttestationAttemptDate,omitempty"`
+	LastSuccessfulAttestationDate *time.Time `json:"lastSuccessfulAttestationDate,omitempty"`
+	// Whether Lockdown Mode is enabled.
+	LockdownModeEnabled                    bool                          `json:"lockdownModeEnabled"`
 	LostModeEnabled                        bool                          `json:"lostModeEnabled"`
 	LostModeFootnote                       string                        `json:"lostModeFootnote"`
 	LostModeLocation                       *MobileDeviceLostModeLocation `json:"lostModeLocation,omitempty"`
@@ -5605,11 +5657,27 @@ type MobileDeviceSmartGroupCriteriaV2 struct {
 	Value string `json:"value"`
 }
 
+// MobileDeviceSystemHealth System health status for device components. Reported for iOS devices.
+type MobileDeviceSystemHealth struct {
+	Baseband      string `json:"baseband"`
+	Camera        string `json:"camera"`
+	Display       string `json:"display"`
+	FaceID        string `json:"faceId"`
+	Nfc           string `json:"nfc"`
+	TouchID       string `json:"touchId"`
+	UltraWideband string `json:"ultraWideband"`
+}
+
 // MobileDeviceTvOsGeneral represents a mobile device tv os general.
 type MobileDeviceTvOsGeneral struct {
-	AirPlayPassword                    string `json:"airPlayPassword"`
-	AssetTag                           string `json:"assetTag"`
-	DeclarativeDeviceManagementEnabled bool   `json:"declarativeDeviceManagementEnabled"`
+	AirPlayPassword string `json:"airPlayPassword"`
+	// The enrollment type reported by Apple.
+	// Allowed values: see the MobileDeviceTvOsGeneralAppleEnrollmentType constants.
+	AppleEnrollmentType string `json:"appleEnrollmentType"`
+	AssetTag            string `json:"assetTag"`
+	// Whether the device is awaiting configuration.
+	AwaitingConfiguration              bool `json:"awaitingConfiguration"`
+	DeclarativeDeviceManagementEnabled bool `json:"declarativeDeviceManagementEnabled"`
 	// The enrollment method used for the device. **Note:** The `PersonalDeviceProfile` enrollment method
 	// was removed as of 11.25.
 	// Allowed values: see the MobileDeviceTvOsGeneralDeviceOwnershipType constants.
@@ -5706,11 +5774,16 @@ type MobileDeviceV2 struct {
 
 // MobileDeviceVisionOsGeneral represents a mobile device vision os general.
 type MobileDeviceVisionOsGeneral struct {
-	AppAnalyticsEnabled                bool   `json:"appAnalyticsEnabled"`
-	AssetTag                           string `json:"assetTag"`
-	CloudBackupEnabled                 bool   `json:"cloudBackupEnabled"`
-	DeclarativeDeviceManagementEnabled bool   `json:"declarativeDeviceManagementEnabled"`
-	DeviceLocatorServiceEnabled        bool   `json:"deviceLocatorServiceEnabled"`
+	AppAnalyticsEnabled bool `json:"appAnalyticsEnabled"`
+	// The enrollment type reported by Apple.
+	// Allowed values: see the MobileDeviceVisionOsGeneralAppleEnrollmentType constants.
+	AppleEnrollmentType string `json:"appleEnrollmentType"`
+	AssetTag            string `json:"assetTag"`
+	// Whether the device is awaiting configuration.
+	AwaitingConfiguration              bool `json:"awaitingConfiguration"`
+	CloudBackupEnabled                 bool `json:"cloudBackupEnabled"`
+	DeclarativeDeviceManagementEnabled bool `json:"declarativeDeviceManagementEnabled"`
+	DeviceLocatorServiceEnabled        bool `json:"deviceLocatorServiceEnabled"`
 	// The enrollment method used for the device. **Note:** The `PersonalDeviceProfile` enrollment method
 	// was removed as of 11.25.
 	// Allowed values: see the MobileDeviceVisionOsGeneralDeviceOwnershipType constants.
@@ -5770,10 +5843,15 @@ type MobileDeviceVisionOsInventory struct {
 
 // MobileDeviceWatchOsGeneral represents a mobile device watch os general.
 type MobileDeviceWatchOsGeneral struct {
-	AppAnalyticsEnabled                bool   `json:"appAnalyticsEnabled"`
-	AssetTag                           string `json:"assetTag"`
-	DeclarativeDeviceManagementEnabled bool   `json:"declarativeDeviceManagementEnabled"`
-	DeviceLocatorServiceEnabled        bool   `json:"deviceLocatorServiceEnabled"`
+	AppAnalyticsEnabled bool `json:"appAnalyticsEnabled"`
+	// The enrollment type reported by Apple.
+	// Allowed values: see the MobileDeviceWatchOsGeneralAppleEnrollmentType constants.
+	AppleEnrollmentType string `json:"appleEnrollmentType"`
+	AssetTag            string `json:"assetTag"`
+	// Whether the device is awaiting configuration.
+	AwaitingConfiguration              bool `json:"awaitingConfiguration"`
+	DeclarativeDeviceManagementEnabled bool `json:"declarativeDeviceManagementEnabled"`
+	DeviceLocatorServiceEnabled        bool `json:"deviceLocatorServiceEnabled"`
 	// The enrollment method used for the device. **Note:** The `PersonalDeviceProfile` enrollment method
 	// was removed as of 11.25.
 	// Allowed values: see the MobileDeviceWatchOsGeneralDeviceOwnershipType constants.
@@ -5879,6 +5957,61 @@ type ObjectHistoryV1 struct {
 	ID       string  `json:"id"`
 	Note     string  `json:"note"`
 	Username string  `json:"username"`
+}
+
+// OidcBrokerConfig The tenant's currently selected OIDC broker IdP configuration. Secret fields (clientSecret, privateKeyJwt) are never included in the response. The three enum-valued fields are always present but may be null — an unrecognized value from a newer authentication service is read as null rather than failing the response.
+type OidcBrokerConfig struct {
+	// A broker configuration carries ADMIN_SSO; an update preserves whatever is already stored rather than
+	// replacing it. The other values exist for non-broker IdP configurations.
+	// Allowed values: see the OidcBrokerConfigCapabilities constants.
+	Capabilities []string `json:"capabilities"`
+	// Read this before updating to determine whether an update changes the client authentication method,
+	// which requires supplying the new method's credential.
+	// Allowed values: see the OidcBrokerConfigClientAuthMethod constants.
+	ClientAuthMethod *string `json:"clientAuthMethod,omitempty"`
+	ClientID         string  `json:"clientId"`
+	// Allowed values: see the OidcBrokerConfigClientType constants.
+	ClientType   *string    `json:"clientType,omitempty"`
+	CreatedAt    *time.Time `json:"createdAt,omitempty"`
+	DiscoveryURL string     `json:"discoveryUrl"`
+	Enabled      bool       `json:"enabled"`
+	ID           string     `json:"id"`
+	// Allowed values: see the OidcBrokerConfigProductUserMapping constants.
+	ProductUserMapping   *string    `json:"productUserMapping,omitempty"`
+	ProductUsernameClaim string     `json:"productUsernameClaim"`
+	RedirectUris         []string   `json:"redirectUris"`
+	Scopes               []string   `json:"scopes"`
+	UpdatedAt            *time.Time `json:"updatedAt,omitempty"`
+}
+
+// OidcBrokerConfigUpdate Full-replacement update of the tenant's broker IdP configuration. The config to update is the tenant's stored broker selection; it is not part of this body. Every non-secret field is replaced with the value sent here, so all of them must be supplied on every update; only the secret fields are kept when omitted — except when this request changes clientAuthMethod, which requires the new method's credential to be supplied. The clientType (always CONFIDENTIAL) is set by Jamf Pro, and the capabilities and redirect URIs are carried over from the stored configuration unchanged; none of the three can be supplied here.
+type OidcBrokerConfigUpdate struct {
+	// Selects which credential the authentication service stores and which it clears — the credential
+	// belonging to the other method is discarded. Changing this value therefore requires the new method's
+	// credential in the same request.
+	// Allowed values: see the OidcBrokerConfigUpdateClientAuthMethod constants.
+	ClientAuthMethod string `json:"clientAuthMethod"`
+	ClientID         string `json:"clientId"`
+	// Omit to keep the currently stored secret; supply to rotate it. Required when this request changes
+	// clientAuthMethod to CLIENT_SECRET, or when clientAuthMethod is CLIENT_SECRET and no secret is
+	// currently stored.
+	// Write-only. Servers MUST NOT return this field in responses; the SDK preserves it only so the caller
+	// can supply a value on update.
+	ClientSecret *string `json:"clientSecret,omitempty"`
+	DiscoveryURL string  `json:"discoveryUrl"`
+	// Required. The authentication service replaces this value on every update, so omitting it would
+	// silently re-enable a disabled configuration.
+	Enabled bool `json:"enabled"`
+	// Omit to keep the currently stored key; supply to rotate it. Required when this request changes
+	// clientAuthMethod to PRIVATE_KEY_JWT, or when clientAuthMethod is PRIVATE_KEY_JWT and no key is
+	// currently stored.
+	// Write-only. Servers MUST NOT return this field in responses; the SDK preserves it only so the caller
+	// can supply a value on update.
+	PrivateKeyJwt *string `json:"privateKeyJwt,omitempty"`
+	// Allowed values: see the OidcBrokerConfigUpdateProductUserMapping constants.
+	ProductUserMapping   string   `json:"productUserMapping"`
+	ProductUsernameClaim *string  `json:"productUsernameClaim,omitempty"`
+	Scopes               []string `json:"scopes"`
 }
 
 // OidcDirectIdpLoginSkipURL represents a oidc direct idp login skip u r l.
@@ -6426,30 +6559,30 @@ type PostComputerPrestageV3 struct {
 	Language                          *string               `json:"language,omitempty"`
 	LocationInformation               LocationInformationV2 `json:"locationInformation"`
 	Mandatory                         bool                  `json:"mandatory"`
-	// The URL to the manifest file for the Platform SSO (PSSO) application 403 workflow. This URL is used
-	// when deploying the PSSO app to devices during the setup process.
+	// The URL to the manifest file for the Platform SSO (PSSO) application Identity first workflow. This
+	// URL is used when deploying the PSSO app to devices during the setup process.
 	ManifestURL              *string `json:"manifestUrl,omitempty"`
 	MDMRemovable             bool    `json:"mdmRemovable"`
 	MinimumOsSpecificVersion *string `json:"minimumOsSpecificVersion,omitempty"`
-	// The bundle identifier for the Platform SSO (PSSO) application unattended workflow. This identifier
+	// The bundle identifier for the Platform SSO (PSSO) application Device first workflow. This identifier
 	// is used to specify which PSSO app should be deployed to devices during the setup process.
 	PlatformSsoAppBundleID      *string  `json:"platformSsoAppBundleId,omitempty"`
 	PrestageInstalledProfileIds []string `json:"prestageInstalledProfileIds"`
 	// Allowed values: see the PostComputerPrestageV3PrestageMinimumOsTargetVersionType constants.
 	PrestageMinimumOsTargetVersionType *string `json:"prestageMinimumOsTargetVersionType,omitempty"`
 	PreventActivationLock              bool    `json:"preventActivationLock"`
-	// The URL to the configuration profile for the Platform SSO (PSSO) application 403 workflow. This URL
-	// is used when deploying the PSSO app to devices during the setup process. Users should use either
-	// profileUrl or populate pssoConfigProfileId, but not both.
+	// The URL to the configuration profile for the Platform SSO (PSSO) application Identity first
+	// workflow. This URL is used when deploying the PSSO app to devices during the setup process. Users
+	// should use either profileUrl or populate pssoConfigProfileId, but not both.
 	ProfileURL *string `json:"profileUrl,omitempty"`
-	// The identifier for the configuration profile associated with the Platform SSO (PSSO) application 403
-	// workflow. This ID is used to specify which configuration profile should be applied to devices during
-	// the setup process when PSSO is enabled. Users should use either pssoConfigProfileId or populate
-	// profileUrl, but not both.
+	// The identifier for the configuration profile associated with the Platform SSO (PSSO) application
+	// Identity first workflow. This ID is used to specify which configuration profile should be applied to
+	// devices during the setup process when PSSO is enabled. Users should use either pssoConfigProfileId
+	// or populate profileUrl, but not both.
 	PssoConfigProfileID *string `json:"pssoConfigProfileId,omitempty"`
-	// Indicates whether Platform SSO (PSSO) is enabled for this computer prestage, regardless of
-	// unattended or 403 workflows. When enabled, the PSSO application will be deployed to devices during
-	// the setup process to facilitate single sign-on (SSO) for users.
+	// Indicates whether Platform SSO (PSSO) is enabled for this computer prestage, regardless of Device
+	// first or Identity first workflows. When enabled, the PSSO application will be deployed to devices
+	// during the setup process to facilitate single sign-on (SSO) for users.
 	PssoEnabled           *bool                           `json:"pssoEnabled,omitempty"`
 	PurchasingInformation PrestagePurchasingInformationV2 `json:"purchasingInformation"`
 	// Write-only. Servers MUST NOT return this field in responses; the SDK preserves it only so the caller
@@ -6630,30 +6763,30 @@ type PutComputerPrestageV3 struct {
 	Language                          *string               `json:"language,omitempty"`
 	LocationInformation               LocationInformationV2 `json:"locationInformation"`
 	Mandatory                         bool                  `json:"mandatory"`
-	// The URL to the manifest file for the Platform SSO (PSSO) application 403 workflow. This URL is used
-	// when deploying the PSSO app to devices during the setup process.
+	// The URL to the manifest file for the Platform SSO (PSSO) application Identity first workflow. This
+	// URL is used when deploying the PSSO app to devices during the setup process.
 	ManifestURL              *string `json:"manifestUrl,omitempty"`
 	MDMRemovable             bool    `json:"mdmRemovable"`
 	MinimumOsSpecificVersion *string `json:"minimumOsSpecificVersion,omitempty"`
-	// The bundle identifier for the Platform SSO (PSSO) application unattended workflow. This identifier
+	// The bundle identifier for the Platform SSO (PSSO) application Device first workflow. This identifier
 	// is used to specify which PSSO app should be deployed to devices during the setup process.
 	PlatformSsoAppBundleID      *string  `json:"platformSsoAppBundleId,omitempty"`
 	PrestageInstalledProfileIds []string `json:"prestageInstalledProfileIds"`
 	// Allowed values: see the PutComputerPrestageV3PrestageMinimumOsTargetVersionType constants.
 	PrestageMinimumOsTargetVersionType *string `json:"prestageMinimumOsTargetVersionType,omitempty"`
 	PreventActivationLock              bool    `json:"preventActivationLock"`
-	// The URL to the configuration profile for the Platform SSO (PSSO) application 403 workflow. This URL
-	// is used when deploying the PSSO app to devices during the setup process. Users should use either
-	// profileUrl or populate pssoConfigProfileId, but not both.
+	// The URL to the configuration profile for the Platform SSO (PSSO) application Identity first
+	// workflow. This URL is used when deploying the PSSO app to devices during the setup process. Users
+	// should use either profileUrl or populate pssoConfigProfileId, but not both.
 	ProfileURL *string `json:"profileUrl,omitempty"`
-	// The identifier for the configuration profile associated with the Platform SSO (PSSO) application 403
-	// workflow. This ID is used to specify which configuration profile should be applied to devices during
-	// the setup process when PSSO is enabled. Users should use either pssoConfigProfileId or populate
-	// profileUrl, but not both.
+	// The identifier for the configuration profile associated with the Platform SSO (PSSO) application
+	// Identity first workflow. This ID is used to specify which configuration profile should be applied to
+	// devices during the setup process when PSSO is enabled. Users should use either pssoConfigProfileId
+	// or populate profileUrl, but not both.
 	PssoConfigProfileID *string `json:"pssoConfigProfileId,omitempty"`
-	// Indicates whether Platform SSO (PSSO) is enabled for this computer prestage, regardless of
-	// unattended or 403 workflows. When enabled, the PSSO application will be deployed to devices during
-	// the setup process to facilitate single sign-on (SSO) for users.
+	// Indicates whether Platform SSO (PSSO) is enabled for this computer prestage, regardless of Device
+	// first or Identity first workflows. When enabled, the PSSO application will be deployed to devices
+	// during the setup process to facilitate single sign-on (SSO) for users.
 	PssoEnabled           *bool                           `json:"pssoEnabled,omitempty"`
 	PurchasingInformation PrestagePurchasingInformationV2 `json:"purchasingInformation"`
 	// Write-only. Servers MUST NOT return this field in responses; the SDK preserves it only so the caller
@@ -6909,9 +7042,11 @@ type SecurityV2 struct {
 	JailBreakDetected             bool       `json:"jailBreakDetected"`
 	LastAttestationAttemptDate    *time.Time `json:"lastAttestationAttemptDate,omitempty"`
 	LastSuccessfulAttestationDate *time.Time `json:"lastSuccessfulAttestationDate,omitempty"`
-	PasscodeCompliant             bool       `json:"passcodeCompliant"`
-	PasscodeCompliantWithProfile  bool       `json:"passcodeCompliantWithProfile"`
-	PasscodePresent               bool       `json:"passcodePresent"`
+	// Whether Lockdown Mode is enabled.
+	LockdownModeEnabled          bool `json:"lockdownModeEnabled"`
+	PasscodeCompliant            bool `json:"passcodeCompliant"`
+	PasscodeCompliantWithProfile bool `json:"passcodeCompliantWithProfile"`
+	PasscodePresent              bool `json:"passcodePresent"`
 }
 
 // SelfServiceInstallSettings object representation of Self Service settings regarding installation.
@@ -7490,6 +7625,17 @@ type SupervisionIdentitySearchResults struct {
 // SupervisionIdentityUpdate represents a supervision identity update.
 type SupervisionIdentityUpdate struct {
 	DisplayName string `json:"displayName"`
+}
+
+// SystemHealthV2 System health status for device components. Reported for iOS devices.
+type SystemHealthV2 struct {
+	Baseband      string `json:"baseband"`
+	Camera        string `json:"camera"`
+	Display       string `json:"display"`
+	FaceID        string `json:"faceId"`
+	Nfc           string `json:"nfc"`
+	TouchID       string `json:"touchId"`
+	UltraWideband string `json:"ultraWideband"`
 }
 
 // TeacherFeatures represents a teacher features.

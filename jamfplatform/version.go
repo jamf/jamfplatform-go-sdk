@@ -9,4 +9,4 @@ package jamfplatform
 // read directly from the info.version field of the openapi-jpapi.json
 // spec at generate time. Use it to log/report which API surface the
 // linked SDK build targets.
-const JamfProAPIVersion = "11.31.0"
+const JamfProAPIVersion = "11.32.0"

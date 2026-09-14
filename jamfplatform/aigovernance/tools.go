@@ -14,6 +14,8 @@ import (
 
 // ListTools list available vendor tools.
 //
+// Preview: this endpoint is marked preview in the Jamf API spec; its request and response shapes may change without warning, and successful responses carry a Jamf-Preview: true header.
+//
 // Required privileges: ai-policies:read.
 func (c *Client) ListTools(ctx context.Context) (*ToolListResponse, error) {
 	prefix := c.transport.APIPrefix("ai/governance/policies", "v1")
@@ -26,6 +28,8 @@ func (c *Client) ListTools(ctx context.Context) (*ToolListResponse, error) {
 }
 
 // GetTool get tool detail.
+//
+// Preview: this endpoint is marked preview in the Jamf API spec; its request and response shapes may change without warning, and successful responses carry a Jamf-Preview: true header.
 //
 // Required privileges: ai-policies:read.
 //
@@ -42,6 +46,8 @@ func (c *Client) GetTool(ctx context.Context, toolID string) (*ToolSummary, erro
 }
 
 // GetToolSchema get the vendor JSON Schema for a tool and schema version.
+//
+// Preview: this endpoint is marked preview in the Jamf API spec; its request and response shapes may change without warning, and successful responses carry a Jamf-Preview: true header.
 //
 // Required privileges: ai-policies:read.
 //

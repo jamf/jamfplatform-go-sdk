@@ -185,3 +185,52 @@ func TestDownloadSsoMetadataV3_NotFound(t *testing.T) {
 		t.Fatal("expected error")
 	}
 }
+
+func TestGetSsoOidcBrokerConfigV3(t *testing.T) {
+	c, mux := testServerWithOpts(t, WithTenantID("t-test"))
+	mux.HandleFunc("/pro/v3/sso/oidc-broker-config", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			t.Errorf("method = %s, want GET", r.Method)
+		}
+		writeJSON(t, w, http.StatusOK, map[string]any{})
+	})
+
+	result, err := c.GetSsoOidcBrokerConfigV3(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result == nil {
+		t.Fatal("expected non-nil result")
+	}
+}
+
+func TestGetSsoOidcBrokerConfigV3_NotFound(t *testing.T) {
+	c, mux := testServerWithOpts(t, WithTenantID("t-test"))
+	mux.HandleFunc("/pro/v3/sso/oidc-broker-config", func(w http.ResponseWriter, _ *http.Request) {
+		writeJSON(t, w, http.StatusNotFound, map[string]any{
+			"httpStatus": 404,
+			"traceId":    "trace-nf",
+			"errors":     []map[string]string{{"code": "NOT_FOUND", "field": "id", "description": "not found"}},
+		})
+	})
+
+	_, err := c.GetSsoOidcBrokerConfigV3(context.Background())
+	if err == nil {
+		t.Fatal("expected error")
+	}
+}
+
+func TestUpdateSsoOidcBrokerConfigV3(t *testing.T) {
+	c, mux := testServerWithOpts(t, WithTenantID("t-test"))
+	mux.HandleFunc("/pro/v3/sso/oidc-broker-config", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPut {
+			t.Errorf("method = %s, want PUT", r.Method)
+		}
+		w.WriteHeader(http.StatusNoContent)
+	})
+
+	err := c.UpdateSsoOidcBrokerConfigV3(context.Background(), &OidcBrokerConfigUpdate{})
+	if err != nil {
+		t.Fatal(err)
+	}
+}

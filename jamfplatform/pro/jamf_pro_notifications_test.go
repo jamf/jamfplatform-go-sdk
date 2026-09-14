@@ -45,6 +45,21 @@ func TestListNotificationsV1_NotFound(t *testing.T) {
 	}
 }
 
+func TestDismissAllNotificationsV1(t *testing.T) {
+	c, mux := testServerWithOpts(t, WithTenantID("t-test"))
+	mux.HandleFunc("/pro/v1/notifications", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodDelete {
+			t.Errorf("method = %s, want DELETE", r.Method)
+		}
+		w.WriteHeader(http.StatusNoContent)
+	})
+
+	err := c.DismissAllNotificationsV1(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestDeleteNotificationV1(t *testing.T) {
 	c, mux := testServerWithOpts(t, WithTenantID("t-test"))
 	mux.HandleFunc("/pro/v1/notifications/test-id/test-id", func(w http.ResponseWriter, r *http.Request) {

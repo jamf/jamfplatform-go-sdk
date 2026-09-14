@@ -138,6 +138,61 @@ func TestAcceptance_Blueprint_EmptyBlueprint(t *testing.T) {
 	t.Logf("Created empty blueprint ID: %s", bp.ID)
 }
 
+// TestAcceptance_Blueprint_EmptyStepsCannotBePatched pins a spec/wire
+// contradiction that makes one SDK call sequence unreachable:
+// CreateBlueprint with no steps, then UpdateBlueprint.
+//
+// CreateBlueprintRequest.steps declares minItems: 0 and the create accepts an
+// empty array — TestAcceptance_Blueprint_EmptyBlueprint above depends on that.
+// But PATCH is application/merge-patch+json, the server validates the *merged*
+// entity, and it enforces steps size 1..100 on the result. So a blueprint
+// stored with no steps rejects every patch, including one that does not mention
+// steps at all, with 400 Size on the field `steps`. UpdateBlueprintRequest.steps
+// declares no bounds, so the constraint is undeclared on the operation that
+// applies it.
+//
+// Wire-established 2026-09-11 by contrast rather than by reading the error:
+// TestAcceptance_Blueprint_PartialUpdatePreservesSteps sends the identical
+// description-only patch to a blueprint that has one step and gets 204 with its
+// steps intact, so the rejection is the stored state and not the patch body.
+//
+// Report upstream: either the create should refuse an empty steps array, or the
+// patch should not apply minItems to a field the request does not carry.
+func TestAcceptance_Blueprint_EmptyStepsCannotBePatched(t *testing.T) {
+	groupID := requireSmartGroupFixture(t)
+	c := accEnvClient(t)
+	ctx := context.Background()
+	bpClient := blueprints.New(c)
+
+	bp := createTestBlueprint(t, c, "sdk-acc-empty-steps-patch-"+runSuffix(), groupID, []blueprints.BlueprintStep{})
+	if len(bp.Steps) != 0 {
+		t.Fatalf("fixture is not an empty-steps blueprint: %d steps", len(bp.Steps))
+	}
+
+	// Description-only, so nothing here can be what the server objects to.
+	desc := "patched after creation with no steps"
+	err := bpClient.UpdateBlueprint(ctx, bp.ID, &blueprints.UpdateBlueprintRequest{Description: &desc})
+	if err == nil {
+		t.Fatal("UpdateBlueprint succeeded on a blueprint stored with no steps — the contradiction " +
+			"has been resolved upstream. Replace this assertion with a real round-trip and drop the " +
+			"note above; check whether CreateBlueprint still accepts an empty steps array too.")
+	}
+	skipOnServerError(t, err)
+
+	apiErr := jamfplatform.AsAPIError(err)
+	if apiErr == nil {
+		t.Fatalf("UpdateBlueprint: non-API error, the request did not reach the gateway: %v", err)
+	}
+	if !apiErr.HasStatus(400) {
+		t.Fatalf("UpdateBlueprint: want the recorded 400 on steps, got %d: %s", apiErr.StatusCode, apiErr.Summary())
+	}
+	if msgs := apiErr.FieldErrors()["steps"]; len(msgs) == 0 {
+		t.Fatalf("UpdateBlueprint: 400 but not attributed to `steps`, so the refusal is not the one "+
+			"this test pins: %s", apiErr.Summary())
+	}
+	t.Logf("UpdateBlueprint on an empty-steps blueprint: 400 as recorded (%s)", apiErr.Summary())
+}
+
 func TestAcceptance_Blueprint_UpdateAndRead(t *testing.T) {
 	groupID := requireSmartGroupFixture(t)
 	c := accEnvClient(t)

@@ -129,30 +129,12 @@ var specs = []specRow{
 	{dest: "securitycloud-categories-api.yaml", dir: "jsc-categories", title: "JSC Categories API"},
 	{dest: "securitycloud-uem-connect-api.yaml", dir: "uem-connect", title: "UEM Connect API"},
 	{dest: "securitycloud-enrollment-api.yaml", dir: "securitycloud-enrollment", title: "Security Cloud Enrollment API"},
-	{
-		dest:  "securitycloud-device-groups-api.yaml",
-		title: "Security Cloud Devices API",
-		dir:   "securitycloud-devices",
-	},
+	{dest: "securitycloud-device-groups-api.yaml", dir: "securitycloud-devices", title: "Security Cloud Devices API"},
 	{dest: "ai-governance-api.yaml", dir: "ai-governance", title: "AI Governance Policies API"},
 	{dest: "audit-api.yaml", dir: "audit", title: "Audit API"},
-	{
-		dest:   "account-licensing-api.yaml",
-		title:  "Jamf Account Licensing API",
-		dir:    "account-licensing",
-		heldAt: "v1865",
-		why: "License.type removed though the wire populates it on every row — a silent " +
-			"regression, nothing sets DisallowUnknownFields. Re-probe and take with account-sso.",
-	},
+	{dest: "account-licensing-api.yaml", dir: "account-licensing", title: "Jamf Account Licensing API"},
 	{dest: "account-partners-api.yaml", dir: "account-partners", title: "Jamf Account Partners API"},
-	{
-		dest:   "account-sso-api.yaml",
-		title:  "Jamf Account SSO API",
-		dir:    "account-sso",
-		heldAt: "v1865",
-		why: "DomainAllocationConnection.authZeroRegion renamed to authRegion though the " +
-			"wire still sends the old name. Re-probe and take with account-licensing.",
-	},
+	{dest: "account-sso-api.yaml", dir: "account-sso", title: "Jamf Account SSO API"},
 }
 
 // knownUnmapped are external/ families the SDK deliberately does not carry.

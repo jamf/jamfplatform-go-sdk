@@ -510,3 +510,81 @@ func TestApplyDocNotes(t *testing.T) {
 		}
 	})
 }
+
+// TestApplyMethodNotes pins the same three behaviours TestApplyDocNotes does,
+// for the method-level key: a note reaches the method it names, it is appended
+// as a new paragraph after everything the spec produced rather than replacing
+// it, and a note naming no emitted method fails the build. That last one is the
+// whole self-expiry mechanism — these notes record refusals and version floors,
+// and the build refusing is what forces one to be deleted when it lifts.
+func TestApplyMethodNotes(t *testing.T) {
+	t.Run("appends a paragraph after the existing comment", func(t *testing.T) {
+		methods := []GoMethod{{
+			Name:    "DismissAllNotificationsV1",
+			Comment: "DismissAllNotificationsV1 dismisses all notifications.\n//\n// Required privileges: dismiss-notifications:execute.",
+		}}
+		if err := applyMethodNotes(methods, map[string]string{"DismissAllNotificationsV1": "Not routed at the gateway."}); err != nil {
+			t.Fatalf("applyMethodNotes: %v", err)
+		}
+		want := "DismissAllNotificationsV1 dismisses all notifications.\n//\n// Required privileges: dismiss-notifications:execute.\n//\n// Not routed at the gateway."
+		if methods[0].Comment != want {
+			t.Errorf("Comment = %q, want %q", methods[0].Comment, want)
+		}
+	})
+
+	t.Run("keeps the Deprecated paragraph on its own line", func(t *testing.T) {
+		methods := []GoMethod{{
+			Name:    "GetActivationCode",
+			Comment: "GetActivationCode finds the activation code.\n//\n// Deprecated: marked deprecated in the spec.",
+		}}
+		if err := applyMethodNotes(methods, map[string]string{"GetActivationCode": "No successor exists."}); err != nil {
+			t.Fatalf("applyMethodNotes: %v", err)
+		}
+		// The marker must still start a paragraph of its own — go/doc and
+		// staticcheck key on that, and a note run onto the same line would
+		// swallow it.
+		if !strings.Contains(methods[0].Comment, "\n// Deprecated: marked deprecated in the spec.\n//\n// No successor exists.") {
+			t.Errorf("Deprecated paragraph not intact: %q", methods[0].Comment)
+		}
+	})
+
+	t.Run("wraps a long note across comment lines", func(t *testing.T) {
+		methods := []GoMethod{{Name: "GetSsoOidcBrokerConfigV3", Comment: "GetSsoOidcBrokerConfigV3 reads the config."}}
+		note := strings.Repeat("the gateway does not route this operation and answers 403 for every caller. ", 6)
+		if err := applyMethodNotes(methods, map[string]string{"GetSsoOidcBrokerConfigV3": note}); err != nil {
+			t.Fatalf("applyMethodNotes: %v", err)
+		}
+		for line := range strings.SplitSeq(methods[0].Comment, "\n") {
+			if len(strings.TrimPrefix(line, "// ")) > typeDocWidth {
+				t.Errorf("line exceeds typeDocWidth (%d): %q", typeDocWidth, line)
+			}
+		}
+	})
+
+	t.Run("a note naming no emitted method is an error", func(t *testing.T) {
+		methods := []GoMethod{{Name: "GetActivationCode"}}
+		err := applyMethodNotes(methods, map[string]string{
+			"GetActivationCode": "kept",
+			"WithdrawnUpstream": "dropped",
+		})
+		if err == nil {
+			t.Fatal("applyMethodNotes returned nil for a key matching no method")
+		}
+		if !strings.Contains(err.Error(), "WithdrawnUpstream") {
+			t.Errorf("error does not name the missing key: %v", err)
+		}
+		if strings.Contains(err.Error(), "GetActivationCode") {
+			t.Errorf("error names a key that did match: %v", err)
+		}
+	})
+
+	t.Run("no notes is a no-op", func(t *testing.T) {
+		methods := []GoMethod{{Name: "GetActivationCode", Comment: "unchanged"}}
+		if err := applyMethodNotes(methods, nil); err != nil {
+			t.Fatalf("applyMethodNotes: %v", err)
+		}
+		if methods[0].Comment != "unchanged" {
+			t.Errorf("Comment = %q, want unchanged", methods[0].Comment)
+		}
+	})
+}

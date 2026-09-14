@@ -70,8 +70,6 @@ type License struct {
 	StartDate *time.Time `json:"startDate,omitempty"`
 	// Display title of the license.
 	Title string `json:"title"`
-	// Legacy asset-type classification of the license.
-	Type string `json:"type"`
 }
 
 // LicenseList The licenses held by the organization.
@@ -356,7 +354,7 @@ type BaseConnectionSettings struct {
 	Name string `json:"name"`
 	// Proof Key for Code Exchange method used with the provider. Defaults to `DISABLED`.
 	PkceAuthType *PkceAuthType `json:"pkceAuthType,omitempty"`
-	// Auth0 region to create the connection in. Cannot be changed once the connection exists.
+	// Region to create the connection in. Cannot be changed once the connection exists.
 	Region Region `json:"region"`
 	// Whether a nonce is sent on the authentication request. Leave unset unless the provider requires it.
 	SendNonce *bool `json:"sendNonce,omitempty"`
@@ -406,7 +404,7 @@ type Connection struct {
 	OktaOptions *OktaOptions `json:"oktaOptions,omitempty"`
 	// Proof Key for Code Exchange method used with the provider.
 	PkceAuthType *PkceAuthType `json:"pkceAuthType,omitempty"`
-	// Auth0 region the connection lives in.
+	// Region the connection lives in.
 	Region *Region `json:"region,omitempty"`
 	// Space-separated OAuth scopes requested from the provider. Null for types that do not use
 	// configurable scopes.
@@ -517,7 +515,7 @@ type ConnectionSummary struct {
 	ID string `json:"id"`
 	// Display name of the connection.
 	Name string `json:"name"`
-	// Auth0 region the connection lives in.
+	// Region the connection lives in.
 	Region *Region `json:"region,omitempty"`
 	// Whether the user's profile attributes are refreshed from the provider on every sign-in.
 	SyncUserProfileAttributesAtLogin bool `json:"syncUserProfileAttributesAtLogin"`
@@ -564,7 +562,8 @@ type Domain struct {
 	// assigned to a connection but not changed or deleted.
 	SharedDomain bool `json:"sharedDomain"`
 	// When the current verification lapses, being 14 days after the last successful verification, or after
-	// the domain was claimed if it has never verified.
+	// the domain was claimed if it has never verified. Jamf will attempt to automatically reverify the
+	// domain on this date.
 	VerificationExpirationDate *time.Time `json:"verificationExpirationDate,omitempty"`
 	// Value to publish as a TXT record on the domain to prove ownership. Reissued if the domain is deleted
 	// and claimed again.
@@ -586,14 +585,22 @@ type DomainAllocation struct {
 }
 
 // DomainAllocationConnection A connection a domain is assigned to.
+// The spec calls the region property `authRegion`; the wire sends `region`, and the property is
+// renamed here to match. Wire-verified 2026-09-14 on an organization tenant: every one of 5 domain
+// allocations answered `region`, none answered `authRegion` or the `authZeroRegion` the spec carried
+// before v2082, with `GET /licensing/v1/licenses` at 200 and a bogus path in the same namespace at 403
+// as controls in the same invocation. The spec itself is the evidence that this is an authoring slip
+// rather than a per-schema distinction: Connection, ConnectionSummary and BaseConnectionSettings all
+// name the identical Region type `region`, and the wire agrees with those three. Reported upstream;
+// the rename panics the day the spec declares `region`, which is the notification to delete it.
 type DomainAllocationConnection struct {
 	// Identifier of the connection, as accepted by `GET /connections/{connectionId}`.
 	AssignedConnection string `json:"assignedConnection"`
-	// Identifier of the Auth0 organization the connection is assigned through. Managed by Jamf;
-	// informational only.
+	// Identifier of the organization the connection is assigned through. Managed by Jamf; informational
+	// only. Note - different from the standard Jamf Org UUID and used only for identity operations.
 	AssignedConnectionOrgID string `json:"assignedConnectionOrgId"`
-	// Auth0 region the connection lives in.
-	AuthZeroRegion Region `json:"authZeroRegion"`
+	// Region the connection lives in.
+	Region Region `json:"region"`
 }
 
 // DomainList The domains claimed by, or shared with, the organization.
@@ -680,7 +687,7 @@ type EntraConnectionSettings struct {
 	NestedGroups bool `json:"nestedGroups"`
 	// Proof Key for Code Exchange method used with the provider. Defaults to `DISABLED`.
 	PkceAuthType *PkceAuthType `json:"pkceAuthType,omitempty"`
-	// Auth0 region to create the connection in. Cannot be changed once the connection exists.
+	// Region to create the connection in. Cannot be changed once the connection exists.
 	Region Region `json:"region"`
 	// Whether a nonce is sent on the authentication request. Leave unset unless the provider requires it.
 	SendNonce *bool `json:"sendNonce,omitempty"`
@@ -775,7 +782,7 @@ type GoogleConnectionSettings struct {
 	Name string `json:"name"`
 	// Proof Key for Code Exchange method used with the provider. Defaults to `DISABLED`.
 	PkceAuthType *PkceAuthType `json:"pkceAuthType,omitempty"`
-	// Auth0 region to create the connection in. Cannot be changed once the connection exists.
+	// Region to create the connection in. Cannot be changed once the connection exists.
 	Region Region `json:"region"`
 	// Space-separated OAuth scopes requested from Google. Null to use the defaults Jamf requests.
 	Scopes *string `json:"scopes,omitempty"`
@@ -838,7 +845,7 @@ type OidcConnectionSettings struct {
 	Name string `json:"name"`
 	// Proof Key for Code Exchange method used with the provider. Defaults to `DISABLED`.
 	PkceAuthType *PkceAuthType `json:"pkceAuthType,omitempty"`
-	// Auth0 region to create the connection in. Cannot be changed once the connection exists.
+	// Region to create the connection in. Cannot be changed once the connection exists.
 	Region Region `json:"region"`
 	// Space-separated OAuth scopes requested from the provider. Must include the scopes needed for the
 	// profile attributes Jamf reads.
@@ -902,7 +909,7 @@ type OktaConnectionSettings struct {
 	Name string `json:"name"`
 	// Proof Key for Code Exchange method used with the provider. Defaults to `DISABLED`.
 	PkceAuthType *PkceAuthType `json:"pkceAuthType,omitempty"`
-	// Auth0 region to create the connection in. Cannot be changed once the connection exists.
+	// Region to create the connection in. Cannot be changed once the connection exists.
 	Region Region `json:"region"`
 	// Space-separated OAuth scopes requested from Okta.
 	Scopes string `json:"scopes"`

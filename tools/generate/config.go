@@ -195,6 +195,35 @@ type SpecDef struct {
 	// moves the type.
 	DocNotes map[string]string `json:"docNotes,omitempty"`
 
+	// MethodNotes appends a note to the godoc of an emitted client method.
+	// Key: the generated method name (config's "name" for the operation).
+	// Value: prose, wrapped and appended after everything else the operation
+	// produced — the summary, the rate-limit and deprecation paragraphs, and
+	// the required-privileges block.
+	//
+	// DocNotes' counterpart for facts that belong to the *call* rather than to
+	// a schema, and that a consumer cannot learn any other way: an operation
+	// the gateway publishes but does not route, so every caller gets a 403
+	// whatever privileges they hold; a server-version floor a declared-required
+	// property imposes on the whole request; a deprecation whose successor the
+	// spec does not name. Each of those would otherwise live only in this
+	// repo's own notes, which no consumer reads.
+	//
+	// State the fact and what to do about it — this is consumer-facing godoc,
+	// not a probe log. Like DocNotes it never enters the spec document, so the
+	// published api/*.json stays faithful to upstream.
+	//
+	// A key that matches no method emitted for this spec is a build failure,
+	// exactly as with DocNotes, and that is what deletes these notes: when a
+	// route lands, a version floor lifts or upstream withdraws the operation,
+	// the entry has to go by hand and generation refuses until it does. A note
+	// describing a refusal should name the acceptance test that fails the day
+	// the refusal ends, so the two expire together.
+	//
+	// A types-only spec emits no methods, so a MethodNotes entry on one is
+	// refused outright rather than silently dropped.
+	MethodNotes map[string]string `json:"methodNotes,omitempty"`
+
 	// PropertyRenames renames property keys at dotted paths under a named
 	// component schema. Outer key: schema name. Inner key: dotted path to the
 	// property to rename (e.g. "self_service.re-install_button_text"). Inner

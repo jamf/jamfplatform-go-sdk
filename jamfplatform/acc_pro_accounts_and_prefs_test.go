@@ -8,6 +8,9 @@ package jamfplatform_test
 import (
 	"context"
 	"errors"
+	"maps"
+	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/Jamf-Concepts/jamfplatform-go-sdk/jamfplatform"
@@ -274,6 +277,128 @@ func TestAcceptance_Pro_DashboardV1(t *testing.T) {
 }
 
 // --- account preferences v3 -----------------------------------------
+
+// TestAcceptance_Pro_AccountPreferencesShowDirectoryGroupUuidColumn covers the
+// property GitOps v2154 (Jamf Pro API 11.32.0) added to AccountPreferencesV6,
+// and it is version-gated because the two sides are both live in CI.
+//
+// The property is declared REQUIRED, so the generator emits a non-pointer bool
+// with no omitempty and every UpdateAccountPreferencesV3 call sends the key.
+// On 11.32 that is correct and the value round-trips. On an older tenant the
+// server rejects the key outright, which fails the call — so following the spec
+// costs 11.31 callers this one method, and that is the deliberate trade recorded
+// here rather than papered over. It is also why config's propertyRemovals, which
+// used to drop the property, is gone: the removal was self-expiring and the
+// server has caught up.
+//
+// Both branches are assertions, not skips. The pre-11.32 branch fails the day
+// its tenant rolls forward — which is the notification to delete it, since at
+// that point the whole matrix is on 11.32 and the gate is dead code.
+//
+// Wire-verified 2026-09-11 on 11.32.0 (tenant 5c4425d9-…, `GET
+// /pro/v1/jamf-pro-version` as the control in the same invocation): the GET
+// returns 27 keys including the field, a PATCH setting it answers 204, and the
+// value reads back. Re-verified on 11.31.1 the same day: 26 keys, no such key,
+// and a PATCH carrying it answers 400 [INVALID_CONTENT] "Unrecognized field".
+func TestAcceptance_Pro_AccountPreferencesShowDirectoryGroupUuidColumn(t *testing.T) {
+	c := accClient(t)
+	ctx := context.Background()
+	p := pro.New(c)
+
+	if !proServerAtLeast(t, c, 11, 32) {
+		assertAccountPreferencesRejectsUUIDColumn(t, c)
+		return
+	}
+
+	current, err := p.GetAccountPreferencesV3(ctx, "")
+	if err != nil {
+		skipOnServerError(t, err)
+		t.Fatalf("GetAccountPreferencesV3: %v", err)
+	}
+
+	// acceptLanguage is empty throughout: the header is optional and inert on the
+	// wire (v2121), and a locale would only add a variable this test is not about.
+	// Restore whatever the tenant had, whichever way the assertions go: these
+	// are a real account's preferences, not a fixture.
+	original := current.ShowDirectoryGroupUUIDColumn
+	t.Cleanup(func() {
+		restore := *current
+		restore.ShowDirectoryGroupUUIDColumn = original
+		if err := p.UpdateAccountPreferencesV3(ctx, &restore, ""); err != nil {
+			t.Errorf("restoring showDirectoryGroupUuidColumn to %v: %v", original, err)
+		}
+	})
+
+	want := !original
+	update := *current
+	update.ShowDirectoryGroupUUIDColumn = want
+	if err := p.UpdateAccountPreferencesV3(ctx, &update, ""); err != nil {
+		t.Fatalf("UpdateAccountPreferencesV3 setting showDirectoryGroupUuidColumn=%v: %v", want, err)
+	}
+
+	after, err := p.GetAccountPreferencesV3(ctx, "")
+	if err != nil {
+		t.Fatalf("GetAccountPreferencesV3 after the update: %v", err)
+	}
+	// Asserting the read-back, not just the 204: the server accepts and silently
+	// ignores plenty of fields, and a 204 alone would pass against one of those.
+	if after.ShowDirectoryGroupUUIDColumn != want {
+		t.Errorf("showDirectoryGroupUuidColumn = %v after setting it to %v, so the field is accepted but not stored",
+			after.ShowDirectoryGroupUUIDColumn, want)
+	}
+	t.Logf("showDirectoryGroupUuidColumn round-tripped %v -> %v", original, want)
+}
+
+// assertAccountPreferencesRejectsUUIDColumn is the pre-11.32 half of the test
+// above: the property does not exist on the server, so it is absent from the
+// read and refused on write.
+//
+// Reaching it needs a raw map body, because the generated type carries the field
+// as a plain bool and the typed call would send it on every request — the very
+// breakage this branch documents. The write is safe: the request is refused on
+// body deserialization, so nothing is persisted.
+func assertAccountPreferencesRejectsUUIDColumn(t *testing.T, c *jamfplatform.Client) {
+	t.Helper()
+
+	ctx := context.Background()
+	tr := c.Transport()
+	endpoint := tr.APIPrefix("pro", "v3") + "/account-preferences"
+
+	var current map[string]any
+	if err := tr.Do(ctx, http.MethodGet, endpoint, nil, &current); err != nil {
+		skipOnServerError(t, err)
+		t.Fatalf("GET %s: %v", endpoint, err)
+	}
+	if _, ok := current["showDirectoryGroupUuidColumn"]; ok {
+		t.Fatal("GET /pro/v3/account-preferences returns showDirectoryGroupUuidColumn on a " +
+			"pre-11.32 server. The whole matrix has rolled forward: delete this function and " +
+			"the proServerAtLeast gate in the caller.")
+	}
+
+	body := maps.Clone(current)
+	body["showDirectoryGroupUuidColumn"] = false
+	err := tr.Do(ctx, http.MethodPatch, endpoint, body, nil)
+	if err == nil {
+		t.Fatal("PATCH /pro/v3/account-preferences accepted showDirectoryGroupUuidColumn on a " +
+			"pre-11.32 server. The whole matrix has rolled forward: delete this function and " +
+			"the proServerAtLeast gate in the caller.")
+	}
+	skipOnServerError(t, err)
+
+	var apiErr *jamfplatform.APIResponseError
+	if !errors.As(err, &apiErr) {
+		t.Fatalf("PATCH: non-API error, the request did not reach Jamf Pro: %v", err)
+	}
+	if !apiErr.HasStatus(400) {
+		t.Fatalf("PATCH: want 400 for the undeclared field, got status %d: %v", apiErr.StatusCode, err)
+	}
+	if !strings.Contains(err.Error(), "showDirectoryGroupUuidColumn") {
+		t.Fatalf("PATCH: 400 but not attributed to showDirectoryGroupUuidColumn, so the refusal is "+
+			"not the documented one: %v", err)
+	}
+	t.Logf("pre-11.32 tenant: showDirectoryGroupUuidColumn absent from the read and refused on write, " +
+		"so UpdateAccountPreferencesV3 cannot succeed against it")
+}
 
 func TestAcceptance_Pro_AccountPreferencesV3(t *testing.T) {
 	c := accClient(t)

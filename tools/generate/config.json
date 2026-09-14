@@ -358,6 +358,12 @@
       "docNotes": {
         "ParentApp": "`RestrictedTimes` is keyed by day of week, and the legal keys are `MONDAY`, `TUESDAY`, `WEDNESDAY`, `THURSDAY`, `FRIDAY`, `SATURDAY` and `SUNDAY`. The spec declares this as a `DayOfWeek` enum schema, but reaches it through a pseudo-property literally named `key` alongside `additionalProperties` \u2014 OpenAPI has no way to constrain a map's key type, so that construct is not a real property and no Go field ever carries the type. The enum is therefore never emitted as constants, making this godoc the only place the keys are documented. Sending an unrecognised key is silently dropped rather than rejected, as everywhere else in Pro."
       },
+      "methodNotes": {
+        "DismissAllNotificationsV1": "Published but not routed at the gateway: every call answers `403 BAD_PERMISSIONS`, whatever privileges the credential holds. The routed item-level `DELETE /v1/notifications/{type}/{id}` answers 204 for the same `dismiss-notifications:execute`, so the gap is the route and not the grant. Until it lands there is no bulk dismiss \u2014 enumerate with `ListNotificationsV1` and call `DeleteNotificationV1` per notification. `TestAcceptance_Pro_DismissAllNotificationsUnroutedAtGateway` fails the day the route appears, which is the notification to delete this note.",
+        "GetSsoOidcBrokerConfigV3": "Published but not routed at the gateway: every call answers `403 BAD_PERMISSIONS`, whatever privileges the credential holds. `GET /v3/sso/dependencies` requires the same `sso-settings:read` and answers 200, so the gap is the route and not the grant, and no OIDC broker configuration is readable through the gateway until it is fixed. `TestAcceptance_Pro_SsoOidcBrokerConfigUnroutedAtGateway` fails the day the route appears, which is the notification to delete this note.",
+        "UpdateSsoOidcBrokerConfigV3": "Published but not routed at the gateway: every call answers `403 BAD_PERMISSIONS`, whatever privileges the credential holds, and no write reaches the server. `GET /v3/sso/dependencies` requires the sibling `sso-settings:read` and answers 200, so the gap is the route and not the grant. `TestAcceptance_Pro_SsoOidcBrokerConfigUpdateUnroutedAtGateway` fails the day the route appears, which is the notification to delete this note.",
+        "UpdateAccountPreferencesV3": "Requires Jamf Pro 11.32 or later. `AccountPreferencesV6.showDirectoryGroupUuidColumn` is declared required as of spec 11.32.0, so the SDK sends it on every call and cannot omit it; an 11.31 or earlier tenant rejects the whole request with `400 [INVALID_CONTENT] Unrecognized field showDirectoryGroupUuidColumn … not marked as ignorable`. Check the server with `GetJamfProVersionV1` first if the tenant version is not known. The read half, `GetAccountPreferencesV3`, is unaffected."
+      },
       "specFile": "pro_api.json",
       "fieldTypeOverrides": {
         "managed_software_update_plan_toggle_status.elapsedTime": "*float64",
@@ -2943,6 +2949,15 @@
           "name": "DownloadSsoMetadataV3"
         },
         {
+          "op": "GET /v3/sso/oidc-broker-config",
+          "name": "GetSsoOidcBrokerConfigV3"
+        },
+        {
+          "op": "PUT /v3/sso/oidc-broker-config",
+          "name": "UpdateSsoOidcBrokerConfigV3",
+          "expectedStatus": 204
+        },
+        {
           "op": "GET /v1/cloud-distribution-point",
           "name": "GetCloudDistributionPointV1"
         },
@@ -4170,6 +4185,11 @@
           "name": "ListNotificationsV1"
         },
         {
+          "op": "DELETE /v1/notifications",
+          "name": "DismissAllNotificationsV1",
+          "expectedStatus": 204
+        },
+        {
           "op": "DELETE /v1/notifications/{type}/{id}",
           "name": "DeleteNotificationV1",
           "expectedStatus": 204,
@@ -4597,6 +4617,10 @@
       "file": "testing/Classic-openapi.yaml",
       "namespace": "proclassic",
       "package": "proclassic",
+      "methodNotes": {
+        "GetActivationCode": "No successor exists. The deprecation above says the endpoint may be removed, but the Jamf Pro API publishes no `GET /v1/activation-code` in any environment — only `PUT /v1/activation-code` and `PATCH /v1/activation-code/organization-name` — and no other Classic operation returns the activation code. So this remains the only way to read it, it answers 200 with real data, and there is nothing to migrate to. Reported upstream.",
+        "UpdateActivationCode": "Use `pro.UpdateActivationCodeV1` instead. The deprecation above names no successor; that is the one, and unlike the read half it is published and routed today."
+      },
       "specFile": "classic_api_resource_documentation.json",
       "format": "xml",
       "splitByTag": true,
@@ -10657,6 +10681,11 @@
         "domain.id": "json.Number",
         "domain.verifiedTldId": "json.Number"
       },
+      "propertyRenames": {
+        "DomainAllocationConnection": {
+          "authRegion": "region"
+        }
+      },
       "requiredPrivileges": {
         "GET /v1/connections": [
           "sso-connections:read"
@@ -10740,7 +10769,10 @@
       ],
       "scopeTypes": [
         "organization"
-      ]
+      ],
+      "docNotes": {
+        "DomainAllocationConnection": "The spec calls the region property `authRegion`; the wire sends `region`, and the property is renamed here to match. Wire-verified 2026-09-14 on an organization tenant: every one of 5 domain allocations answered `region`, none answered `authRegion` or the `authZeroRegion` the spec carried before v2082, with `GET /licensing/v1/licenses` at 200 and a bogus path in the same namespace at 403 as controls in the same invocation. The spec itself is the evidence that this is an authoring slip rather than a per-schema distinction: Connection, ConnectionSummary and BaseConnectionSettings all name the identical Region type `region`, and the wire agrees with those three. Reported upstream; the rename panics the day the spec declares `region`, which is the notification to delete it."
+      }
     },
     {
       "file": "testing/audit-api.yaml",

@@ -1176,3 +1176,48 @@ func settleUntilGone(t *testing.T, label string, read func() error) {
 		time.Sleep(settlePollWait)
 	}
 }
+
+// proServerVersion returns the Jamf Pro server's major and minor version.
+//
+// For a test whose expected behaviour is version-gated, which happens because
+// the SDK generates from a spec that can be ahead of the server it is called
+// against: a property the spec declares can be rejected outright by a tenant
+// that has not rolled forward. The CI matrix holds tenants at more than one
+// version at a time, so a test asserting one side of that unconditionally fails
+// on the other — and the failure looks like a defect rather than a rollout.
+//
+// Only the first two components are compared, since Jamf ships API surface on
+// minors. Version strings carry a build suffix ("11.32.0-t1787580540993"), which
+// is cut before parsing.
+func proServerVersion(t *testing.T, c *jamfplatform.Client) (major, minor int) {
+	t.Helper()
+
+	v, err := pro.New(c).GetJamfProVersionV1(context.Background())
+	if err != nil {
+		skipOnServerError(t, err)
+		t.Fatalf("GetJamfProVersionV1: %v", err)
+	}
+
+	base, _, _ := strings.Cut(v.Version, "-")
+	parts := strings.Split(base, ".")
+	if len(parts) < 2 {
+		t.Fatalf("GetJamfProVersionV1: cannot parse a major.minor from %q", v.Version)
+	}
+	major, err = strconv.Atoi(parts[0])
+	if err != nil {
+		t.Fatalf("GetJamfProVersionV1: major of %q: %v", v.Version, err)
+	}
+	minor, err = strconv.Atoi(parts[1])
+	if err != nil {
+		t.Fatalf("GetJamfProVersionV1: minor of %q: %v", v.Version, err)
+	}
+	return major, minor
+}
+
+// proServerAtLeast reports whether the Jamf Pro server is at or past the given
+// major.minor.
+func proServerAtLeast(t *testing.T, c *jamfplatform.Client, major, minor int) bool {
+	t.Helper()
+	haveMajor, haveMinor := proServerVersion(t, c)
+	return haveMajor > major || (haveMajor == major && haveMinor >= minor)
+}

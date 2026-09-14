@@ -25,6 +25,26 @@ func (c *Client) ListNotificationsV1(ctx context.Context) ([]NotificationV1, err
 	return result, nil
 }
 
+// DismissAllNotificationsV1 dismiss all notifications.
+//
+// Required privileges: dismiss-notifications:execute. Legacy Jamf Pro privilege name(s): Dismiss Notifications.
+//
+// Published but not routed at the gateway: every call answers `403 BAD_PERMISSIONS`, whatever
+// privileges the credential holds. The routed item-level `DELETE /v1/notifications/{type}/{id}`
+// answers 204 for the same `dismiss-notifications:execute`, so the gap is the route and not the grant.
+// Until it lands there is no bulk dismiss — enumerate with `ListNotificationsV1` and call
+// `DeleteNotificationV1` per notification.
+// `TestAcceptance_Pro_DismissAllNotificationsUnroutedAtGateway` fails the day the route appears, which
+// is the notification to delete this note.
+func (c *Client) DismissAllNotificationsV1(ctx context.Context) error {
+	prefix := c.transport.APIPrefix("pro", "v1")
+	endpoint := prefix + "/notifications"
+	if err := c.transport.DoExpect(ctx, http.MethodDelete, endpoint, nil, http.StatusNoContent, nil); err != nil {
+		return fmt.Errorf("DismissAllNotificationsV1: %w", err)
+	}
+	return nil
+}
+
 // DeleteNotificationV1 delete Notifications.
 //
 // Required privileges: dismiss-notifications:execute. Legacy Jamf Pro privilege name(s): Dismiss Notifications.

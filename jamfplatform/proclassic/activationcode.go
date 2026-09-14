@@ -13,7 +13,15 @@ import (
 
 // GetActivationCode finds the Jamf Pro activation code.
 //
+// Deprecated: this endpoint is marked deprecated in the Jamf API spec (deprecation-date: 2026-07-14) and may be removed in a future release.
+//
 // Required privileges: activation-code:read.
+//
+// No successor exists. The deprecation above says the endpoint may be removed, but the Jamf Pro API
+// publishes no `GET /v1/activation-code` in any environment — only `PUT /v1/activation-code` and
+// `PATCH /v1/activation-code/organization-name` — and no other Classic operation returns the
+// activation code. So this remains the only way to read it, it answers 200 with real data, and there
+// is nothing to migrate to. Reported upstream.
 func (c *Client) GetActivationCode(ctx context.Context) (*ActivationCode, error) {
 	prefix := c.transport.APIPrefix("proclassic", "")
 	var result ActivationCode
@@ -26,7 +34,12 @@ func (c *Client) GetActivationCode(ctx context.Context) (*ActivationCode, error)
 
 // UpdateActivationCode updates the Jamf Pro activation code.
 //
+// Deprecated: this endpoint is marked deprecated in the Jamf API spec (deprecation-date: 2026-07-14) and may be removed in a future release.
+//
 // Required privileges: activation-code:update.
+//
+// Use `pro.UpdateActivationCodeV1` instead. The deprecation above names no successor; that is the one,
+// and unlike the read half it is published and routed today.
 func (c *Client) UpdateActivationCode(ctx context.Context, request *ActivationCode) error {
 	prefix := c.transport.APIPrefix("proclassic", "")
 	endpoint := prefix + "/activationcode"

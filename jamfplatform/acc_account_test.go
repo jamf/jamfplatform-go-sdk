@@ -458,6 +458,70 @@ func TestAcceptance_AccountSsoConnectionWrites(t *testing.T) {
 	t.Skip("SSO connection writes reconfigure how a real organization's users log in, and CreateConnection answers 500 UPSTREAM_ERROR for every well-formed body (2026-09-01). Needs an organization reserved for the suite, and a working create.")
 }
 
+// TestAcceptance_AccountSsoDomainAllocationRegionIsPopulated pins the one field
+// in this package that config renames rather than takes from the spec.
+//
+// DomainAllocationConnection's region property is `authRegion` in the spec and
+// `region` on the wire, and propertyRenames corrects it (see the docNote on the
+// type). That repair has two halves and only one of them is self-expiring: the
+// rename panics the day the spec declares `region`, but nothing in config can
+// see the *server* rename it again — which is exactly what happened between
+// 2026-09-09 and 2026-09-14, when `authZeroRegion` became `region` on a tenant
+// whose values were otherwise unchanged. A test is the only thing that can
+// notice, the same way the showDirectoryGroupUuidColumn limitation test was the
+// only thing that could notice 11.32.0 catching up.
+//
+// So read a failure here as "the wire has renamed the property a third time, go
+// and date it and re-point propertyRenames", not as a broken SDK. The zero
+// value is an empty Region, and nothing sets DisallowUnknownFields, so without
+// this the next rename is silent.
+//
+// Deliberately read-only and driven off whatever the organization already
+// holds: the allocation surface only populates connections for a domain that is
+// verified and assigned, which the .invalid domain in
+// TestAcceptance_AccountDomainLifecycle can never be.
+func TestAcceptance_AccountSsoDomainAllocationRegionIsPopulated(t *testing.T) {
+	ctx := context.Background()
+	ac := account.New(accOrgClient(t))
+
+	domains, err := ac.ListDomains(ctx)
+	if err != nil {
+		t.Fatalf("ListDomains: %v", err)
+	}
+
+	var checked, withConns int
+	for _, d := range domains {
+		alloc, err := ac.GetDomainAllocation(ctx, d.Domain)
+		if err != nil {
+			// A domain the organization only shares can legitimately refuse;
+			// report it rather than failing the whole pin on one row.
+			t.Logf("GetDomainAllocation(%s): %v", d.Domain, err)
+			continue
+		}
+		checked++
+		if len(alloc.Connections) == 0 {
+			continue
+		}
+		withConns++
+		for i, c := range alloc.Connections {
+			if c.Region == "" {
+				t.Errorf("%s connection %d (%s): region is empty — the wire property has been renamed again, "+
+					"so propertyRenames[DomainAllocationConnection] in tools/generate/config.json no longer "+
+					"matches it", d.Domain, i, c.AssignedConnection)
+				continue
+			}
+			t.Logf("%s -> %s region=%s", d.Domain, c.AssignedConnection, c.Region)
+		}
+	}
+
+	if checked == 0 {
+		t.Skip("no domain allocation was readable, so there is no region to check")
+	}
+	if withConns == 0 {
+		t.Skipf("none of the %d readable allocations is assigned to a connection", checked)
+	}
+}
+
 // TestAcceptance_AccountSsoRegionEnumCoversTheWire pins the generated Region
 // enum against the values a live organization actually holds.
 //
