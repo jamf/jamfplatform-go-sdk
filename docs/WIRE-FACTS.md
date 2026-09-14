@@ -1166,6 +1166,69 @@ two rows, so the generated `strings.Join(uuids, ",")` needs no override.
 The endpoint still sends `Deprecation: date="Mon, 16 Oct 2023 00:00:00 GMT"`,
 which the transport logs.
 
+### `GET /v2/mdm/commands` needs a filter, ignores an unknown field, and 500s on a bad value (2026-09-14)
+
+The v1 point lookup above had been probed; the v2 paginated list had not, beyond
+its pagination. Probed on the EU environment tenant at Jamf Pro **11.32.0**, with
+`GET /pro/v1/jamf-pro-version` → 200 as the control in the same invocation.
+
+| `filter` | status | `totalCount` |
+|---|---|---|
+| *absent* (with or without valid `page`, `page-size`, `sort`) | **400** | `{"httpStatus":400,"errors":[]}` — deterministic 2/2 |
+| `status=="Pending"` | 200 | 86 |
+| `status=="Acknowledged"` | 200 | 604 |
+| `command=="INSTALL_PROFILE"` | 200 | 59 |
+| `command=="DECLARATIVE_MANAGEMENT"` | 200 | 185 |
+| `commandType=="DECLARATIVE_MANAGEMENT"` | **200** | **690 — the unfiltered total** |
+| `commandType=="TOTAL_NONSENSE"` | **200** | **690** |
+| `notAField=="x"` | **200** | **690** |
+| `active==true` | 200 | 690 |
+| `uuid==00000000-0000-0000-0000-000000000000` | 200 | 0 |
+| `clientManagementId==00000000-0000-0000-0000-000000000000` | 200 | 0 |
+| `uuid=="nope"` | **500** | `{"httpStatus":500,"errors":[]}` |
+| `status=="NotAStatus"` | **500** | `{"httpStatus":500,"errors":[]}` |
+
+**Three things to report upstream, and the middle one returns wrong data
+silently.**
+
+**`filter` is mandatory and declared `required: false`.** Upstream states the
+requirement only in the parameter's own prose — "All url must contain minimum one
+filter field" — so nothing structural carries it and `ListMdmCommandsV2` takes an
+optional `*string` for something without which the call can never succeed. Same
+unexpressed-requirement shape as `ListAuditEvents` needing `since` plus one of
+four, and worth the same treatment in the method godoc.
+
+**An unrecognised filter field is silently ignored and the whole collection comes
+back.** This is the one to press: `commandType` is not in the filter vocabulary —
+the field is `command` — but `commandType` is exactly what the *response* calls
+it, so it is the name a caller reaching for the obvious thing will write. It
+answers 200 with all 690 rows, identically to outright nonsense, so a misspelled
+field is indistinguishable from a filter that matched everything. There is no
+error at any layer and the caller's own paging walks the wrong set to completion.
+A 400 naming the field would be correct; the spec does enumerate the legal ones
+(`uuid`, `clientManagementId`, `command`, `status`, `clientType`, `dateSent`,
+`validAfter`, `dateCompleted`, `profileId`, `profileIdentifier`, `active`).
+
+**A malformed *value* is a 500, not a 400.** An unparseable UUID and a status
+outside the vocabulary both 500, while a well-formed UUID that matches nothing
+correctly answers 200 with `totalCount: 0` — so it is value parsing that faults,
+not the lookup. As on v1, every 400 and 500 here carries an **empty `errors`
+array**, so a caller has nothing to attribute the refusal to.
+
+**`POST` is not allowed, and this is not the publishing filter hiding it.**
+`/v2/mdm/commands` declares `GET` alone in `external`, `internal/stage` **and**
+`internal/dev`, and the gateway agrees: `POST`, `PUT`, `PATCH` and `DELETE` all
+answer the unrouted `403 BAD_PERMISSIONS` with no `Allow` header, against `GET`
+on the same path at 200 and a bogus path in the same namespace also 403 in the
+same invocation. The only MDM writes any spec declares are
+`POST /v2/mdm/blank-push` and `POST /v1/mdm/renew-profile`.
+
+**v1 is unchanged at 11.32.0.** Re-probed in the same session: neither parameter
+→ 400 with an empty `errors` array, **both** → 500 deterministic 2/2, a single
+parameter → 200, and the `Deprecation: date="Mon, 16 Oct 2023 00:00:00 GMT"`
+header still sent. So `TestAcceptance_Pro_MdmUpdates_ListMdmCommandsV1`'s
+assertion of the 500 is still the correct pin.
+
 ### v2154's three new `jpapi` operations are published and unrouted (2026-09-10)
 
 GitOps v2154 / Jamf Pro API 11.32.0 adds three operations, and the gateway
@@ -2878,6 +2941,73 @@ covered as calls, not as outcomes.
 ---
 
 ## Jamf Account (`account`) — organization scope
+
+### Both holds lifted: the server dropped `License.type` and renamed `authZeroRegion` to `region` (2026-09-14)
+
+The two v1865 account holds came off together, five days after the v2100 re-probe
+below confirmed both. This is the **same tenant** as that probe — `<org-a>`, US
+gateway, organization scope so no scope header — with
+`GET /licensing/v1/licenses` → 200 as the control in the same invocation and
+`GET /licensing/v1/zzz-no-such-path` → `403 BAD_PERMISSIONS` as the unrouted
+control.
+
+**Establish the tenant identity before reading either result**, because tenant
+variance is otherwise the obvious explanation and it is the wrong one here. The
+five domains, the connection identifiers, the organization identifiers and the
+region *values* are all the ones 2026-09-09 recorded:
+
+| domain | connection | org | region |
+|---|---|---|---|
+| `a.mockingbirduat.com` | `con_RMBLC9S3qpC6Bzv0` | `org_k7LP9cP4h3RijIaR` | `US` |
+| `o.mockingbirduat.com` | `con_u3yQq4trlgloTW7G` | `org_k7LP9cP4h3RijIaR` | `US` |
+| `g.mockingbirduat.com` | `con_TbLBMEZ6nZwZgBeC` | `org_xFX9cCznanOttdvx` | `JP` |
+| `ramp.mockingbirduat.com` | `con_Nl1aricY47ENorbJ` | `org_Z8iCGuswHrSZBeuS` | `RAMP` |
+| `jakeschultzointest.com` | `con_x55XzKyFGI2iW4ud` | `org_k7LP9cP4h3RijIaR` | `US` |
+
+Only the **key** moved:
+
+```json
+{"assignedConnection":"con_RMBLC9S3qpC6Bzv0","assignedConnectionOrgId":"org_k7LP9cP4h3RijIaR","region":"US"}
+```
+
+against 2026-09-09's `"authZeroRegion":"US"` for the identical connection. So
+`region` on **5/5**, `authZeroRegion` on **0/5**, `authRegion` on **0/5**.
+(`RAMP` is still on the wire, so the `enumAdditions` entry carrying it stays.)
+
+**The spec renamed the same property to `authRegion`, so the spec is wrong too,
+and that is what made the hold pointless rather than protective.** Holding at
+v1865 leaves `AuthZeroRegion` permanently empty; ingesting v2176 leaves
+`AuthRegion` permanently empty. The spec is its own evidence that `authRegion` is
+an authoring slip: `Connection`, `ConnectionSummary` and `BaseConnectionSettings`
+all name the identical `Region` component `region`, the wire agrees with those
+three, and `DomainAllocationConnection` is the only schema in the file that does
+not. `propertyRenames` corrects it, which panics the day the spec declares
+`region` — the notification to delete the entry. Report the slip upstream.
+
+**Licensing: `type` is off the DTO, not merely unpopulated.** 19 rows, the key
+absent on **all 19**, deterministic 2/2 — against 2026-09-09's 16 rows with
+`type` non-null on **16/16**. The distinguishing control is that this service
+**serializes nulls**: `addOnType`, `bundleProductCode` and `contactId` all come
+back as explicit `null` in the same row, so an absent key is a schema change and
+not an empty column.
+
+```json
+{"activationCode":"…","addOnType":null,"assetId":"…","bundleProductCode":null,
+ "contactId":null,"endDate":"2030-02-28T06:00:00.000Z","licenseType":"BETA",
+ "productName":"Jamf Pro for iOS","productParent":"PRO","productTopLine":"PRO",
+ "purchasedSeats":10,"renewalDate":"2030-02-28T06:00:00.000Z","sku":"PRO-COM-IOS",
+ "startDate":"2025-02-28T06:00:00.000Z","title":"Jamf Pro for iOS"}
+```
+
+`licenseType` is non-null on 11 of the 19 and unaffected. `GET /v1/licenses` is
+the licensing spec's **only** operation, so that one body is the entire surface
+the hold was protecting — there is nowhere else `type` could still appear.
+
+**The general lesson is about what an absent key proves.** A null-skipping
+serializer makes absence and emptiness indistinguishable, and a small sample
+makes both indistinguishable from variance. Here the same response carried three
+explicit nulls, which is what let one tenant settle it; had it not, the honest
+report would have been "unproven" rather than "gone".
 
 ### Re-probed at v2100: both holds stand, and `partners` turns out to be granted (2026-09-09)
 

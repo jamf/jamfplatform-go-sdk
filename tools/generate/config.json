@@ -10671,6 +10671,11 @@
         "domain.id": "json.Number",
         "domain.verifiedTldId": "json.Number"
       },
+      "propertyRenames": {
+        "DomainAllocationConnection": {
+          "authRegion": "region"
+        }
+      },
       "requiredPrivileges": {
         "GET /v1/connections": [
           "sso-connections:read"
@@ -10754,7 +10759,10 @@
       ],
       "scopeTypes": [
         "organization"
-      ]
+      ],
+      "docNotes": {
+        "DomainAllocationConnection": "The spec calls the region property `authRegion`; the wire sends `region`, and the property is renamed here to match. Wire-verified 2026-09-14 on an organization tenant: every one of 5 domain allocations answered `region`, none answered `authRegion` or the `authZeroRegion` the spec carried before v2082, with `GET /licensing/v1/licenses` at 200 and a bogus path in the same namespace at 403 as controls in the same invocation. The spec itself is the evidence that this is an authoring slip rather than a per-schema distinction: Connection, ConnectionSummary and BaseConnectionSettings all name the identical Region type `region`, and the wire agrees with those three. Reported upstream; the rename panics the day the spec declares `region`, which is the notification to delete it."
+      }
     },
     {
       "file": "testing/audit-api.yaml",

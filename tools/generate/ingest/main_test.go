@@ -53,6 +53,45 @@ func specDoc(title string, paths ...string) string {
 	return b.String()
 }
 
+// withHeldRow swaps the provenance table for a copy in which one row is held,
+// and returns that row's destination.
+//
+// Every hold is temporary by construction, so no spec being held is the normal
+// resting state — it is what the table looks like the moment the last hold
+// lifts. The tests below have to exercise the held path anyway, and keying them
+// off whichever real row happens to carry heldAt makes them stop testing it
+// silently on exactly the build that most needs the machinery to still work.
+// Both v1865 account holds lifting at v2176 is what turned that into three
+// failures rather than three quiet no-ops.
+func withHeldRow(t *testing.T) string {
+	t.Helper()
+	if len(specs) < 2 {
+		t.Fatalf("provenance table carries %d rows; need at least 2 to hold one", len(specs))
+	}
+	original := specs
+	t.Cleanup(func() { specs = original })
+	swapped := make([]specRow, len(original))
+	copy(swapped, original)
+	swapped[0].heldAt = "v1"
+	swapped[0].why = "synthetic hold, so the held path stays covered when no spec is really held."
+	specs = swapped
+	return swapped[0].dest
+}
+
+// firstUnheldDest is the counterpart: a destination that is definitely
+// selectable, named off the table rather than hardcoded, since which row sits
+// where changes whenever a spec is added.
+func firstUnheldDest(t *testing.T) string {
+	t.Helper()
+	for _, s := range specs {
+		if s.heldAt == "" {
+			return s.dest
+		}
+	}
+	t.Fatal("every row in the provenance table is held")
+	return ""
+}
+
 func TestOpenArchiveReadsBuildFromManifest(t *testing.T) {
 	a := buildArchive(t, map[string]string{
 		"MANIFEST.md": "# GitOps Platform API Archive - Build 2056\n\n**GitOps Build**: v2056\n",
@@ -152,6 +191,7 @@ func TestIngestRejectsAMisdirectedRow(t *testing.T) {
 // A held row that the archive predates is normal when reconstructing an older
 // build; only a selected row has to resolve.
 func TestIngestToleratesAnAbsentHeldFamilyButNotAnAbsentSelectedOne(t *testing.T) {
+	held := withHeldRow(t)
 	members := map[string]string{"MANIFEST.md": "**GitOps Build**: v1\n"}
 	for _, s := range specs {
 		if s.heldAt != "" {
@@ -179,19 +219,6 @@ func TestIngestToleratesAnAbsentHeldFamilyButNotAnAbsentSelectedOne(t *testing.T
 		t.Fatal("no held row reported as absent")
 	}
 
-	// Name a held row explicitly rather than hardcoding one: which specs are
-	// held changes every time a hold lifts, and a hardcoded dest silently
-	// stops testing anything the build after it is unheld.
-	var held string
-	for _, s := range specs {
-		if s.heldAt != "" {
-			held = s.dest
-			break
-		}
-	}
-	if held == "" {
-		t.Skip("no held spec to select")
-	}
 	_, _, err = ingest(a, "external", t.TempDir(), map[string]bool{held: true}, &manifest{Entries: map[string]manifestEntry{}})
 	if err == nil {
 		t.Fatalf("a selected family missing from the archive must fail (%s)", held)
@@ -199,6 +226,7 @@ func TestIngestToleratesAnAbsentHeldFamilyButNotAnAbsentSelectedOne(t *testing.T
 }
 
 func TestSelection(t *testing.T) {
+	withHeldRow(t)
 	unheld, err := selection("", false)
 	if err != nil {
 		t.Fatal(err)
@@ -218,13 +246,16 @@ func TestSelection(t *testing.T) {
 			t.Fatalf("%s is held but selected by default", s.dest)
 		}
 	}
-	// Naming a held spec explicitly is the act -include-held performs in bulk.
-	one, err := selection("Classic-openapi.yaml", false)
+	// Naming a spec explicitly is the act -include-held performs in bulk. Read
+	// the destination off the table rather than hardcoding one, so adding or
+	// reordering a spec cannot quietly turn this into a no-op.
+	target := firstUnheldDest(t)
+	one, err := selection(target, false)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(one) != 1 || !one["Classic-openapi.yaml"] {
-		t.Fatalf("-only selected %v", one)
+	if len(one) != 1 || !one[target] {
+		t.Fatalf("-only %s selected %v", target, one)
 	}
 	if _, err := selection("no-such-spec.yaml", false); err == nil {
 		t.Fatal("-only with an unknown destination must fail")
@@ -237,6 +268,7 @@ func TestSelection(t *testing.T) {
 // rendering prints "held at  — " — a hold with a blank build and a blank
 // reason, in the exact report whose job is naming real ones.
 func TestOnlyReportsUnselectedUnheldSpecsAsSkipped(t *testing.T) {
+	withHeldRow(t)
 	members := map[string]string{"MANIFEST.md": "**GitOps Build**: v1\n"}
 	for _, s := range specs {
 		members["external/"+s.dir+"/openapi.yaml"] = specDoc(s.title, "/a")
