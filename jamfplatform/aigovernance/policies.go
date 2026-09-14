@@ -18,6 +18,8 @@ import (
 
 // ListPolicies list active AI governance policies for the tenant.
 //
+// Preview: this endpoint is marked preview in the Jamf API spec; its request and response shapes may change without warning, and successful responses carry a Jamf-Preview: true header.
+//
 // Required privileges: ai-policies:read.
 //
 // Parameters:
@@ -56,6 +58,8 @@ func (c *Client) ListPolicies(ctx context.Context, sort []string, schemaDrift bo
 
 // CreatePolicy create a new AI governance policy.
 //
+// Preview: this endpoint is marked preview in the Jamf API spec; its request and response shapes may change without warning, and successful responses carry a Jamf-Preview: true header.
+//
 // Required privileges: ai-policies:create.
 func (c *Client) CreatePolicy(ctx context.Context, request *CreatePolicyRequest) (*CreatedResponse, error) {
 	prefix := c.transport.APIPrefix("ai/governance/policies", "v1")
@@ -68,6 +72,8 @@ func (c *Client) CreatePolicy(ctx context.Context, request *CreatePolicyRequest)
 }
 
 // GetPolicy get a policy by ID.
+//
+// Preview: this endpoint is marked preview in the Jamf API spec; its request and response shapes may change without warning, and successful responses carry a Jamf-Preview: true header.
 //
 // Required privileges: ai-policies:read.
 //
@@ -84,6 +90,8 @@ func (c *Client) GetPolicy(ctx context.Context, policyID string) (*PolicyDetail,
 }
 
 // UpdatePolicy save draft settings for an existing policy.
+//
+// Preview: this endpoint is marked preview in the Jamf API spec; its request and response shapes may change without warning, and successful responses carry a Jamf-Preview: true header.
 //
 // Required privileges: ai-policies:update.
 //
@@ -108,6 +116,8 @@ func (c *Client) UpdatePolicy(ctx context.Context, policyID string, request *Upd
 
 // ArchivePolicy archive an AI governance policy (soft delete).
 //
+// Preview: this endpoint is marked preview in the Jamf API spec; its request and response shapes may change without warning, and successful responses carry a Jamf-Preview: true header.
+//
 // Required privileges: ai-policies:delete.
 //
 // Parameters:
@@ -122,6 +132,8 @@ func (c *Client) ArchivePolicy(ctx context.Context, policyID string) error {
 }
 
 // GetPolicyDeployment get deployment state for a policy.
+//
+// Preview: this endpoint is marked preview in the Jamf API spec; its request and response shapes may change without warning, and successful responses carry a Jamf-Preview: true header.
 //
 // Required privileges: ai-policies:read.
 //
@@ -139,6 +151,8 @@ func (c *Client) GetPolicyDeployment(ctx context.Context, policyID string) (*Pol
 
 // PublishPolicy publish current draft settings as a new immutable PolicyVersion.
 //
+// Preview: this endpoint is marked preview in the Jamf API spec; its request and response shapes may change without warning, and successful responses carry a Jamf-Preview: true header.
+//
 // Required privileges: ai-policies:update.
 //
 // Parameters:
@@ -154,6 +168,8 @@ func (c *Client) PublishPolicy(ctx context.Context, policyID string) (*PublishRe
 }
 
 // ListPolicyVersions list all versions for a policy.
+//
+// Preview: this endpoint is marked preview in the Jamf API spec; its request and response shapes may change without warning, and successful responses carry a Jamf-Preview: true header.
 //
 // Required privileges: ai-policies:read.
 //
@@ -183,6 +199,8 @@ func (c *Client) ListPolicyVersions(ctx context.Context, policyID string) ([]Pol
 }
 
 // GetPolicyVersion get a specific policy version.
+//
+// Preview: this endpoint is marked preview in the Jamf API spec; its request and response shapes may change without warning, and successful responses carry a Jamf-Preview: true header.
 //
 // Required privileges: ai-policies:read.
 //

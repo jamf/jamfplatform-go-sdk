@@ -10,7 +10,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"math/rand/v2"
+	"net/http"
 	"slices"
 	"strconv"
 	"strings"
@@ -858,4 +860,64 @@ func TestAcceptance_AiGovernanceDeploymentReportsReferencingBlueprints(t *testin
 		}
 		t.Logf("KNOWN DEFECT: policy %s is referenced by blueprint(s) %v, GetPolicyDeployment reports 0 blueprints", policyID, blueprintIDs)
 	}
+}
+
+// TestAcceptance_AiGovernancePreviewHeader asserts the one preview claim no
+// generated method can surface. GitOps v2192's info.description states that
+// "every successful (2xx) response carries a `Jamf-Preview: true` header", and
+// v2121 declared the header on all twelve operations — but the transport
+// discards response headers on success, so a caller cannot see it and neither
+// can a test written against a generated method. This one goes through
+// Transport().HTTPClient(), which carries the OAuth bearer, and stamps the
+// scope header itself from the exported Client.Scope accessor, since
+// setScopeHeader runs inside Do rather than in a RoundTripper.
+//
+// It is asserted rather than logged because the header is the wire's own
+// statement that these shapes are unstable; the day it stops arriving is the
+// day the endpoints have graduated, and that should fail here and send the
+// reader to the ai-governance row of CLAUDE.md's package table.
+func TestAcceptance_AiGovernancePreviewHeader(t *testing.T) {
+	c := accEnvClient(t)
+	ctx := context.Background()
+
+	kind, scopeID := c.Scope()
+	tr := c.Transport()
+
+	// Two operations, one a collection and one an item, so a header attached
+	// to a single handler rather than to the product cannot pass this.
+	for _, path := range []string{"/v1/tools", "/v1/policies"} {
+		url := tr.BaseURL() + tr.APIPrefix("ai/governance/policies", "") + path
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+		if err != nil {
+			t.Fatalf("NewRequest(%s): %v", url, err)
+		}
+		if h := kind.ScopeHeader(); h != "" && scopeID != "" {
+			req.Header.Set(h, scopeID)
+		}
+
+		resp, err := tr.HTTPClient().Do(req)
+		if err != nil {
+			t.Fatalf("GET %s: %v", path, err)
+		}
+		body, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("GET %s: status = %d, want 200 (%s)", path, resp.StatusCode, truncateBody(body))
+		}
+		if got := resp.Header.Get("Jamf-Preview"); got != "true" {
+			t.Errorf("GET %s: Jamf-Preview = %q, want \"true\". If the header has been withdrawn the endpoints may have graduated out of preview — check x-preview in the spec, then update the ai-governance row of CLAUDE.md's package table and the generated Preview godoc line.", path, got)
+			continue
+		}
+		t.Logf("GET %s: 200 with Jamf-Preview: true", path)
+	}
+}
+
+// truncateBody keeps a failure message readable when the body is a tool schema.
+func truncateBody(b []byte) string {
+	const max = 200
+	if len(b) <= max {
+		return string(b)
+	}
+	return string(b[:max]) + "… (truncated)"
 }

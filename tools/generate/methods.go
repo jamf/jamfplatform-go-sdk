@@ -645,13 +645,30 @@ func deprecationDate(op *openapi3.Operation) string {
 }
 
 // isRateLimited reports whether the operation carries x-rate-limit: true.
-// kin-openapi stores vendor extensions as raw JSON bytes keyed by the
-// extension name.
 func isRateLimited(op *openapi3.Operation) bool {
+	return boolExtension(op, "x-rate-limit")
+}
+
+// isPreview reports whether the operation carries x-preview: true, which Jamf
+// uses to mark an endpoint whose request and response shapes are still subject
+// to change. The marker is read from the extension rather than from the
+// summary's "Preview - " prefix: the prefix is prose and has already been
+// spelled three different ways across builds, whereas the extension is
+// structured. ai-governance gained it per-operation at GitOps v2192, having
+// carried only a spec-level x-preview before that.
+func isPreview(op *openapi3.Operation) bool {
+	return boolExtension(op, "x-preview")
+}
+
+// boolExtension decodes a vendor extension whose value is a JSON boolean.
+// kin-openapi stores extensions as raw JSON bytes keyed by the extension
+// name, but some versions hand back a decoded bool, a string or a
+// json.RawMessage, so handle all four.
+func boolExtension(op *openapi3.Operation, key string) bool {
 	if op == nil {
 		return false
 	}
-	raw, ok := op.Extensions["x-rate-limit"]
+	raw, ok := op.Extensions[key]
 	if !ok {
 		return false
 	}
@@ -664,8 +681,7 @@ func isRateLimited(op *openapi3.Operation) bool {
 		return v == "true"
 	default:
 		// Some kin-openapi versions return json.RawMessage.
-		s := fmt.Sprintf("%s", v)
-		return s == "true"
+		return fmt.Sprintf("%s", v) == "true"
 	}
 }
 
@@ -1248,8 +1264,25 @@ func buildMethod(doc *openapi3.T, spec SpecDef, opDef OperationDef, enumTypes ma
 		NoRetry:         opDef.NoRetry,
 	}
 
+	preview := isPreview(op)
+
 	if op.Summary != "" {
-		m.Comment = opDef.Name + " " + lowerFirst(cleanComment(op.Summary))
+		m.Comment = opDef.Name + " " + lowerFirst(cleanComment(stripPreviewPrefix(op.Summary, preview)))
+	}
+
+	// The preview marker is its own godoc sentence rather than part of the
+	// method's verb phrase, exactly as the deprecation marker below is. v2192
+	// prefixed all twelve ai-governance summaries with "Preview - ", and since
+	// the summary *is* the method comment that rendered as
+	// "ListPolicies preview - List active …" — a broken doc comment on every
+	// exported method. Stripping the prefix and emitting the state separately
+	// keeps both the sentence and the warning.
+	if preview {
+		if m.Comment == "" {
+			m.Comment = opDef.Name + " is a preview endpoint."
+		} else {
+			m.Comment += "\n//\n// Preview: this endpoint is marked preview in the Jamf API spec; its request and response shapes may change without warning, and successful responses carry a Jamf-Preview: true header."
+		}
 	}
 
 	if len(op.Tags) > 0 {

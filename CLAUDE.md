@@ -443,7 +443,7 @@ the executable authority; this is the prose copy, and the two must agree.**
 | `securitycloud-uem-connect-api.yaml` | `external/uem-connect` | **v2082** |
 | `securitycloud-enrollment-api.yaml` | `external/securitycloud-enrollment` | **v2082** |
 | `securitycloud-device-groups-api.yaml` | `external/securitycloud-devices` | **v2082** |
-| `ai-governance-api.yaml` | `external/ai-governance` | **v2176** |
+| `ai-governance-api.yaml` | `external/ai-governance` | **v2192** |
 | `audit-api.yaml` | `external/audit` | **v2082** |
 | `account-licensing-api.yaml` | `external/account-licensing` | **v2176** |
 | `account-partners-api.yaml` | `external/account-partners` | **v2082** |
@@ -570,12 +570,13 @@ tenant routes reference is present under `environment`.
 
 ### Current position and holds
 
-**Ingested through v2176 (2026-09-11), and as of 2026-09-14 nothing is held.**
+**Ingested through v2192 (2026-09-14), and nothing is held.**
 `account-licensing` and `account-sso` came off their v1865 hold at v2176 — see
 the holds table, and the section below for the wire evidence that took both
-premises away at once. `ai-governance` moved at v2176 and the two account specs
-now stand beside it; the other sixteen are at v2154. `account-partners` is at
-v2082 and inert. Two specs moved at v2154 —
+premises away at once. `ai-governance` is at **v2192**, alone: it moved at v2176
+and again at v2192, and it is the only spec that has moved in either build. The
+two account specs are at v2176 and the other sixteen at v2154. `account-partners`
+is at v2082 and inert. Two specs moved at v2154 —
 `jpapi` and `capi`, both to `info.version: 11.32.0` — and everything else in
 `external/` is byte-identical to v2121, so the only other diffs were the
 manifest, the two unified rollups and `_permissions/routes.yaml`.
@@ -583,6 +584,87 @@ manifest, the two unified rollups and `_permissions/routes.yaml`.
 change is an environment rollout; `internal/dev` carries 814 `jpapi` operations
 against `external/`'s 704 and 606 `capi` against 589, so the v1942 publishing
 filter is still in place and still prod-only.
+
+**v2192 (2026-09-14) is `ai-governance` and nothing else, and it is the second
+consecutive build that is only that spec.** Every other file in `external/` and
+`internal/stage` is byte-identical to v2176 — `_permissions/{routes,scopes}.yaml`
+included, `jpapi` and `capi` included — so the only other diffs in the archive
+are the manifest and the two unified rollups. `internal/stage` and
+`internal/dev` took a delta identical to `external/`'s, so this is not an
+environment rollout.
+
+Structurally the spec is nil: **zero paths, zero schemas, zero operations, zero
+parameters, zero responses.** A prose-stripped comparison of every schema and
+every operation leaves only three things, and the first is the one that
+mattered:
+
+- **All twelve operation `summary` strings gained a `Preview - ` prefix** —
+  and the summary *is* the generated method comment, so unlike v2176's
+  description-only change this one reaches Go. Left alone it renders as
+  `// ListPolicies preview - List active AI governance policies for the
+  tenant.`, a broken doc comment on every exported method in the package,
+  because `lowerFirst` lowercases the first word of whatever the summary is.
+  Fixed at the generator: see below.
+- **`x-preview: true` added to each of the twelve operations.** The spec
+  already carried a document-level `x-preview`; this makes the marker
+  per-operation, which is what gives the generator a structured source for the
+  state instead of a prose prefix.
+- **`x-preview-owners: [ai-policy-builder-backend]` deleted from the document
+  root** — an internal service name that `api/ai_governance_policies_api.json`
+  had been publishing to consumers. Good removal; nothing read it.
+
+`info.description` also gained a paragraph restating the GA date and asserting
+that "every successful (2xx) response carries a `Jamf-Preview: true` header".
+
+**The generator now treats preview as a state, not as part of the verb
+phrase**, exactly as it already treats deprecation. `isPreview` reads
+`x-preview` (via a new `boolExtension`, which `isRateLimited` now shares),
+`stripPreviewPrefix` takes the prefix off the summary, and a separate godoc
+sentence carries the warning:
+
+```go
+// ListPolicies list active AI governance policies for the tenant.
+//
+// Preview: this endpoint is marked preview in the Jamf API spec; its request
+// and response shapes may change without warning, and successful responses
+// carry a Jamf-Preview: true header.
+```
+
+Two details worth keeping. **The strip is gated on the extension, not on the
+text**, so a summary that legitimately begins with the verb — "Preview a report
+before sending it" — survives on an operation the spec never marked preview,
+and the strip can never silently rewrite prose on the strength of one word.
+And **the prefix is not written into `api/`**: the published spec carries
+upstream's `summary` and `x-preview` verbatim, the same call
+`inferDiscriminator` makes. `preview_test.go` pins the separator variants
+(hyphen, colon, en and em dash, no space), all four extension
+representations kin-openapi hands back, and the generated godoc line count per
+file.
+
+**Generated impact: 24 added lines of godoc across the two `aigovernance`
+files, 65 changed lines of `api/ai_governance_policies_api.json`, and no
+change to any signature, type or URL.** CI parity was re-checked through the
+`api/` fallback after the generator change and the tree is identical.
+
+**The header claim is wire-verified, and it needed a test the generated
+surface cannot provide.** `GET /v1/tools` and `GET /v1/policies` both answer
+**200 with `Jamf-Preview: true`** (2026-09-14, EU environment credential, a
+bogus path in the same namespace returning 403 as the control). The transport
+discards response headers on success, so no caller and no generated-method
+test can see it; `TestAcceptance_AiGovernancePreviewHeader` goes through
+`Transport().HTTPClient()` and stamps the scope header itself from
+`Client.Scope()`, since `setScopeHeader` runs inside `Do` rather than in a
+RoundTripper. It **asserts** the header rather than logging it: the day it
+stops arriving is the day these endpoints have graduated, and that should fail
+here.
+
+The rest of the lane is unchanged from v2176 — 3 tools, 2 policies, all twelve
+read rejections with their recorded codes, and the `GetPolicyDeployment`
+blueprint-reference defect still reporting 0 for two policies two blueprints
+actually reference. The write lane was also run at v2192 (create, the
+`NO_DRAFT_TO_PUBLISH` 409, wholesale settings replacement, both `If-Match`
+forms conflicting on a stale version, rename, archive-then-404) and passes
+whole.
 
 **v2176 (2026-09-11) is `ai-governance` and nothing else, and the change is one
 sentence repeated twelve times.** Every other file in `external/` and
@@ -1804,7 +1886,7 @@ Layer-by-layer diagnosis of a refusal, per-package findings and the full evidenc
 | `blueprints`, `compliancebenchmarks`, `ddmreport` | as named | **environment** | v2082 declares all three environment-only. `ddmreport` still answers under tenant scope and is pinned; `blueprints` and `compliancebenchmarks` refuse a tenant credential with `403 BAD_PERMISSIONS`, unclassifiable against one credential but agreeing with the GA env-only decision, so deliberately unpinned |
 | `securitycloud` | `securitycloud` | tenant (own identifier) **or** environment (both declared as of v2082) | 52 ops across six specs — every spec at v2082 as of 2026-09-04, the `securitycloud-devices` hold having lifted and taken `GET /v1/groups` and `PUT /v1/groups/{groupId}` with it |
 | `account` | `licensing`, `partners`, `sso` | **organization** | three specs, one package — one Jamf product behind one api-product. **US only.** The only package whose privileges come from `requiredPrivileges` rather than the spec |
-| `aigovernance` | `ai/governance/policies` | environment | slashes; the spec's hyphens were corrected upstream at v1877. **All 12 operations declare themselves Preview as of v2176**, GA expected 2027-03-03, "pending feedback on request and response shape" — so treat request and response shapes here as less settled than elsewhere |
+| `aigovernance` | `ai/governance/policies` | environment | slashes; the spec's hyphens were corrected upstream at v1877. **All 12 operations declare themselves Preview — prose at v2176, `x-preview: true` and a `Preview - ` summary prefix at v2192** — GA expected 2027-03-03, "pending feedback on request and response shape", and every 2xx carries `Jamf-Preview: true` (wire-verified 2026-09-14). Treat request and response shapes here as less settled than elsewhere; every method's godoc says so |
 | `audit` | `audit` | environment (**only**, as of v2056) | **reachable as of 2026-09-03** — a credential granted `audit:read` under `X-Environment-Id` reads it; 1014 events walked. `ListAuditEvents` needs `since` **and** one of `actor`/`audit-source`/`audit-type`/`resource-id`, neither expressed in the signature |
 
 `account` is the documented exception to package-follows-namespace. It is also the

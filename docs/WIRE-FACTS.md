@@ -3500,6 +3500,60 @@ probe at the top of this section.
 
 ## AI Governance (`aigovernance`) — environment scope
 
+### Every 2xx really does carry `Jamf-Preview: true`, and the SDK cannot show it to a caller (2026-09-14)
+
+v2192's `info.description` asserts that "every successful (2xx) response
+carries a `Jamf-Preview: true` header"; v2121 had already declared the header
+on all twelve operations. It is true on the wire. Probed with an EU environment
+credential — the same environment every ai-governance probe in this section
+uses, identifiable by its 3 tools and 2 policies — with a bogus path in the
+same namespace as the control in the same invocation:
+
+```
+$ curl -D - .../ai/governance/policies/v1/nonexistent-control
+HTTP/2 403                          # unrouted control
+
+$ curl -D - .../ai/governance/policies/v1/tools
+HTTP/2 200
+content-type: application/json
+jamf-preview: true
+{"totalCount":3,"results":[{"id":"com.anthropic.claudecode",…
+
+$ curl -D - .../ai/governance/policies/v1/policies
+HTTP/2 200
+jamf-preview: true
+{"totalCount":2,"results":[…
+```
+
+Two operations were probed rather than one — a collection and an item — so a
+header attached to a single handler rather than to the product could not pass.
+
+**No caller can see it and no generated-method test can either**: the
+transport discards response headers on a success. That is why
+`TestAcceptance_AiGovernancePreviewHeader` reaches through
+`Transport().HTTPClient()` and stamps the scope header itself from
+`Client.Scope()` — `setScopeHeader` runs inside `Do`, not in a RoundTripper,
+so a raw request through the OAuth client carries the bearer but not the
+scope. The test **asserts** the header instead of logging it: the day it stops
+arriving is the day these endpoints have graduated out of preview, and that
+should fail loudly and send the reader to the package table.
+
+The same build made the preview state structured — `x-preview: true` per
+operation, where before there was only a document-level flag and prose — and
+prefixed all twelve summaries with `Preview - `. Since the summary becomes the
+method's godoc sentence, that prefix is the reason the generator now carries
+preview as its own doc line; mechanism in
+[CLAUDE.md](../CLAUDE.md#current-position-and-holds). It also deleted
+`x-preview-owners: [ai-policy-builder-backend]`, an internal service name
+`api/ai_governance_policies_api.json` had been publishing.
+
+The whole read and write lane was re-run at v2192 and is unchanged: 3 tools, 2
+policies, all twelve read rejections with their recorded codes, the
+`GetPolicyDeployment` blueprint-reference defect below still reporting 0, and
+the full write lifecycle — create, `409 NO_DRAFT_TO_PUBLISH`, wholesale
+settings replacement, both `If-Match` forms conflicting on a stale version,
+rename, archive-then-404 — passing whole.
+
 ### v2121's optimistic-concurrency mechanism is live, and the SDK cannot reach half of it (2026-09-09)
 
 v2121 adds an ETag/If-Match concurrency protocol to the policies API:

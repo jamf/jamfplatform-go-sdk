@@ -408,3 +408,24 @@ func toSet(ss []string) map[string]bool {
 func testHeaderValue(specName string) string {
 	return "hdr-" + strings.ToLower(http.CanonicalHeaderKey(specName))
 }
+
+// previewSummaryPrefixRe matches the state prefix Jamf prepends to an
+// operation summary when the endpoint is in preview — "Preview - ",
+// "Preview – " (en dash), "Preview: " and the bare-colon form alike. GitOps
+// v2192 introduced it on all twelve ai-governance summaries, and the summary
+// is what becomes the method's godoc sentence, so the prefix has to come off
+// or every method reads "ListPolicies preview - List active …".
+var previewSummaryPrefixRe = regexp.MustCompile(`^\s*Preview\s*[-–—:]\s*`)
+
+// stripPreviewPrefix removes that prefix, but only when the operation
+// actually declares x-preview: true. Gating on the extension rather than on
+// the text means a summary that legitimately begins with the word "Preview"
+// — a hypothetical "Preview a report before sending it" — survives intact,
+// and the strip cannot silently rewrite prose on an operation whose state the
+// spec never claimed.
+func stripPreviewPrefix(summary string, preview bool) string {
+	if !preview {
+		return summary
+	}
+	return previewSummaryPrefixRe.ReplaceAllString(summary, "")
+}
