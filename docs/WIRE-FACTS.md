@@ -1172,6 +1172,17 @@ The v1 point lookup above had been probed; the v2 paginated list had not, beyond
 its pagination. Probed on the EU environment tenant at Jamf Pro **11.32.0**, with
 `GET /pro/v1/jamf-pro-version` → 200 as the control in the same invocation.
 
+**All three defects reproduce on the Jamf Pro API directly, so none of them is
+the gateway's.** The same matrix run against a standalone instance
+(`/api/v2/mdm/commands`, no platform gateway in the path, its own
+`/v1/jamf-pro-version` as the control) gives the identical answers on different
+data: no filter → 400, `notAField` and `commandType` both → the unfiltered total
+of 731, a real `command==` filter → 241, malformed uuid → 500,
+out-of-vocabulary status → 500. Two independent instances, one gatewayed and one
+not, so **report these to the Jamf Pro API team rather than the gateway team** —
+and note the technique, since a defect that survives the direct path is the only
+kind you can attribute to the service itself.
+
 | `filter` | status | `totalCount` |
 |---|---|---|
 | *absent* (with or without valid `page`, `page-size`, `sort`) | **400** | `{"httpStatus":400,"errors":[]}` — deterministic 2/2 |
@@ -1214,6 +1225,16 @@ outside the vocabulary both 500, while a well-formed UUID that matches nothing
 correctly answers 200 with `totalCount: 0` — so it is value parsing that faults,
 not the lookup. As on v1, every 400 and 500 here carries an **empty `errors`
 array**, so a caller has nothing to attribute the refusal to.
+
+`TestAcceptance_Pro_MdmCommandsV2FilterIsMandatory`,
+`…V2IgnoresAnUnknownFilterField` and `…V2FaultsOnAMalformedFilterValue` assert
+all three, each with its control in the same test, so every one fails the day it
+is fixed. The middle one is the awkward one to pin, because the defect's symptom
+is a **success**: it compares two *different* nonsense filters, which must return
+the identical count if both are being discarded, against a real filter returning
+fewer — equal counts are the evidence, and the real filter proves filtering works
+on that tenant's data at all. It skips rather than passes when the tenant's data
+cannot tell the two apart.
 
 **`POST` is not allowed, and this is not the publishing filter hiding it.**
 `/v2/mdm/commands` declares `GET` alone in `external`, `internal/stage` **and**

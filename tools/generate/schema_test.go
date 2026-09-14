@@ -581,3 +581,70 @@ func TestApplyPropertyRenamesCarriesTheRequiredEntry(t *testing.T) {
 		t.Errorf("required = %v, want %v — the entry must follow the rename, in place", got.Required, want)
 	}
 }
+
+// A rename must reach the spec's own examples, or api/*.json publishes a schema
+// declaring one key beside an example showing the other — the same
+// self-inconsistency applyPropertyRemovals used to publish by leaving a stale
+// `required` entry behind. And it must reach ONLY the matching ones: a property
+// name is not unique across a spec, so a blind key rewrite would corrupt an
+// example of an unrelated type that happens to share a key.
+func TestApplyPropertyRenamesRewritesMatchingExamplesOnly(t *testing.T) {
+	target := openapi3.NewObjectSchema()
+	target.WithProperty("assignedConnection", openapi3.NewStringSchema())
+	target.WithProperty("authRegion", openapi3.NewStringSchema())
+	target.Required = []string{"assignedConnection", "authRegion"}
+
+	// The example that must be rewritten: every key is a property of the
+	// renamed schema.
+	match := map[string]any{"assignedConnection": "con_1", "authRegion": "US"}
+	// Same key, different type: `authRegion` sits beside a key the target
+	// schema does not declare, so this is some other schema's example and must
+	// be left exactly as it is.
+	other := map[string]any{"authRegion": "US", "unrelatedField": 7}
+	// Nested inside an array inside an object, which is where the real one
+	// lives (DomainAllocation.connections[]).
+	nested := map[string]any{"connections": []any{match}}
+
+	resp := openapi3.NewResponse().WithContent(openapi3.Content{
+		"application/json": {Example: nested},
+	})
+	otherResp := openapi3.NewResponse().WithContent(openapi3.Content{
+		"application/json": {Example: other},
+	})
+	responses := openapi3.NewResponses()
+	responses.Set("200", &openapi3.ResponseRef{Value: resp})
+	otherResponses := openapi3.NewResponses()
+	otherResponses.Set("200", &openapi3.ResponseRef{Value: otherResp})
+
+	paths := openapi3.NewPaths()
+	paths.Set("/allocation", &openapi3.PathItem{
+		Get: &openapi3.Operation{Responses: responses},
+	})
+	paths.Set("/unrelated", &openapi3.PathItem{
+		Get: &openapi3.Operation{Responses: otherResponses},
+	})
+
+	doc := &openapi3.T{
+		Paths: paths,
+		Components: &openapi3.Components{Schemas: map[string]*openapi3.SchemaRef{
+			"DomainAllocationConnection": {Value: target},
+		}},
+	}
+
+	applyPropertyRenames(doc, map[string]map[string]string{
+		"DomainAllocationConnection": {"authRegion": "region"},
+	})
+
+	if _, still := match["authRegion"]; still {
+		t.Error("the matching example kept the old key")
+	}
+	if got := match["region"]; got != "US" {
+		t.Errorf("the matching example's renamed key = %v, want US", got)
+	}
+	if got, ok := other["authRegion"]; !ok || got != "US" {
+		t.Error("an example of an unrelated schema was rewritten; the shape guard is not holding")
+	}
+	if _, leaked := other["region"]; leaked {
+		t.Error("the rename leaked into an unrelated schema's example")
+	}
+}

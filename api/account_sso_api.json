@@ -2134,7 +2134,7 @@
                     {
                       "assignedConnection": "con_9Xk2LpQr7TvB3mNd",
                       "assignedConnectionOrgId": "org_7Yt4RmZq2WbK",
-                      "authRegion": "US"
+                      "region": "US"
                     }
                   ],
                   "domain": "example.com",

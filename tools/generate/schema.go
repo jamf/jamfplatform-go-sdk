@@ -301,14 +301,150 @@ func applyPropertyRenames(doc *openapi3.T, renames map[string]map[string]string)
 			// A rename must carry the property's `required` entry with it,
 			// for the reason applyPropertyRemovals prunes one: a required
 			// name with no property is an invalid spec a consumer reads.
-			// Latent today — no renamed property is currently required —
-			// which is exactly how the removal side stayed latent until
+			// v2176's DomainAllocationConnection.authRegion is the first
+			// renamed property that is required, so this stopped being
+			// latent — the removal side stayed latent the same way until
 			// v2154 removed its first required one.
 			for i, r := range parent.Required {
 				if r == leaf {
 					parent.Required[i] = newKey
 				}
 			}
+			// The spec's own examples still spell the old key, and they are
+			// published verbatim, so without this api/*.json declares a
+			// schema carrying `region` beside an example showing
+			// `authRegion` — a self-inconsistent spec handed to consumers,
+			// the same defect class as leaving the stale `required` entry
+			// above.
+			allowed := map[string]bool{leaf: true}
+			for name := range parent.Properties {
+				allowed[name] = true
+			}
+			renameKeyInExamples(doc, allowed, leaf, newKey)
+		}
+	}
+}
+
+// renameKeyInExamples rewrites one renamed property key inside the spec's own
+// examples, which applyPropertyRenames cannot reach by walking schemas: an
+// example is free-form JSON hanging off a media type, not a property.
+//
+// It is shape-guarded rather than a blind key rewrite, because a property name
+// is not unique across a spec — Classic renames `categories`, `users` and
+// `security_name`, any of which could plausibly appear in an unrelated
+// example. An object is rewritten only when it carries the old key *and* every
+// one of its keys is a property of the schema the rename targets, so an example
+// of some other type that happens to share a key name is left alone. Today
+// exactly one example in the nineteen specs matches (the DomainAllocation
+// response), and the other fifteen renamed keys appear in no example at all.
+func renameKeyInExamples(doc *openapi3.T, allowed map[string]bool, oldKey, newKey string) {
+	var scan func(node any)
+	scan = func(node any) {
+		switch n := node.(type) {
+		case map[string]any:
+			if _, has := n[oldKey]; has {
+				matches := true
+				for k := range n {
+					if !allowed[k] {
+						matches = false
+						break
+					}
+				}
+				if matches {
+					n[newKey] = n[oldKey]
+					delete(n, oldKey)
+				}
+			}
+			for _, v := range n {
+				scan(v)
+			}
+		case []any:
+			for _, v := range n {
+				scan(v)
+			}
+		}
+	}
+
+	scanContent := func(c openapi3.Content) {
+		for _, mt := range c {
+			if mt == nil {
+				continue
+			}
+			scan(mt.Example)
+			for _, ex := range mt.Examples {
+				if ex != nil && ex.Value != nil {
+					scan(ex.Value.Value)
+				}
+			}
+		}
+	}
+	scanParams := func(ps openapi3.Parameters) {
+		for _, pr := range ps {
+			if pr == nil || pr.Value == nil {
+				continue
+			}
+			scan(pr.Value.Example)
+			for _, ex := range pr.Value.Examples {
+				if ex != nil && ex.Value != nil {
+					scan(ex.Value.Value)
+				}
+			}
+			scanContent(pr.Value.Content)
+		}
+	}
+	scanResponses := func(rs *openapi3.Responses) {
+		if rs == nil {
+			return
+		}
+		for _, r := range rs.Map() {
+			if r == nil || r.Value == nil {
+				continue
+			}
+			scanContent(r.Value.Content)
+		}
+	}
+
+	if doc.Components != nil {
+		for _, ex := range doc.Components.Examples {
+			if ex != nil && ex.Value != nil {
+				scan(ex.Value.Value)
+			}
+		}
+		for _, sr := range doc.Components.Schemas {
+			if sr != nil && sr.Value != nil {
+				scan(sr.Value.Example)
+			}
+		}
+		for _, rb := range doc.Components.RequestBodies {
+			if rb != nil && rb.Value != nil {
+				scanContent(rb.Value.Content)
+			}
+		}
+		for _, r := range doc.Components.Responses {
+			if r != nil && r.Value != nil {
+				scanContent(r.Value.Content)
+			}
+		}
+		scanParams(slices.Collect(maps.Values(doc.Components.Parameters)))
+	}
+	if doc.Paths == nil {
+		return
+	}
+	for _, path := range doc.Paths.InMatchingOrder() {
+		item := doc.Paths.Find(path)
+		if item == nil {
+			continue
+		}
+		scanParams(item.Parameters)
+		for _, op := range item.Operations() {
+			if op == nil {
+				continue
+			}
+			scanParams(op.Parameters)
+			if op.RequestBody != nil && op.RequestBody.Value != nil {
+				scanContent(op.RequestBody.Value.Content)
+			}
+			scanResponses(op.Responses)
 		}
 	}
 }

@@ -447,10 +447,169 @@ func assertMdmCommandsV1Status(t *testing.T, err error, want int, label string) 
 	t.Logf("ListMdmCommandsV1 (%s): HTTP %d as expected", label, want)
 }
 
+// TestAcceptance_Pro_MdmCommandsV2FilterIsMandatory pins the first of three
+// wire laws on GET /v2/mdm/commands that the spec does not express.
+//
+// The spec marks `filter` optional and states the requirement only in the
+// parameter's own prose ("All url must contain minimum one filter field"), so
+// the generated signature takes a plain string for something without which the
+// call can never succeed — the same shape as ListAuditEvents needing `since`
+// plus one of four. Nothing structural carries it, so a caller reading only the
+// signature writes a call that always 400s.
+//
+// Asserted rather than tolerated, so this fails the day the server stops
+// requiring it or the spec starts declaring it required. Either way the fix is
+// to re-read the parameter and correct the method godoc, not to relax this.
+func TestAcceptance_Pro_MdmCommandsV2FilterIsMandatory(t *testing.T) {
+	ctx := context.Background()
+	p := pro.New(accClient(t))
+
+	_, err := p.ListMdmCommandsV2(ctx, nil, "")
+	assertMdmCommandsV2Status(t, err, 400, "no filter")
+
+	// The control: the identical call with a filter succeeds, so the 400 is the
+	// missing filter and not a broken endpoint.
+	if _, err := p.ListMdmCommandsV2(ctx, nil, "active==true"); err != nil {
+		skipOnServerError(t, err)
+		t.Fatalf(`ListMdmCommandsV2(active==true): %v — the control failed, so the 400 above proves nothing`, err)
+	}
+}
+
+// TestAcceptance_Pro_MdmCommandsV2IgnoresAnUnknownFilterField pins the defect
+// worth reporting hardest: an unrecognised filter FIELD is silently ignored and
+// the whole collection comes back, with no error at any layer.
+//
+// The trap is specific rather than theoretical. The response field is called
+// `commandType`, but the filter vocabulary calls it `command` — so `commandType`
+// is exactly what a caller reaching for the obvious name writes, and it returns
+// every row while looking like a filter that matched everything. The caller's
+// own paging then walks the wrong set to completion.
+//
+// The assertion is that two *different* nonsense filters return the identical
+// count while a real filter returns fewer: equal counts prove the filter is
+// discarded rather than matched, and the real filter proves filtering works at
+// all on this tenant. Reproduced on the gateway and, with the same result, on
+// a direct Jamf Pro instance (2026-09-14), so this is Jamf Pro's own behaviour
+// and not something the platform gateway introduces.
+//
+// A 400 naming the field would be correct, and the spec does enumerate the legal
+// ones. So read a failure here as "the fix landed" — at which point delete this
+// test and, better, give the vocabulary a typed home so the SDK can refuse a
+// bad field before the request leaves.
+func TestAcceptance_Pro_MdmCommandsV2IgnoresAnUnknownFilterField(t *testing.T) {
+	ctx := context.Background()
+	p := pro.New(accClient(t))
+
+	// Two unrelated non-existent fields. Both are ignored today, so both return
+	// the unfiltered collection.
+	bogus, err := p.ListMdmCommandsV2(ctx, nil, `notAField=="x"`)
+	if err != nil {
+		assertMdmCommandsV2Status(t, err, 400, `notAField=="x"`)
+		t.Log("an unknown filter field is now refused — the defect is fixed, delete this test")
+		return
+	}
+	plausible, err := p.ListMdmCommandsV2(ctx, nil, `commandType=="TOTAL_NONSENSE"`)
+	if err != nil {
+		assertMdmCommandsV2Status(t, err, 400, `commandType=="TOTAL_NONSENSE"`)
+		t.Log("an unknown filter field is now refused — the defect is fixed, delete this test")
+		return
+	}
+
+	if len(bogus) != len(plausible) {
+		t.Fatalf("two different unknown filter fields returned %d and %d commands; if the server has started "+
+			"honouring one of them this test's premise is gone — re-probe the filter vocabulary",
+			len(bogus), len(plausible))
+	}
+	if len(bogus) == 0 {
+		t.Skip("tenant has no MDM commands, so an ignored filter is indistinguishable from a matched one")
+	}
+
+	// A field that IS in the vocabulary must filter, or the comparison above is
+	// measuring nothing.
+	real, err := p.ListMdmCommandsV2(ctx, nil, `command=="INSTALL_PROFILE"`)
+	if err != nil {
+		skipOnServerError(t, err)
+		t.Fatalf(`ListMdmCommandsV2(command=="INSTALL_PROFILE"): %v`, err)
+	}
+	if len(real) >= len(bogus) {
+		t.Skipf("command==INSTALL_PROFILE matched %d of %d commands, so a real filter is indistinguishable "+
+			"from an ignored one on this tenant's data", len(real), len(bogus))
+	}
+	t.Logf("unknown field returned all %d commands while command==INSTALL_PROFILE returned %d — "+
+		"the unknown field is discarded, not matched", len(bogus), len(real))
+}
+
+// TestAcceptance_Pro_MdmCommandsV2FaultsOnAMalformedFilterValue pins the third
+// law: a filter naming a real field but carrying an unusable VALUE is a 500,
+// not the 400 it should be.
+//
+// The control that makes this value parsing rather than a broken lookup is in
+// the same test: a well-formed uuid that matches nothing correctly answers 200
+// with an empty list. So the endpoint can express "no match" — it just faults
+// instead when it cannot parse the value at all.
+//
+// Asserted, not skipped past. skipOnServerError is right for a transient 5xx
+// and precisely wrong for a deterministic one, which is the lesson
+// GET /patches/name/{name} and the v1 both-parameters 500 above both taught:
+// a test that skips on the fault can never report the fix.
+func TestAcceptance_Pro_MdmCommandsV2FaultsOnAMalformedFilterValue(t *testing.T) {
+	ctx := context.Background()
+	p := pro.New(accClient(t))
+
+	// Control first: a well-formed but absent uuid is a clean empty result.
+	absent, err := p.ListMdmCommandsV2(ctx, nil, `uuid=="00000000-0000-0000-0000-000000000000"`)
+	if err != nil {
+		skipOnServerError(t, err)
+		t.Fatalf("ListMdmCommandsV2(well-formed absent uuid): %v — the control failed", err)
+	}
+	if len(absent) != 0 {
+		t.Fatalf("a uuid filter for an all-zero uuid matched %d commands, which should be impossible", len(absent))
+	}
+
+	_, err = p.ListMdmCommandsV2(ctx, nil, `uuid=="nope"`)
+	assertMdmCommandsV2Status(t, err, 500, "malformed uuid value (should be 400)")
+
+	_, err = p.ListMdmCommandsV2(ctx, nil, `status=="NotAStatus"`)
+	assertMdmCommandsV2Status(t, err, 500, "out-of-vocabulary status value (should be 400)")
+}
+
+// assertMdmCommandsV2Status fails unless err is an APIResponseError carrying
+// want. A nil error is a failure too: every case this guards is one the server
+// refuses today, so success means the wire law changed and the surrounding
+// comment needs re-reading rather than the assertion loosening.
+//
+// Every one of these refusals carries an EMPTY errors array, so there is
+// nothing to assert beyond the status and nothing for a caller to attribute the
+// refusal to. That is itself worth reporting upstream.
+func assertMdmCommandsV2Status(t *testing.T, err error, want int, label string) {
+	t.Helper()
+	if err == nil {
+		t.Fatalf("ListMdmCommandsV2 (%s): want HTTP %d, got success — the wire law changed, update this assertion", label, want)
+	}
+	var apiErr *jamfplatform.APIResponseError
+	if !errors.As(err, &apiErr) {
+		t.Fatalf("ListMdmCommandsV2 (%s): want HTTP %d, got non-API error: %v", label, want, err)
+	}
+	if !apiErr.HasStatus(want) {
+		t.Fatalf("ListMdmCommandsV2 (%s): want HTTP %d, got %v", label, want, err)
+	}
+	t.Logf("ListMdmCommandsV2 (%s): HTTP %d as expected", label, want)
+}
+
 // POST /api/pro/v2/mdm/commands is no longer covered. Jamf withdrew it from
 // the published spec in the GA cleanup (upstream's spec change; the GET is
 // retained), so the SDK no longer generates SendMdmCommandV2 and the request
 // types MDMCommandRequest / MDMCommandClientRequest are gone with it.
+//
+// The gateway agrees, which is worth recording because a withdrawn-from-spec
+// operation is often still served (v1942's 146 removals all were). Probed
+// 2026-09-14: POST, PUT, PATCH and DELETE on /pro/v2/mdm/commands all answer
+// the unrouted 403 BAD_PERMISSIONS with no Allow header, against GET on the
+// same path at 200 and a bogus path in the same namespace also 403 as controls
+// in the same invocation. The path declares GET alone in external,
+// internal/stage AND internal/dev, so this is not the publishing filter hiding
+// a write. The only MDM writes any spec declares are POST /v2/mdm/blank-push
+// and POST /v1/mdm/renew-profile.
 //
 // Three tests went with it, and one is a real loss worth restoring if a
 // successor appears: CommandTypeEnumMatchesServer used the server's own type
