@@ -40,7 +40,7 @@ func TestAcceptance_Pro_Inventory_GetInformationV1(t *testing.T) {
 // --- computer-inventory V3 (read chain) --------------------------------
 //
 // v1942 withdrew V1, V2 and V3 from the published spec; v2082 brought V3 back
-// (public-apis-oas#438) on the grounds that its 2026-07-14 deprecation left
+// (upstream's own restoration change) on the grounds that its 2026-07-14 deprecation left
 // callers no reasonable window to reach V4. V1 and V2 stay withdrawn, so the
 // two destructive V1 stubs that used to sit in this section are gone with
 // them. Wire-confirmed 2026-09-04: GET /pro/v3/computers-inventory answers 200

@@ -185,7 +185,7 @@ func TestAcceptance_Pro_JamfConnect_LifecycleV1(t *testing.T) {
 // com.apple.ManagedClient.preferences payload — the shape Jamf Pro's
 // Connect scanner actually recognises when discovering deployed
 // profiles. Modelled on a live, working Connect profile from the
-// nmartin tenant (Jamf Connect 2 / id=36). The outer
+// Pro tenant (Jamf Connect 2 / id=36). The outer
 // com.jamf.connect.login payload type alone isn't enough; the
 // scanner keys off the ManagedClient-preferences wrapping.
 //

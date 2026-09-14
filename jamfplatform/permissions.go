@@ -113,9 +113,9 @@ type MethodPrivileges struct {
 	//     exempts them from the transform the publishing pipeline attaches
 	//     x-required-privileges during, so the artifact ships without them by
 	//     construction. The values come from
-	//     public-apis-oas/redocly-implementation/teams/account-*/config.yaml
+	//     the spec source repository's own per-team config.yaml
 	//     and the hand-written OPA rules in
-	//     authorization-policies/policies/tyk_external/account/account_api.rego,
+	//     the gateway's authorization policy for the account namespace,
 	//     which agree on all 18.
 	//   - "": Scoped is empty.
 	//

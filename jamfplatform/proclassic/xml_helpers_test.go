@@ -46,7 +46,7 @@ func marshalPayloads(t *testing.T, plist string) string {
 }
 
 // serverIngest simulates the Classic API's single entity-decode of
-// MCX-family payload fragments (PI-827; wire-verified 2026-07-30) — the
+// MCX-family payload fragments (wire-verified 2026-07-30) — the
 // storage path this wire form targets byte-exact. Other payload types
 // store the wire content verbatim (see the PayloadsXMLText type comment).
 // Every `&` in marshalled output is part of an `&amp;` sequence, so one

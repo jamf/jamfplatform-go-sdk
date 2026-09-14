@@ -714,7 +714,7 @@ func assertRecoveryDelayRejected(t *testing.T, err error) {
 // provisions real network egress — a datacenter allocation, an IPSec tunnel
 // endpoint — and deleting one severs traffic for every access policy routed
 // through it, so this must never run against a tenant anyone depends on. The
-// full lifecycle was wire-verified on the wisconsam sandbox on 2026-08-20
+// full lifecycle was wire-verified on the JSC sandbox on 2026-08-20
 // (create with ipsec, GET, four PATCHes, delete, 404 after) and the tenant was
 // left exactly as found, which is what makes an opt-in test worth having here
 // rather than a permanent skip.
@@ -1575,7 +1575,7 @@ func TestAcceptance_SecurityCloudDeviceGroupLifecycle(t *testing.T) {
 
 // TestAcceptance_SecurityCloudDeviceGroupsV2 no longer tolerates a 403: the
 // gateway routes /v2/.../groups as of 2026-08-20 (wire-verified on eu, tenant
-// wisconsam, where it returns the {groups: []} envelope). It was 403
+// the JSC sandbox, where it returns the {groups: []} envelope). It was 403
 // BAD_PERMISSIONS when the surface was first generated, so a 403 resurfacing
 // here means routing regressed or the region in use lags eu — either way that
 // is worth a failure rather than a skip.
@@ -1597,8 +1597,8 @@ func TestAcceptance_SecurityCloudDeviceGroupsV2(t *testing.T) {
 //
 // The path answered 403 BAD_PERMISSIONS — this namespace's unrouted tell — for
 // five weeks, and this test asserted that 403 so the suite would fail when it
-// changed. It changed at 12:29Z on 2026-09-03, when authorization-policies#265
-// (07791a1) deployed: the request began clearing authorization and reaching the
+// changed. It changed at 12:29Z on 2026-09-03, when the gateway authorization
+// rule deployed: the request began clearing authorization and reaching the
 // service, which then answered 404 NOT_FOUND for a group that demonstrably
 // existed. So the test was rewritten to assert the 404 and wait for a 2xx.
 //
@@ -1664,7 +1664,7 @@ func TestAcceptance_SecurityCloudUpdateDeviceGroupV2(t *testing.T) {
 		}
 		switch {
 		case apiErr.HasStatus(403):
-			t.Fatalf("UpdateDeviceGroupV2 is back to 403 — authorization-policies#265 (07791a1) appears to have "+
+			t.Fatalf("UpdateDeviceGroupV2 is back to 403 — the gateway authorization rule appears to have "+
 				"been withdrawn or rolled back. That is an authorization regression, not a service defect: %v", err)
 		case apiErr.HasStatus(404):
 			t.Fatalf("UpdateDeviceGroupV2 is back to 404 for a group GET /v2/groups listed in this same "+
@@ -1937,7 +1937,7 @@ func TestAcceptance_SecurityCloudUemConnectVendorMismatch(t *testing.T) {
 // `JAMF_PRO_OAUTH` and minted the role, integration and client-credential pair
 // itself through the SDK — no longer possible, because Jamf withdrew
 // /v1/api-roles, /v1/api-integrations and /v1/api-role-privileges from the
-// published spec in the GA cleanup (public-apis-oas#395, JSC-73265) with
+// published spec in the GA cleanup (upstream's spec change) with
 // credential management moving to Jamf Account. M2M reaches the same place
 // without them and without a secret in an env var.
 //

@@ -20,7 +20,7 @@ import (
 // enrollment. Read-heavy plus round-trip settings PUTs and
 // enrollment-language CRUD (which is creation-via-PUT at an explicit
 // language id — no POST/create distinct from update). Access-groups
-// CRUD goes through the LDAP server association, which the nmartin
+// CRUD goes through the LDAP server association, which the Pro tenant's
 // tenant may not have configured, so those tests tolerate 400.
 
 // --- ADUE session token settings ---------------------------------------

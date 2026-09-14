@@ -77,8 +77,8 @@ func TestAcceptance_Pro_Settings_SmtpServerV2Read(t *testing.T) {
 // SmtpServerV2AuthenticationType constants.
 //
 // Reachable as of 2026-08-29, contrary to what this comment said for a fortnight.
-// The path is routed and gated on `smtp-server:read` (jamf/authorization-policies
-// jamf_pro_smtp_server.rego); an environment-scoped credential returned 200 with
+// The path is routed and gated on `smtp-server:read` by the gateway's
+// authorization policy; an environment-scoped credential returned 200 with
 // all four values, while two tenant-scoped credentials — one EU, one US — were
 // refused 403 against the same regional bundles. So the 403 is a capability the
 // tenant credentials do not hold, not the unrouted path the earlier note claimed,

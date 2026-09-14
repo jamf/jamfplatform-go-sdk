@@ -66,8 +66,8 @@ func TestAcceptance_Pro_MiscReadsV1(t *testing.T) {
 	t.Logf("Time zones: %d", len(tzs))
 
 	// GET /api/pro/v2/environment-type is no longer covered. Jamf removed the
-	// operation from the published spec in public-apis-oas#395 and it has never
-	// had a rule in jamf/authorization-policies, so it answered 403
+	// operation from the published spec in the GA cleanup and it has never
+	// had a rule in the gateway's authorization policy, so it answered 403
 	// BAD_PERMISSIONS for every credential this suite has ever used. With the
 	// path gone from the spec the SDK no longer generates GetEnvironmentTypeV2,
 	// and there is nothing left to assert. See the GA cleanup notes in CLAUDE.md.

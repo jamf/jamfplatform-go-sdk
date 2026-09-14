@@ -12,7 +12,7 @@ package jamfplatform_test
 // published spec; the config took 31 of the 32 withdrawals at v1993 and held
 // only POST /patchsoftwaretitles/id/{id}, because nothing else can mint a
 // softwareTitleId for the Pro v3 configuration endpoints. v2082 published the
-// whole family again (public-apis-oas#438: "Patch management is where Classic
+// whole family again, on upstream's stated grounds: "Patch management is where Classic
 // API callers are most concentrated; that migration gets driven on its own
 // schedule"), so the hold is gone and these fourteen operations are back.
 //

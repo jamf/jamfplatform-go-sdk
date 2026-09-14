@@ -172,7 +172,7 @@ func TestAccountPrivileges_RoundTrip_PlainCategory(t *testing.T) {
 
 // dataJARLDAPSFixture is a representative slice of the real
 // DataJARLDAPS_JamfPro_Admins group GET response captured 2026-06-12
-// (pro-nmartin). It carries ldap_server + three populated privilege
+// (the Pro tenant). It carries ldap_server + three populated privilege
 // categories (casper_* and recon are absent on this group — omitempty
 // must leave them nil). Counts per category match the live dump.
 var dataJARLDAPSFixture = []byte(`
@@ -181,7 +181,7 @@ var dataJARLDAPSFixture = []byte(`
   <name>DataJARLDAPS_JamfPro_Admins</name>
   <access_level>Full Access</access_level>
   <privilege_set>Administrator</privilege_set>
-  <ldap_server><id>31</id><name>ldap.datajar.mobi</name></ldap_server>
+  <ldap_server><id>31</id><name>ldap.example.invalid</name></ldap_server>
   <site><id>-1</id><name>NONE</name></site>
   <privileges>
     <jss_objects>
@@ -213,7 +213,7 @@ var dataJARLDAPSFixture = []byte(`
 
 // TestGroup_WireFixture_LdapServerAndPrivileges unmarshal the real-dump
 // fixture and asserts that:
-//   - ldap_server.id == 31, ldap_server.name == "ldap.datajar.mobi"
+//   - ldap_server.id == 31, ldap_server.name == "ldap.example.invalid"
 //   - all three privilege categories survive with correct counts
 //   - absent categories (casper_admin etc.) remain nil
 //   - re-marshal produces ONE wrapper per populated category
@@ -230,8 +230,8 @@ func TestGroup_WireFixture_LdapServerAndPrivileges(t *testing.T) {
 	if g.LdapServer.ID == nil || *g.LdapServer.ID != 31 {
 		t.Fatalf("LdapServer.ID: want 31, got %v", g.LdapServer.ID)
 	}
-	if g.LdapServer.Name == nil || *g.LdapServer.Name != "ldap.datajar.mobi" {
-		t.Fatalf("LdapServer.Name: want ldap.datajar.mobi, got %v", g.LdapServer.Name)
+	if g.LdapServer.Name == nil || *g.LdapServer.Name != "ldap.example.invalid" {
+		t.Fatalf("LdapServer.Name: want ldap.example.invalid, got %v", g.LdapServer.Name)
 	}
 
 	// Gate A: privilege counts must survive (no collapse).
@@ -305,26 +305,26 @@ func TestGroup_WireFixture_LdapServerAndPrivileges(t *testing.T) {
 	checkPrivCount("jss_objects (2nd)", g2.Privileges.JssObjects.Privilege, 7)
 }
 
-// benTomsFixture is a representative slice of the real ben.toms@jamf.com
-// directory account GET response captured 2026-06-12 (pro-nmartin).
+// directoryAccountFixture is a representative slice of a real directory
+// directory account GET response captured 2026-06-12 (the Pro tenant).
 // It exercises Account.Groups (group membership with inherited privileges),
 // Account.LdapServer, and directory_user:true.
-var benTomsFixture = []byte(`
+var directoryAccountFixture = []byte(`
 <account>
   <id>66</id>
-  <name>ben.toms@jamf.com</name>
+  <name>dir.user@example.invalid</name>
   <directory_user>true</directory_user>
-  <email>ben.toms@jamf.com</email>
-  <email_address>ben.toms@jamf.com</email_address>
+  <email>dir.user@example.invalid</email>
+  <email_address>dir.user@example.invalid</email_address>
   <password_sha256/>
   <enabled>Enabled</enabled>
-  <ldap_server><id>31</id><name>ldap.datajar.mobi</name></ldap_server>
+  <ldap_server><id>31</id><name>ldap.example.invalid</name></ldap_server>
   <access_level>Group Access</access_level>
   <privilege_set>Custom</privilege_set>
   <groups>
     <group>
       <id>18</id>
-      <name>datajar.mobi Support</name>
+      <name>Example Support</name>
       <site><id>-1</id><name>NONE</name></site>
       <privileges>
         <jss_objects>
@@ -344,7 +344,7 @@ var benTomsFixture = []byte(`
 
 // TestAccount_WireFixture_DirectoryUser asserts that a directory account
 // round-trips correctly:
-//   - LdapServer.ID == 31, LdapServer.Name == "ldap.datajar.mobi"
+//   - LdapServer.ID == 31, LdapServer.Name == "ldap.example.invalid"
 //   - DirectoryUser == true
 //   - Groups contains exactly one group with id == 18
 //   - Group privileges decoded without collapse (jss_objects=3, jss_settings=2)
@@ -352,15 +352,15 @@ var benTomsFixture = []byte(`
 //     ONE <group> child; privilege counts stable after second unmarshal
 func TestAccount_WireFixture_DirectoryUser(t *testing.T) {
 	var a Account
-	if err := xml.Unmarshal(benTomsFixture, &a); err != nil {
+	if err := xml.Unmarshal(directoryAccountFixture, &a); err != nil {
 		t.Fatalf("unmarshal fixture: %v", err)
 	}
 
 	if a.LdapServer == nil || a.LdapServer.ID == nil || *a.LdapServer.ID != 31 {
 		t.Fatalf("LdapServer.ID: want 31, got %v", a.LdapServer)
 	}
-	if a.LdapServer.Name == nil || *a.LdapServer.Name != "ldap.datajar.mobi" {
-		t.Fatalf("LdapServer.Name: want ldap.datajar.mobi, got %v", a.LdapServer.Name)
+	if a.LdapServer.Name == nil || *a.LdapServer.Name != "ldap.example.invalid" {
+		t.Fatalf("LdapServer.Name: want ldap.example.invalid, got %v", a.LdapServer.Name)
 	}
 	if a.DirectoryUser == nil || !*a.DirectoryUser {
 		t.Fatalf("DirectoryUser: want true, got %v", a.DirectoryUser)
@@ -372,8 +372,8 @@ func TestAccount_WireFixture_DirectoryUser(t *testing.T) {
 	if g0.ID == nil || *g0.ID != 18 {
 		t.Fatalf("Groups[0].ID: want 18, got %v", g0.ID)
 	}
-	if g0.Name == nil || *g0.Name != "datajar.mobi Support" {
-		t.Fatalf("Groups[0].Name: want datajar.mobi Support, got %v", g0.Name)
+	if g0.Name == nil || *g0.Name != "Example Support" {
+		t.Fatalf("Groups[0].Name: want Example Support, got %v", g0.Name)
 	}
 	if g0.Privileges == nil || g0.Privileges.JssObjects == nil || g0.Privileges.JssObjects.Privilege == nil {
 		t.Fatal("Groups[0].Privileges.JssObjects is nil")

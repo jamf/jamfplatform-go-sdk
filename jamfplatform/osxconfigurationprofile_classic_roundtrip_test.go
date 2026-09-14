@@ -206,7 +206,7 @@ func TestOsXConfigurationProfileScope_DecodeWireFixture(t *testing.T) {
     <exclusions>
       <jss_users>
         <user><id>10</id><name>username</name></user>
-        <user><id>16</id><name>neil.martin@jamf.com</name></user>
+        <user><id>16</id><name>profile.user@example.invalid</name></user>
       </jss_users>
       <jss_user_groups>
         <user_group><id>1</id><name>All Managed Apple IDs</name></user_group>

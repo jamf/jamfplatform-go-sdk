@@ -99,7 +99,7 @@ func TestAcceptance_Pro_User_ListUsersV1(t *testing.T) {
 
 // TestAcceptance_Pro_User_UserCRUD is gated behind JAMFPLATFORM_ACC_PRO_USER_WRITE_OK
 // because the Pro users write path via the Platform gateway is currently
-// broken on the nmartin tenant: POST returns 500 but actually persists the
+// broken on the Pro tenant: POST returns 500 but actually persists the
 // record, and DELETE returns 500 with no effect. Every invocation leaks an
 // orphan user until someone with direct Jamf Pro admin access cleans it up.
 // Set JAMFPLATFORM_ACC_PRO_USER_WRITE_OK=1 to opt in once the gateway is fixed.
@@ -117,7 +117,7 @@ func TestAcceptance_Pro_User_UserCRUD(t *testing.T) {
 	email := username + "@example.invalid"
 
 	// Filter-based cleanup registered BEFORE create. The Pro users API on
-	// the nmartin tenant has been observed to return 500 on create while
+	// the Pro tenant has been observed to return 500 on create while
 	// actually writing the record — leaving an orphan if cleanup is tied
 	// only to the returned id. Looking up by username covers both the
 	// happy path and the 500-but-wrote-anyway path.

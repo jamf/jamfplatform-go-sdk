@@ -61,7 +61,7 @@ func TestAcceptance_Pro_PKI_DigicertTLMProbe(t *testing.T) {
 // Jamf Pro and got 400 NOT_FOUND on the bogus id (pretty-printed, so Pro's own
 // answer), while two tenant-scoped credentials — one EU, one US — were refused
 // 403 by the gateway. The rule is gated on `digicert-settings:read`
-// (jamf/authorization-policies jamf_pro_digicert_settings.rego), so the 403 is a
+// (the gateway's authorization policy carries a rule for it), so the 403 is a
 // capability those credentials lack.
 //
 // That makes the old blanket `4xx -> log and return` branch actively misleading:

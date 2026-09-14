@@ -473,8 +473,8 @@ func (c *Transport) Scope() (ScopeKind, string) {
 // The scope is NOT in the path either. Until 2026-08-25 every Jamf URL
 // embedded it — /api/{namespace}/{version}/tenant/{tenantID} — and the
 // gateway's Tyk config resolved the request context from `path`. `header` was
-// added as an allowed source in prod on that date (tyk-gateway-management
-// 0793131b, "JSC-73421 Enable header context support - Prod"), and the
+// added as an allowed source in prod on that date by a gateway
+// API-definition change enabling header context support, and the
 // published specs dropped the path segment in GitOps build v1495 in favour of
 // a required X-Tenant-Id header.
 func (c *Transport) APIPrefix(namespace, version string) string {

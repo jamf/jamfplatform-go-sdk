@@ -123,7 +123,7 @@ type SpecDef struct {
 	//
 	// The account family is the case this exists for. All three specs are
 	// authored with a `requiredPrivileges` block in
-	// public-apis-oas/redocly-implementation/teams/account-*/config.yaml, and
+	// the spec source repository's own per-team config.yaml, and
 	// the build strips x-required-privileges from the published artifact
 	// because these routes resolve the organization from the token and so take
 	// no beta scope-prefix transform — upstream's own config.yaml says so in a
@@ -131,7 +131,7 @@ type SpecDef struct {
 	// waiting forever, which is why this is patched locally where the earlier
 	// decision was not to. Two independent sources agree on all 18 values: that
 	// config.yaml, and the hand-written OPA rules in
-	// authorization-policies/policies/tyk_external/account/account_api.rego.
+	// the gateway's authorization policy for the account namespace.
 	//
 	// Note the rego accepts *either* the GA capability or a retired
 	// read:org:*/update:org:* permission (lib.has_any_of_permissions), so only

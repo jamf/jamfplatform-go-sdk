@@ -156,8 +156,8 @@ func (n NotificationValue) MarshalXML(e *xml.Encoder, start xml.StartElement) er
 // entity-escaped text form once. The two directions are deliberately
 // asymmetric because the server itself is asymmetric.
 //
-// The Classic API does not treat <payloads> content per XML 1.0
-// (PI-827). Wire-verified model (2026-07-30, two Jamf Pro 11.x tenants;
+// The Classic API does not treat <payloads> content per XML 1.0.
+// Wire-verified model (2026-07-30, two Jamf Pro 11.x tenants;
 // full matrix in acc_proclassic_profile_payloads_test.go):
 //
 //   - Validation: the server entity-decodes the submitted content once
@@ -331,7 +331,7 @@ func crRefLen(s string) int {
 // opens a carriage-return reference, which is emitted bare so the decode
 // yields an actual CR.
 //
-// Escaping those too stores the reference as literal text (the PI-827 extra
+// Escaping those too stores the reference as literal text (the extra
 // entity layer), so a device would display `&#13;` instead of breaking
 // the line. Leaving the reference bare is safe against the server's
 // bare-`&`/`<` rejection because it decodes to CR, not to `&`

@@ -502,7 +502,7 @@ func TestAcceptance_Pro_Mobile_EraseMobileDeviceV2(t *testing.T) {
 // "the server choked".
 //
 // The endpoint has been manually verified against a real managed +
-// supervised device (SHARED-DMPZ9DMYMF3M, id=12) on the nmartin tenant
+// supervised device (SHARED-EXAMPLE00001, id=12) on the Pro tenant
 // during batch 3 development: POST returned 200 with
 // {"deviceId":"12","commandUuid":"9f4a4ea3-83c1-4c35-bb94-5c768766ba0d"}
 // confirming the transport + response shape work. No further automated

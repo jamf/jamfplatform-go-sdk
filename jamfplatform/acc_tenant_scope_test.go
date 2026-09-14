@@ -108,7 +108,7 @@ func TestAcceptance_TenantScope(t *testing.T) {
 //
 // v2082 moved six Platform specs from tenant to environment scope — blueprints,
 // device-groups, devices, device-management-action, declaration-reporting and
-// compliance-benchmarks (public-apis-oas#436 and #437, on the grounds that
+// compliance-benchmarks (two upstream spec changes, on the grounds that
 // "Platform endpoints are environment-scoped only"). Each now declares
 // x-scope-types: [environment] with X-Environment-Id required and no
 // X-Tenant-Id parameter at all.

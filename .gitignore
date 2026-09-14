@@ -32,3 +32,6 @@ tools/generate/generate
 
 # acceptance lane log, tee'd for the CI summary step
 test-output.log
+
+# Local-only notes (internal provenance, never committed)
+docs/local/

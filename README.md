@@ -277,6 +277,57 @@ To add a new API endpoint:
 
 CI enforces that generated output is current on every pull request.
 
+## Getting help
+
+Open an issue: <https://github.com/Jamf-Concepts/jamfplatform-go-sdk/issues>.
+There are templates for bug reports and feature requests. Jamf Concepts
+publishes this SDK and Jamf Support does not cover it, so raise anything about
+the library here. Take a defect in the API behind it to a Jamf Support case.
+
+Report a security vulnerability through [SECURITY.md](SECURITY.md). Do not open
+an issue for one.
+
+## Troubleshooting
+
+**`401 Authentication failed`, as plain text.** The gateway sends this body both
+for a credential it cannot authenticate and for one it authenticates but which
+holds no policy for the API product you called, so the status will not tell you
+which you hit. Check the credential, then check whether it holds the capability
+the endpoint needs. `Privileges` in each sub-package lists those capabilities,
+and `MethodPrivileges.Scopes` gives the scope the credential must carry.
+
+**The token exchange answers 404.** The SDK builds the token endpoint as
+`{baseURL}/auth/token`, so a base URL carrying a path prefix sends the exchange
+somewhere the gateway does not serve. Pass the gateway root,
+`https://{region}.api.jamfcloud.com`, with no `/api` segment. The SDK catches
+this case and names your base URL in the error.
+
+**`403 OWNERSHIP_FORBIDDEN`.** Your scope header does not match your credential.
+`WithTenantID` and `WithEnvironmentID` stamp different headers, and a client
+carries one scope, so the gateway refuses a tenant header on an
+environment-scoped credential even within one customer. Call `Client.Scope()` to
+see which one the client holds.
+
+**`403 BAD_PERMISSIONS` on a path that should exist, every time you call it.**
+In most cases the gateway has no route for that path. It sends the same 403 when
+your credential lacks the capability, and one credential cannot separate the
+two: vary the credential, and a 403 that changes points at the grant while a 403
+that holds points at the route.
+
+**Inspecting requests on the wire.** `WithLogger` hands your logger each
+request's method, URL and body, and each response's status, headers and body.
+The SDK logs nothing until you install one, and it redacts nothing. Request
+bodies carry whatever secrets a write sends: `ClientSecret`, `AdminPassword`,
+`KeystorePassword`, the plist inside a configuration profile's `Payloads`. So
+redact inside your `Logger`, or log only the method, URL and status, before you
+attach the output to a ticket or leave it in CI.
+
+`LogRequest` never sees the bearer token or the client credential: the SDK
+passes it no headers, and the OAuth2 token exchange runs outside the logged
+path. `LogResponse` is different — it receives the response headers unfiltered,
+so filter there rather than printing them wholesale. The SDK's own acceptance
+tracer prints response headers from a fixed allowlist for that reason.
+
 ## License
 
 [MIT](LICENSE)

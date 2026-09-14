@@ -90,8 +90,8 @@ func TestAcceptance_AccountReads(t *testing.T) {
 //   - Until at least 2026-08-27, an OAuth error on an API path:
 //     `{"error":"invalid_scope","error_description":"Invalid scopes:
 //     skyway-use2-product"}`. That scope exists only in dev; prod declares
-//     `skyway-use1-product` and the region-independent `skyway-product` (added by
-//     tyk-gateway-management e2f54c1c, EAI-4327).
+//     `skyway-use1-product` and the region-independent `skyway-product`, added
+//     to the gateway's API definitions for exactly this fault.
 //   - As of 2026-09-01, the account service's own envelope:
 //     `[UPSTREAM_ERROR] Failed to <verb> ... via Skyway distributor service`,
 //     wire-verified identical on two different organization credentials, which
@@ -116,8 +116,8 @@ func isSkywayScopeFault(err error) bool {
 }
 
 const skywayFaultReport = "the Jamf Account partners backend cannot reach Skyway, so every distributor endpoint answers 400 (%s). " +
-	"Report to Jamf: the account service needs repointing at the region-independent skyway-product " +
-	"(tyk-gateway-management e2f54c1c, EAI-4327). " +
+	"Report to Jamf: the account service needs repointing at the region-independent skyway-product. " +
+	"This is the standing distributor-service fault. " +
 	"The SDK URL is confirmed correct; every non-distributor endpoint on the same credential returns 200, " +
 	"and the same 400 appears on two different organization credentials"
 
@@ -128,7 +128,7 @@ const skywayFaultReport = "the Jamf Account partners backend cannot reach Skyway
 // would "report the day it is fixed". That was the right call while the account
 // suite was skipping anyway; it stops working the moment JAMFPLATFORM_ACC_REQUIRE
 // makes the organization lane mandatory, because a permanently-red lane cannot
-// distinguish EAI-4327 from a new regression and trains readers to ignore the
+// distinguish that standing fault from a new regression and trains readers to ignore the
 // colour. So the outage is now asserted, matching how the SDK already pins its
 // other known refusals — the four generated-but-refused pro operations and the
 // uem-connect XML disagreement — each of which fails the day the block lifts.
@@ -145,7 +145,7 @@ func skywayBlockPinned(t *testing.T, op string, err error) bool {
 		t.Logf("%s: KNOWN BLOCK, asserted not tolerated — "+skywayFaultReport, op, err)
 		return true
 	}
-	t.Errorf("%s: the Skyway block has LIFTED (err=%v). EAI-4327 appears fixed: delete the skywayBlockPinned guard from this test, restore the real distributor assertions, and update the account section of docs/WIRE-FACTS.md", op, err)
+	t.Errorf("%s: the Skyway block has LIFTED (err=%v). The distributor-service fault appears fixed: delete the skywayBlockPinned guard from this test, restore the real distributor assertions, and update the account section of docs/WIRE-FACTS.md", op, err)
 	return false
 }
 

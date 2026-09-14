@@ -33,17 +33,17 @@ const userGroupStaticXML = `<user_group>
     <size>1</size>
     <user>
       <id>9</id>
-      <username>david@datajar.co.uk</username>
-      <full_name>David Norris</full_name>
+      <username>alice@example.invalid</username>
+      <full_name>Alice Example</full_name>
       <phone_number></phone_number>
-      <email_address>david@datajar.co.uk</email_address>
+      <email_address>alice@example.invalid</email_address>
     </user>
   </users>
 </user_group>`
 
 const userGroupSmartXML = `<user_group>
   <id>2</id>
-  <name>All Managed Apple IDs - datajar.co.uk - VPP Invitation Associated</name>
+  <name>All Managed Apple IDs - example.invalid - VPP Invitation Associated</name>
   <is_smart>true</is_smart>
   <is_notify_on_change>false</is_notify_on_change>
   <site><id>-1</id><name>NONE</name></site>
@@ -54,7 +54,7 @@ const userGroupSmartXML = `<user_group>
       <priority>0</priority>
       <and_or>and</and_or>
       <search_type>member of</search_type>
-      <value>All Managed Apple IDs - datajar.co.uk</value>
+      <value>All Managed Apple IDs - example.invalid</value>
       <opening_paren>false</opening_paren>
       <closing_paren>false</closing_paren>
     </criterion>
@@ -72,14 +72,14 @@ const userGroupSmartXML = `<user_group>
     <size>2</size>
     <user>
       <id>6</id>
-      <username>nmartin.appleid@datajar.co.uk</username>
+      <username>bob.appleid@example.invalid</username>
       <full_name></full_name>
       <phone_number></phone_number>
       <email_address></email_address>
     </user>
     <user>
       <id>7</id>
-      <username>gpugh.appleid@datajar.co.uk</username>
+      <username>carol.appleid@example.invalid</username>
       <full_name></full_name>
       <phone_number></phone_number>
       <email_address></email_address>
@@ -111,11 +111,11 @@ func TestUserGroup_DecodeStatic(t *testing.T) {
 		t.Fatalf("Users.User len = %v, want 1", ug.Users)
 	}
 	u := (*ug.Users.User)[0]
-	if u.Username == nil || *u.Username != "david@datajar.co.uk" {
-		t.Errorf("Users.User[0].Username = %v, want david@datajar.co.uk", u.Username)
+	if u.Username == nil || *u.Username != "alice@example.invalid" {
+		t.Errorf("Users.User[0].Username = %v, want alice@example.invalid", u.Username)
 	}
-	if u.FullName == nil || *u.FullName != "David Norris" {
-		t.Errorf("Users.User[0].FullName = %v, want David Norris", u.FullName)
+	if u.FullName == nil || *u.FullName != "Alice Example" {
+		t.Errorf("Users.User[0].FullName = %v, want Alice Example", u.FullName)
 	}
 }
 
@@ -150,10 +150,10 @@ func TestUserGroup_DecodeSmart(t *testing.T) {
 	if len(users) != 2 {
 		t.Fatalf("len(Users.User) = %d, want 2", len(users))
 	}
-	if users[0].Username == nil || *users[0].Username != "nmartin.appleid@datajar.co.uk" {
+	if users[0].Username == nil || *users[0].Username != "bob.appleid@example.invalid" {
 		t.Errorf("Users.User[0].Username = %v", users[0].Username)
 	}
-	if users[1].Username == nil || *users[1].Username != "gpugh.appleid@datajar.co.uk" {
+	if users[1].Username == nil || *users[1].Username != "carol.appleid@example.invalid" {
 		t.Errorf("Users.User[1].Username = %v", users[1].Username)
 	}
 }
@@ -263,17 +263,17 @@ const mobileDeviceGroupSmartXML = `<mobile_device_group>
   <mobile_devices>
     <mobile_device>
       <id>1</id>
-      <name>Shawn's iPad</name>
-      <mac_address>E0:AC:CB:97:36:G4</mac_address>
-      <udid>55900BDC-347C-58B1-D249-F32244B11D30</udid>
-      <wifi_mac_address>E0:AC:CB:97:36:G4</wifi_mac_address>
-      <serial_number>C02Q7KHTGFWF</serial_number>
+      <name>iPad-1</name>
+      <mac_address>02:00:00:00:00:01</mac_address>
+      <udid>00000000-0000-0000-0000-000000000001</udid>
+      <wifi_mac_address>02:00:00:00:00:01</wifi_mac_address>
+      <serial_number>SERIAL0000001</serial_number>
     </mobile_device>
     <mobile_device>
       <id>2</id>
-      <name>Jess's iPad</name>
-      <udid>270aae10800b6e61a2ee2bbc285eb967050b5984</udid>
-      <serial_number>DLXJ3KHTGFWF</serial_number>
+      <name>iPad-2</name>
+      <udid>0000000000000000000000000000000000000002</udid>
+      <serial_number>SERIAL0000002</serial_number>
     </mobile_device>
   </mobile_devices>
 </mobile_device_group>`
@@ -303,10 +303,10 @@ func TestMobileDeviceGroup_DecodeSmart(t *testing.T) {
 	if len(mds) != 2 {
 		t.Fatalf("len(MobileDevices.MobileDevice) = %d, want 2", len(mds))
 	}
-	if mds[0].UDID == nil || *mds[0].UDID != "55900BDC-347C-58B1-D249-F32244B11D30" {
+	if mds[0].UDID == nil || *mds[0].UDID != "00000000-0000-0000-0000-000000000001" {
 		t.Errorf("MobileDevices.MobileDevice[0].UDID = %v", mds[0].UDID)
 	}
-	if mds[1].SerialNumber == nil || *mds[1].SerialNumber != "DLXJ3KHTGFWF" {
+	if mds[1].SerialNumber == nil || *mds[1].SerialNumber != "SERIAL0000002" {
 		t.Errorf("MobileDevices.MobileDevice[1].SerialNumber = %v", mds[1].SerialNumber)
 	}
 }
@@ -354,8 +354,9 @@ func TestMobileDeviceGroup_MarshalRoundTrip(t *testing.T) {
 	}
 }
 
-// Verifies the list-endpoint wrapper decodes a real tenant response without
-// data loss. Pre-fix the generated type was `ComputerGroups [][]Item` (Classic
+// Verifies the list-endpoint wrapper decodes a list response without data
+// loss. The fixture reproduces a real tenant's wire shape with synthetic
+// values throughout — no real user, device or tenant identifier appears here. Pre-fix the generated type was `ComputerGroups [][]Item` (Classic
 // spec quirk: `computer_groups.items.computer_group: type:array` instead of
 // `type:object`), which Go's xml.Unmarshal cannot bind against the flat
 // repeated-child wire. Trimmed to four entries — full payload is hundreds.
@@ -370,7 +371,7 @@ func TestComputerGroups_ListDecode(t *testing.T) {
   </computer_group>
   <computer_group>
     <id>6947</id>
-    <name>Admin By Request 5.1.0 Is Installed</name>
+    <name>Example App 5.1.0 Is Installed</name>
     <is_smart>true</is_smart>
   </computer_group>
   <computer_group>

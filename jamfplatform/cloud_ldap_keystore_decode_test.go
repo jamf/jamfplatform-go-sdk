@@ -18,7 +18,7 @@ import (
 // entire body decode. The fix retypes ExpirationDate to *string via the
 // pro spec fieldTypeOverrides.
 //
-// Wire-probed 2026-05-30 against platform-nmartin, GET cloud-ldaps/1030.
+// Wire-probed 2026-05-30 against the Pro tenant, GET cloud-ldaps/1030.
 func TestCloudLdapKeystore_TimezonelessDecode_LdapConfigurationResponse(t *testing.T) {
 	const wantDate = "2028-05-15T13:41:46"
 	fixture := `{

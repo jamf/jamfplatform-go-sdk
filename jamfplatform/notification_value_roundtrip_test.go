@@ -16,7 +16,7 @@ import (
 // Sending <bool> before <method> causes the server-side parser to silently
 // drop the bool (next GET returns <notification>false</notification>). The
 // admin UI writes <method> first; the SDK must do the same. Wire-probed on
-// platform-nmartin tenant 2026-05-24.
+// the Pro tenant tenant 2026-05-24.
 func TestNotificationValue_MarshalXML_MethodFirst(t *testing.T) {
 	n := proclassic.NotificationValue{
 		Enabled: new(true),

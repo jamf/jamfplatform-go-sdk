@@ -8,7 +8,7 @@
 // Classic. These tests encode the server's actual behaviour — including
 // its defects — so any server-side change breaks them loudly.
 //
-// Server model (PI-827; wire-verified 2026-07-30 against two Jamf Pro
+// Server model (wire-verified 2026-07-30 against two Jamf Pro
 // 11.x tenants, superseding the 2026-05-27 probe conclusions recorded in
 // earlier revisions of this file):
 //
@@ -312,7 +312,7 @@ func TestAcceptance_Classic_OSXProfile_QuoteRoundtrip(t *testing.T) {
 // stores VERBATIM (category 2b in the file header). The write now
 // succeeds (escape-once passes validation), but the stored fragment
 // keeps the wire's extra entity layer: the device would see `&amp;`
-// where `&` was meant. That is a server defect (PI-827) no client can
+// where `&` was meant. That is a filed server defect no client can
 // avoid; this test asserts its exact shape so a server-side fix is
 // detected the moment it ships.
 func TestAcceptance_Classic_OSXProfile_AmpersandRoundtrip(t *testing.T) {
@@ -385,7 +385,7 @@ func TestAcceptance_Classic_OSXProfile_AmpersandRoundtrip(t *testing.T) {
 // assertVerbatimStorageDefect pins the exact shape of the server's
 // verbatim storage of TCC fragments: the wire's extra entity layer is
 // kept (`&amp;amp;`, `&amp;lt;`), while entity-free strings like the
-// CodeRequirement stay intact. If Jamf ever fixes PI-827 ingest, the
+// CodeRequirement stay intact. If Jamf ever fixes that ingest defect, the
 // first assertion flips and this test fails — the desired signal.
 func assertVerbatimStorageDefect(t *testing.T, stage, got string) {
 	t.Helper()
@@ -393,7 +393,7 @@ func assertVerbatimStorageDefect(t *testing.T, stage, got string) {
 	// the wire and the server canonicalises it back — value-correct. Only
 	// the &/< references keep the verbatim extra layer.
 	if !strings.Contains(got, "Foo &amp;amp; Bar &amp;lt;br/&gt; baz") {
-		t.Fatalf("%s: TCC description no longer stored with the verbatim extra entity layer — server ingest behaviour changed (PI-827 fixed?). Got:\n%s", stage, got)
+		t.Fatalf("%s: TCC description no longer stored with the verbatim extra entity layer — server ingest behaviour changed (entity-escaping defect fixed?). Got:\n%s", stage, got)
 	}
 	if !strings.Contains(got, `identifier "com.example.sdk" and anchor apple generic`) {
 		t.Fatalf("%s: entity-free CodeRequirement corrupted. Got:\n%s", stage, got)
@@ -724,7 +724,7 @@ func verbatimStored(c reservedCharCase) string {
 // assertMatrixStored verifies every corpus entry appears in the stored
 // plist source in the expected form: the byte-exact canonical form for
 // MCX-family storage (verbatim=false), or the extra-entity-layer form
-// for verbatim storage (verbatim=true — the PI-827 defect's exact
+// for verbatim storage (verbatim=true — the escaping defect's exact
 // shape; a failure there means the server behaviour changed). The
 // server re-serialises compactly (<key>k</key><string>v</string>
 // adjacent, keys sorted), so a direct substring check on the
@@ -811,7 +811,7 @@ func TestAcceptance_Classic_OSXProfile_ReservedCharacterMatrix(t *testing.T) {
 // TestAcceptance_Classic_MobileDeviceProfile_ReservedCharacterMatrix
 // mirrors the matrix for the mobile device resource. Mobile payloads are
 // stored VERBATIM (category 2b in the file header): entity-bearing
-// values keep the wire's extra layer — the PI-827 defect — while
+// values keep the wire's extra layer — the escaping defect — while
 // raw-character values survive. Asserted exactly so a server-side fix
 // is detected the moment it ships.
 func TestAcceptance_Classic_MobileDeviceProfile_ReservedCharacterMatrix(t *testing.T) {

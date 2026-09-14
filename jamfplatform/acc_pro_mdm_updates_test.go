@@ -340,7 +340,7 @@ func TestAcceptance_Pro_MdmUpdates_ListMdmCommandsV2(t *testing.T) {
 }
 
 // TestAcceptance_Pro_MdmUpdates_ListMdmCommandsV1 covers the operation v2121
-// restored (public-apis-oas restored GET /v1/mdm/commands; it had been
+// restored (upstream restored GET /v1/mdm/commands; it had been
 // withdrawn at v1942 with /v2 named as successor). The v1 surface is a
 // two-parameter point lookup rather than a paginated list, so it is not
 // reachable through the v2 method and needs its own coverage.
@@ -448,7 +448,7 @@ func assertMdmCommandsV1Status(t *testing.T, err error, want int, label string) 
 }
 
 // POST /api/pro/v2/mdm/commands is no longer covered. Jamf withdrew it from
-// the published spec in the GA cleanup (public-apis-oas#395; the GET is
+// the published spec in the GA cleanup (upstream's spec change; the GET is
 // retained), so the SDK no longer generates SendMdmCommandV2 and the request
 // types MDMCommandRequest / MDMCommandClientRequest are gone with it.
 //

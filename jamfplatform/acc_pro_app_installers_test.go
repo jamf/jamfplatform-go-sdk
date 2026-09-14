@@ -64,7 +64,7 @@ const (
 const appInstallersWriteGate = "JAMFPLATFORM_ACC_PRO_APP_INSTALLERS_WRITE_OK"
 
 // TestAcceptance_Pro_AppInstallers_FeatureState pins the feature-availability
-// probe. jss annotates it @InternalOnlyApiCall, and public-apis-oas published it
+// probe. Jamf Pro annotates it @InternalOnlyApiCall, and upstream published it
 // anyway, so it is covered here to keep that decision honest: if it is ever
 // withdrawn, this fails rather than the whole file quietly losing an operation.
 func TestAcceptance_Pro_AppInstallers_FeatureState(t *testing.T) {

@@ -1160,7 +1160,7 @@ rather than "upstream is slow".** The earlier position — recorded in the
 `MethodPrivileges` godoc itself — was that its 18 empty sets stay empty and get
 reported upstream. That waits forever. Each of the three specs *is* authored
 with a `requiredPrivileges` block in
-`public-apis-oas/redocly-implementation/teams/account-*/config.yaml`, and that
+the spec source repository's own per-team `config.yaml`, and that
 file's own closing comment says why the published artifact carries none: these
 routes resolve the organization from the access token, so Tyk's
 `request-context-allowed-sources` is `[token]`, so the beta transform that
@@ -1181,7 +1181,7 @@ that honest:
 - **Three independent sources agree on all 18, and the agreement is now checked
   rather than asserted.** The `config.yaml` blocks above; the hand-written OPA
   rules in
-  `authorization-policies/policies/tyk_external/account/account_api.rego`; and
+  the gateway's authorization policy for the `account` namespace; and
   the published permissions map, whose *Organization management scope* section
   declares `licensing:{r}`, `deal-registration:{c,r}`,
   `distributor-actions:{c,r,u}`, `sso-connections:{c,r,u,d}` and

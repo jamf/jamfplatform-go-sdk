@@ -71,7 +71,7 @@ environments is what dev is good for — that is how the v1942 publishing filter
 was caught. `internal/stage` declares a stage host and an `(STAGE)` title, both
 of which would leak into the `api/*.json` a consumer reads.
 
-**Never fall back to `public-apis-oas/redocly-implementation/teams/`.** Those
+**Never fall back to the spec source repository's own `teams/` directories.** Those
 carry no version prefix and no servers, so the generated URLs are ones the
 gateway rejects — invisible in the code until it is called.
 
@@ -126,18 +126,18 @@ content change has cost a wrong conclusion. They are exactly self-consistent,
 which is what makes them usable to adjudicate a spec's privileges — **but
 `routes.yaml` is generated from the specs' own `x-required-privileges`, so it
 cannot corroborate them.** For an independent check use
-`jamf/authorization-policies`.
+the gateway's authorization policy.
 
 ## 3. Check the release state, not just the spec
 
 The bundle publishes specs; it does not control when a change goes live.
 
-- `jamf/tyk-gateway-management` decides routing and scoping — a directory per
+- The gateway's own API definitions decide routing and scoping — a directory per
   environment, an api-product YAML per region. `config_data.request-context-allowed-sources`
   is the scoping switch. In v1495 the specs moved the tenant into a header
   weeks before prod allowed `header`, and ingesting then would have broken
   every call.
-- `jamf/authorization-policies` is the per-path allowlist, hand-written OPA and
+- The gateway's authorization policy is the per-path allowlist, hand-written OPA and
   so independent of the specs. **`main` is not `deployed`** — date the rollout
   from the wire, not the merge. It is also where a withdrawal stops being a
   spec claim and starts returning 403.

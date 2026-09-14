@@ -28,7 +28,7 @@ import (
 // granted audit:read. ListAuditSources returns real sources (api-gateway,
 // blueprints, ai-policy on the environment probed). The organization form is
 // still refused — an organization credential sending no scope header answers
-// 400 REQUEST_CONTEXT_NOT_PROVIDED — which is consistent with tyk 3e99c347
+// 400 REQUEST_CONTEXT_NOT_PROVIDED — which is consistent with the gateway
 // having removed organization scoping, and is why accEnvClient is the right
 // factory here rather than accOrgClient.
 //
