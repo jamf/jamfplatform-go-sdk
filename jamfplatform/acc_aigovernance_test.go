@@ -899,8 +899,13 @@ func TestAcceptance_AiGovernancePreviewHeader(t *testing.T) {
 		if err != nil {
 			t.Fatalf("GET %s: %v", path, err)
 		}
-		body, _ := io.ReadAll(resp.Body)
-		resp.Body.Close()
+		body, readErr := io.ReadAll(resp.Body)
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			t.Errorf("GET %s: closing the body: %v", path, closeErr)
+		}
+		if readErr != nil {
+			t.Fatalf("GET %s: reading the body: %v", path, readErr)
+		}
 
 		if resp.StatusCode != http.StatusOK {
 			t.Fatalf("GET %s: status = %d, want 200 (%s)", path, resp.StatusCode, truncateBody(body))
