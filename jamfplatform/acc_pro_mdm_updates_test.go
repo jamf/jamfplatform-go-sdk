@@ -485,12 +485,19 @@ func TestAcceptance_Pro_MdmCommandsV2FilterIsMandatory(t *testing.T) {
 // every row while looking like a filter that matched everything. The caller's
 // own paging then walks the wrong set to completion.
 //
-// The assertion is that two *different* nonsense filters return the identical
-// count while a real filter returns fewer: equal counts prove the filter is
-// discarded rather than matched, and the real filter proves filtering works at
-// all on this tenant. Reproduced on the gateway and, with the same result, on
-// a direct Jamf Pro instance (2026-09-14), so this is Jamf Pro's own behaviour
-// and not something the platform gateway introduces.
+// The assertion compares identity sets rather than counts, and it has to: this
+// collection mutates under the test — device check-ins mint commands, and so do
+// earlier tests in the same run — so two counts taken minutes apart are not
+// comparable, while the rows present at the earlier moment must still be there
+// at the later one. So a baseline is walked first with filters that ARE
+// honoured (`active==true`, the near-unfiltered control this file already uses,
+// plus the real `command` field), and each nonsense filter must then return a
+// SUPERSET of it by uuid. An honoured unknown field would return nothing, or a
+// 400; returning every baseline row is the defect. The real field must in turn
+// leave rows out, which is what proves filtering works at all on this tenant.
+// Reproduced on the gateway and, with the same result, on a direct Jamf Pro
+// instance (2026-09-14), so this is Jamf Pro's own behaviour and not something
+// the platform gateway introduces.
 //
 // A 400 naming the field would be correct, and the spec does enumerate the legal
 // ones. So read a failure here as "the fix landed" — at which point delete this
@@ -500,43 +507,82 @@ func TestAcceptance_Pro_MdmCommandsV2IgnoresAnUnknownFilterField(t *testing.T) {
 	ctx := context.Background()
 	p := pro.New(accClient(t))
 
-	// Two unrelated non-existent fields. Both are ignored today, so both return
-	// the unfiltered collection.
-	bogus, err := p.ListMdmCommandsV2(ctx, nil, `notAField=="x"`)
+	// The baseline, walked first so every row in it predates the nonsense walks
+	// below and must still be present in them.
+	control, err := p.ListMdmCommandsV2(ctx, nil, "active==true")
 	if err != nil {
-		assertMdmCommandsV2Status(t, err, 400, `notAField=="x"`)
-		t.Log("an unknown filter field is now refused — the defect is fixed, delete this test")
-		return
+		skipOnServerError(t, err)
+		t.Fatalf("ListMdmCommandsV2(active==true): %v — the control failed, so nothing below proves anything", err)
 	}
-	plausible, err := p.ListMdmCommandsV2(ctx, nil, `commandType=="TOTAL_NONSENSE"`)
-	if err != nil {
-		assertMdmCommandsV2Status(t, err, 400, `commandType=="TOTAL_NONSENSE"`)
-		t.Log("an unknown filter field is now refused — the defect is fixed, delete this test")
-		return
-	}
-
-	if len(bogus) != len(plausible) {
-		t.Fatalf("two different unknown filter fields returned %d and %d commands; if the server has started "+
-			"honouring one of them this test's premise is gone — re-probe the filter vocabulary",
-			len(bogus), len(plausible))
-	}
-	if len(bogus) == 0 {
-		t.Skip("tenant has no MDM commands, so an ignored filter is indistinguishable from a matched one")
-	}
-
-	// A field that IS in the vocabulary must filter, or the comparison above is
-	// measuring nothing.
+	// A field that IS in the vocabulary, which must filter or the comparison
+	// below is measuring nothing.
 	real, err := p.ListMdmCommandsV2(ctx, nil, `command=="INSTALL_PROFILE"`)
 	if err != nil {
 		skipOnServerError(t, err)
 		t.Fatalf(`ListMdmCommandsV2(command=="INSTALL_PROFILE"): %v`, err)
 	}
-	if len(real) >= len(bogus) {
-		t.Skipf("command==INSTALL_PROFILE matched %d of %d commands, so a real filter is indistinguishable "+
-			"from an ignored one on this tenant's data", len(real), len(bogus))
+
+	realSet := mdmCommandUUIDSet(real)
+	baseline := mdmCommandUUIDSet(control)
+	for uuid := range realSet {
+		baseline[uuid] = struct{}{}
 	}
-	t.Logf("unknown field returned all %d commands while command==INSTALL_PROFILE returned %d — "+
-		"the unknown field is discarded, not matched", len(bogus), len(real))
+	if len(baseline) == 0 {
+		t.Skip("tenant has no MDM commands, so an ignored filter is indistinguishable from a matched one")
+	}
+
+	// Two unrelated non-existent fields. Both are ignored today, so both return
+	// the unfiltered collection — which therefore has to contain every baseline row.
+	for _, filter := range []string{`notAField=="x"`, `commandType=="TOTAL_NONSENSE"`} {
+		got, err := p.ListMdmCommandsV2(ctx, nil, filter)
+		if err != nil {
+			assertMdmCommandsV2Status(t, err, 400, filter)
+			t.Log("an unknown filter field is now refused — the defect is fixed, delete this test")
+			return
+		}
+		gotSet := mdmCommandUUIDSet(got)
+		if absent := uuidsOnlyIn(baseline, gotSet); len(absent) > 0 {
+			t.Fatalf("ListMdmCommandsV2(%s) returned %d commands but omitted %d row(s) an honoured filter "+
+				"returned earlier in this same test (e.g. %v) — the unknown field is being honoured rather "+
+				"than discarded, so this test's premise is gone: re-probe the filter vocabulary",
+				filter, len(got), len(absent), absent)
+		}
+		if beyondReal := uuidsOnlyIn(gotSet, realSet); len(beyondReal) == 0 {
+			t.Skipf(`command=="INSTALL_PROFILE" matched every one of the %d commands ListMdmCommandsV2(%s) `+
+				"returned, so a real filter is indistinguishable from an ignored one on this tenant's data",
+				len(got), filter)
+		}
+		t.Logf("ListMdmCommandsV2(%s) returned %d commands, a superset of the %d an honoured filter returned "+
+			"and strictly more than command==INSTALL_PROFILE's %d — the unknown field is discarded, not matched",
+			filter, len(got), len(baseline), len(realSet))
+	}
+}
+
+// mdmCommandUUIDSet indexes commands by uuid, the only stable unique identifier
+// pro.MDMCommand carries.
+func mdmCommandUUIDSet(cmds []pro.MDMCommand) map[string]struct{} {
+	set := make(map[string]struct{}, len(cmds))
+	for _, c := range cmds {
+		if c.UUID != "" {
+			set[c.UUID] = struct{}{}
+		}
+	}
+	return set
+}
+
+// uuidsOnlyIn returns the uuids present in a but absent from b, capped so a
+// wholly disjoint pair does not print thousands of rows into a failure message.
+func uuidsOnlyIn(a, b map[string]struct{}) []string {
+	var only []string
+	for uuid := range a {
+		if _, ok := b[uuid]; !ok {
+			only = append(only, uuid)
+			if len(only) == 5 {
+				break
+			}
+		}
+	}
+	return only
 }
 
 // TestAcceptance_Pro_MdmCommandsV2FaultsOnAMalformedFilterValue pins the third
