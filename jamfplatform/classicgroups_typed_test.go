@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Jamf-Concepts/jamfplatform-go-sdk/jamfplatform/proclassic"
+	"github.com/jamf/jamfplatform-go-sdk/jamfplatform/proclassic"
 )
 
 // Locks in that proclassic.UserGroup, proclassic.MobileDeviceGroup, and

@@ -10,8 +10,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/Jamf-Concepts/jamfplatform-go-sdk/jamfplatform"
-	"github.com/Jamf-Concepts/jamfplatform-go-sdk/jamfplatform/pro"
+	"github.com/jamf/jamfplatform-go-sdk/jamfplatform"
+	"github.com/jamf/jamfplatform-go-sdk/jamfplatform/pro"
 )
 
 // Misc Pro endpoints that don't cluster with any other resource theme:

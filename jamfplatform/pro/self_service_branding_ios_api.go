@@ -14,7 +14,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Jamf-Concepts/jamfplatform-go-sdk/internal/client"
+	"github.com/jamf/jamfplatform-go-sdk/internal/client"
 )
 
 // ListIOSBrandingConfigurationsV1 search for sorted and paged iOS branding configurations.

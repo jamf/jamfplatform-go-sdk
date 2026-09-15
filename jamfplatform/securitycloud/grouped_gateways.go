@@ -12,7 +12,7 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/Jamf-Concepts/jamfplatform-go-sdk/internal/client"
+	"github.com/jamf/jamfplatform-go-sdk/internal/client"
 )
 
 // ListZtnaGroupedGatewaysV1 list Grouped Gateways.

@@ -5,7 +5,7 @@
 
 package aigovernance
 
-import "github.com/Jamf-Concepts/jamfplatform-go-sdk/jamfplatform"
+import "github.com/jamf/jamfplatform-go-sdk/jamfplatform"
 
 // Privileges maps each aigovernance SDK method name to the Jamf API privileges it
 // requires, sourced from the x-required-privileges vendor extensions in the

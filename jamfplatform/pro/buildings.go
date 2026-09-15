@@ -14,7 +14,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Jamf-Concepts/jamfplatform-go-sdk/internal/client"
+	"github.com/jamf/jamfplatform-go-sdk/internal/client"
 )
 
 // ListBuildingsV1 search for sorted and paged Buildings.

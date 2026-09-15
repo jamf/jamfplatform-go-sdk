@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/Jamf-Concepts/jamfplatform-go-sdk/jamfplatform/pro"
+	"github.com/jamf/jamfplatform-go-sdk/jamfplatform/pro"
 )
 
 // TestCloudLdapKeystore_TimezonelessDecode confirms that the timezone-less

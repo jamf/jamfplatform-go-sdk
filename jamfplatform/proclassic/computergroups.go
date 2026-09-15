@@ -12,7 +12,7 @@ import (
 	"net/url"
 	"strconv"
 
-	"github.com/Jamf-Concepts/jamfplatform-go-sdk/internal/client"
+	"github.com/jamf/jamfplatform-go-sdk/internal/client"
 )
 
 // GetComputerGroupByID finds computer groups by ID.

@@ -7,8 +7,8 @@
 package aigovernance
 
 import (
-	"github.com/Jamf-Concepts/jamfplatform-go-sdk/internal/client"
-	"github.com/Jamf-Concepts/jamfplatform-go-sdk/jamfplatform"
+	"github.com/jamf/jamfplatform-go-sdk/internal/client"
+	"github.com/jamf/jamfplatform-go-sdk/jamfplatform"
 )
 
 // Client provides typed methods for aigovernance operations.

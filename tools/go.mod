@@ -1,4 +1,4 @@
-module github.com/Jamf-Concepts/jamfplatform-go-sdk/tools
+module github.com/jamf/jamfplatform-go-sdk/tools
 
 go 1.26.5
 

@@ -12,8 +12,8 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/Jamf-Concepts/jamfplatform-go-sdk/jamfplatform"
-	"github.com/Jamf-Concepts/jamfplatform-go-sdk/jamfplatform/proclassic"
+	"github.com/jamf/jamfplatform-go-sdk/jamfplatform"
+	"github.com/jamf/jamfplatform-go-sdk/jamfplatform/proclassic"
 )
 
 // assertResolvedID confirms that the ID the Resolve<X>IDByName call returned

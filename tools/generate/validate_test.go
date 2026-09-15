@@ -138,7 +138,7 @@ func TestProcessSpecRejectsUntypedFieldOnRootPath(t *testing.T) {
 
 	cfg := Config{
 		Package: "jamfplatform",
-		Module:  "github.com/Jamf-Concepts/jamfplatform-go-sdk",
+		Module:  "github.com/jamf/jamfplatform-go-sdk",
 	}
 	spec := SpecDef{
 		File:      "root-legacy-api.json",

@@ -13,7 +13,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Jamf-Concepts/jamfplatform-go-sdk/internal/client"
+	"github.com/jamf/jamfplatform-go-sdk/internal/client"
 )
 
 // GetSsoSettingsV3 retrieve the current Single Sign On configuration settings.

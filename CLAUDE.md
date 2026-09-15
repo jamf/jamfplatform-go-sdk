@@ -15,7 +15,7 @@ one before working in that area; do not re-derive their contents.
 ## Project
 
 Go SDK for the Jamf Platform REST API
-(`github.com/Jamf-Concepts/jamfplatform-go-sdk`). All types, methods and unit
+(`github.com/jamf/jamfplatform-go-sdk`). All types, methods and unit
 tests are generated from OpenAPI spec files. OAuth2 client-credentials auth via
 `golang.org/x/oauth2`.
 

@@ -7,7 +7,7 @@ All types, methods, and unit tests are generated from OpenAPI spec files. Publis
 ## Installation
 
 ```bash
-go get github.com/Jamf-Concepts/jamfplatform-go-sdk
+go get github.com/jamf/jamfplatform-go-sdk
 ```
 
 > **Breaking changes in this release.**
@@ -36,8 +36,8 @@ import (
 	"log"
 	"os"
 
-	"github.com/Jamf-Concepts/jamfplatform-go-sdk/jamfplatform"
-	"github.com/Jamf-Concepts/jamfplatform-go-sdk/jamfplatform/devices"
+	"github.com/jamf/jamfplatform-go-sdk/jamfplatform"
+	"github.com/jamf/jamfplatform-go-sdk/jamfplatform/devices"
 )
 
 func main() {
@@ -146,8 +146,8 @@ context cancellation, IO failures) `err.Error()` carries a formatted message.
 
 ```go
 import (
-	"github.com/Jamf-Concepts/jamfplatform-go-sdk/jamfplatform"
-	"github.com/Jamf-Concepts/jamfplatform-go-sdk/jamfplatform/devices"
+	"github.com/jamf/jamfplatform-go-sdk/jamfplatform"
+	"github.com/jamf/jamfplatform-go-sdk/jamfplatform/devices"
 )
 
 device, err := devices.New(client).GetDevice(ctx, id)
@@ -234,7 +234,7 @@ All list methods handle pagination automatically. Pro's versioned endpoints emit
 ### Classic (XML) example
 
 ```go
-import "github.com/Jamf-Concepts/jamfplatform-go-sdk/jamfplatform/proclassic"
+import "github.com/jamf/jamfplatform-go-sdk/jamfplatform/proclassic"
 
 classic := proclassic.New(client)
 policy, err := classic.GetPolicyByID(ctx, "42")
@@ -249,7 +249,7 @@ Classic is fully typed — the generator hoists nested XML sections (`general`, 
 ### Pro example
 
 ```go
-import "github.com/Jamf-Concepts/jamfplatform-go-sdk/jamfplatform/pro"
+import "github.com/jamf/jamfplatform-go-sdk/jamfplatform/pro"
 
 p := pro.New(client)
 pkgs, err := p.ListPackagesV1(ctx, nil, "")
@@ -294,7 +294,7 @@ CI enforces that generated output is current on every pull request.
 
 ## Getting help
 
-Open an issue: <https://github.com/Jamf-Concepts/jamfplatform-go-sdk/issues>.
+Open an issue: <https://github.com/jamf/jamfplatform-go-sdk/issues>.
 There are templates for bug reports and feature requests. Jamf Concepts
 publishes this SDK and Jamf Support does not cover it, so raise anything about
 the library here. Take a defect in the API behind it to a Jamf Support case.
