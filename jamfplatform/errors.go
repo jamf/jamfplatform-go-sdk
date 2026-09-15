@@ -5,7 +5,7 @@
 
 package jamfplatform
 
-import "github.com/Jamf-Concepts/jamfplatform-go-sdk/internal/client"
+import "github.com/jamf/jamfplatform-go-sdk/internal/client"
 
 // APIResponseError is returned for any non-success HTTP status. Consumers
 // should inspect it via AsAPIError plus the accessor methods

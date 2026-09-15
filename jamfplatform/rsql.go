@@ -5,7 +5,7 @@
 
 package jamfplatform
 
-import "github.com/Jamf-Concepts/jamfplatform-go-sdk/internal/client"
+import "github.com/jamf/jamfplatform-go-sdk/internal/client"
 
 type RSQLClause = client.RSQLClause
 

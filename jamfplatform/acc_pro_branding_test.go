@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/Jamf-Concepts/jamfplatform-go-sdk/jamfplatform/pro"
+	"github.com/jamf/jamfplatform-go-sdk/jamfplatform/pro"
 )
 
 // Batch 16 — self-service + branding + icon. The branding endpoints

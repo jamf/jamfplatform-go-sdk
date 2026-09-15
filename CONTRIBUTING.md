@@ -12,7 +12,7 @@ Thank you for your interest in contributing to the Jamf Platform Go SDK.
 
 ```bash
 # Clone the repository
-git clone https://github.com/Jamf-Concepts/jamfplatform-go-sdk.git
+git clone https://github.com/jamf/jamfplatform-go-sdk.git
 cd jamfplatform-go-sdk
 
 # Run tests

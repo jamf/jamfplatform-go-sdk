@@ -11,7 +11,7 @@ import (
 	"slices"
 	"time"
 
-	"github.com/Jamf-Concepts/jamfplatform-go-sdk/internal/client"
+	"github.com/jamf/jamfplatform-go-sdk/internal/client"
 	"golang.org/x/oauth2"
 )
 

@@ -9,8 +9,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/Jamf-Concepts/jamfplatform-go-sdk/jamfplatform/ddmreport"
-	"github.com/Jamf-Concepts/jamfplatform-go-sdk/jamfplatform/devices"
+	"github.com/jamf/jamfplatform-go-sdk/jamfplatform/ddmreport"
+	"github.com/jamf/jamfplatform-go-sdk/jamfplatform/devices"
 )
 
 func TestAcceptance_GetDeviceDeclarationReportFiltered(t *testing.T) {
