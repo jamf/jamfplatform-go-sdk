@@ -679,7 +679,7 @@ func TestAcceptance_Blueprint_TypedComponents(t *testing.T) {
 //
 // The raw-body assertion is the part that expires: the day the service starts
 // normalising to its own model, the quoted form stops arriving, this fails,
-// and config's lenientScalarRoots entry and the 43 generated decoders behind
+// and config's lenientScalarRoots entry and the 67 generated decoders behind
 // it can go. The typed decode either side of it is the regression itself.
 func TestAcceptance_Blueprint_UIWrittenScalarsDecode(t *testing.T) {
 	groupID := requireSmartGroupFixture(t)
@@ -787,9 +787,12 @@ func TestAcceptance_Blueprint_UIWrittenScalarsDecode(t *testing.T) {
 	// this narrow: the service does validate the document it stores, so a
 	// string that is not a number never reaches a later read in the first
 	// place. Checked with a create that must fail, which leaves nothing
-	// behind when it does.
+	// behind when it does — and which registers a cleanup for the one
+	// outcome this assertion exists to catch, since an accepted body would
+	// otherwise leave a real blueprint on the tenant with nothing to delete
+	// it.
 	desc := "SDK acceptance test — must be refused"
-	_, err := bp.CreateBlueprint(ctx, &blueprints.CreateBlueprintRequest{
+	refused, err := bp.CreateBlueprint(ctx, &blueprints.CreateBlueprintRequest{
 		Name:        "sdk-acc-ui-scalars-refused-" + runSuffix(),
 		Description: &desc,
 		Scope:       blueprints.CreateScope{DeviceGroups: []string{groupID}},
@@ -802,6 +805,9 @@ func TestAcceptance_Blueprint_UIWrittenScalarsDecode(t *testing.T) {
 		}},
 	})
 	if err == nil {
+		if refused != nil {
+			cleanupDelete(t, "DeleteBlueprint", func() error { return bp.DeleteBlueprint(ctx, refused.ID) })
+		}
 		t.Error("a non-numeric string for an integer property was accepted; the store no longer " +
 			"validates what it echoes, so a read can now carry a value no consumer can decode")
 	}

@@ -1836,9 +1836,12 @@ Note the field path in the `MAX` errors is lowerCamelCase while the
 path and bean validation reports the Java property path. Neither is a rename.
 
 **The SDK's fix is a read-side coercion emitted per type**, driven by
-`config.lenientScalarRoots` naming the `Component` union — 43 generated
+`config.lenientScalarRoots` naming the `Component` union — 67 generated
 `UnmarshalJSON` methods across the subtree, no change to any field type,
-signature or marshalled body. Mechanism:
+signature or marshalled body. A failure names the field it came from —
+`Deferrals.SystemPeriodInDays: OptionalPeriodInDays.Value: json: cannot
+unmarshal string into Go value of type int` — which is the shape the original
+diagnosis rested on. Mechanism:
 [STYLE.md](STYLE.md#lenient-scalar-decoding). The generated decoders coerce a
 JSON string only when the text is a valid JSON scalar of the declared kind, so
 `"abc"` still fails — which costs nothing, the server having refused it on the

@@ -1836,10 +1836,14 @@ formatting is inert to the generator, and bundle diffs become exact.
   surfaced as `terraform-provider-jamfplatform#431` ("cannot unmarshal string
   into … MajorPeriodInDays.Value of type int", the whole component dropped from
   state) with every SDK test passing. `config.lenientScalarRoots` names the
-  `Component` union and the generator emits 43 tolerant `UnmarshalJSON` methods
+  `Component` union and the generator emits 67 tolerant `UnmarshalJSON` methods
   across its subtree: **zero change to any field type, signature, marshalled
   body or `api/*.json`**, so nothing downstream recompiles and the SDK keeps
-  writing the spec's own encoding. Do **not** reach for this for a spec/wire
+  writing the spec's own encoding. Only some of the 67 coerce anything — the
+  rest exist because `encoding/json` returns a nested `Unmarshaler`'s error
+  verbatim, so without a decoder on the parent a failure names only the
+  child's own type, and `Deferrals` declares four fields of the identical
+  `OptionalPeriodInDays`. Do **not** reach for this for a spec/wire
   *type* disagreement — that is `fieldTypeOverrides` or a report upstream. The
   test is `TestAcceptance_Blueprint_UIWrittenScalarsDecode`, and it asserts the
   quoted form still arrives, so it fails the day the service starts

@@ -324,13 +324,24 @@ type SpecDef struct {
 	// a type list: the set it covers is derived, and cannot drift from the
 	// spec.
 	//
-	// Self-expiring in one direction only. Generation fails when a root names
-	// no schema the spec declares, which is what catches a rename or a
-	// withdrawal upstream, and when a root's subtree reaches no scalar at all.
-	// It cannot expire on the server being fixed — nothing in a spec says how
-	// a store serialises — so the acceptance test is what carries that:
-	// TestAcceptance_Blueprint_UIWrittenScalarsDecode asserts the wire still
-	// returns a string, and fails the day it stops.
+	// A type earns a decoder when a coerced scalar lies at *or below* it, so
+	// the ancestors get one too, with an empty key map. encoding/json returns
+	// a nested Unmarshaler's error verbatim, so without one the failure names
+	// only the child's own type — and Deferrals declares four fields of the
+	// identical OptionalPeriodInDays. The parent's decoder is what puts the
+	// field name back. A type that already carries a generated UnmarshalJSON
+	// is excluded and reported, since a second one will not compile, and one
+	// that also declares a coerced scalar fails generation outright.
+	//
+	// Self-expiring in one direction only, and per root. Generation fails when
+	// a root names no schema the spec declares, which is what catches a rename
+	// or a withdrawal upstream, and when *that root's* subtree reaches no
+	// scalar at all — per root because the guard is a claim about one root, and
+	// merging first would let a sibling root's entries stand in for one that
+	// has lost every scalar. It cannot expire on the server being fixed —
+	// nothing in a spec says how a store serialises — so the acceptance test
+	// is what carries that: TestAcceptance_Blueprint_UIWrittenScalarsDecode
+	// asserts the wire still returns a string, and fails the day it stops.
 	LenientScalarRoots []string `json:"lenientScalarRoots,omitempty"`
 
 	// TagRenames remaps an OpenAPI tag before it picks the output filename,

@@ -100,10 +100,11 @@ func TestLenientScalarSeedFollowsAUnionToItsConfigurations(t *testing.T) {
 	doc.Components.Schemas["PasscodeSettingsComponent"].Value.Properties["configuration"].Value =
 		doc.Components.Schemas["PasscodeSettingsConfiguration"].Value
 
-	seed, err := lenientScalarSeed(doc, []string{"Component"})
+	seeds, err := lenientScalarSeeds(doc, []string{"Component"})
 	if err != nil {
-		t.Fatalf("lenientScalarSeed: %v", err)
+		t.Fatalf("lenientScalarSeeds: %v", err)
 	}
+	seed := seeds["Component"]
 	for _, want := range []string{"PasscodeSettingsComponent", "PasscodeSettingsConfiguration", "MinimumLength"} {
 		if !seed[want] {
 			t.Errorf("seed is missing %s; got %v", want, sortedKeys(seed))
@@ -121,7 +122,7 @@ func TestLenientScalarSeedRefusesAnUnknownRoot(t *testing.T) {
 	doc := &openapi3.T{Components: &openapi3.Components{Schemas: openapi3.Schemas{
 		"Component": {Value: openapi3.NewObjectSchema()},
 	}}}
-	_, err := lenientScalarSeed(doc, []string{"Component", "Renamed"})
+	_, err := lenientScalarSeeds(doc, []string{"Component", "Renamed"})
 	if err == nil {
 		t.Fatal("an unknown root should fail generation")
 	}
@@ -154,19 +155,27 @@ func TestLenientScalarTypesClosesOverFieldReferences(t *testing.T) {
 			{Name: "Count", Type: "int", JSONTag: "count"},
 		}},
 	}
-	got := lenientScalarTypes(types, map[string]bool{"SoftwareUpdateSettingsConfiguration": true})
+	got, _, err := lenientScalarTypes(types, map[string]bool{"SoftwareUpdateSettingsConfiguration": true})
+	if err != nil {
+		t.Fatalf("lenientScalarTypes: %v", err)
+	}
 
 	var names []string
 	for _, e := range got {
 		names = append(names, e.Name)
 	}
-	// Deferrals declares no scalar of its own, so it carries the closure
-	// without getting a decoder.
-	want := []string{"SoftwareUpdateSettingsConfiguration", "OptionalPeriodInDays"}
+	// Deferrals declares no scalar of its own and still gets a decoder: a
+	// failure inside one of its children arrives naming only the child's own
+	// type, and Deferrals is where the field name lives. Elsewhere is outside
+	// the closure and gets nothing.
+	want := []string{"SoftwareUpdateSettingsConfiguration", "Deferrals", "OptionalPeriodInDays"}
 	if strings.Join(names, ",") != strings.Join(want, ",") {
 		t.Fatalf("types = %v, want %v", names, want)
 	}
-	if keys := got[1].Keys; len(keys) != 2 ||
+	if keys := got[1].Keys; len(keys) != 0 {
+		t.Errorf("Deferrals keys = %+v, want none of its own", keys)
+	}
+	if keys := got[2].Keys; len(keys) != 2 ||
 		keys[0].JSON != "Included" || keys[0].Kind != jsonScalarKindBool ||
 		keys[1].JSON != "Value" || keys[1].Kind != jsonScalarKindNumber {
 		t.Errorf("OptionalPeriodInDays keys = %+v, want Included/bool then Value/number", keys)
@@ -194,18 +203,209 @@ func TestJSONTagName(t *testing.T) {
 // A root that resolves but reaches no scalar is a claim about a store that no
 // longer needs it. Failing is what deletes the config entry.
 func TestValidateLenientScalars(t *testing.T) {
-	if err := validateLenientScalars("package blueprints", nil, nil); err != nil {
+	if err := validateLenientScalars("package blueprints", nil, lenientDiagnostics{}); err != nil {
 		t.Errorf("no roots and no entries should pass: %v", err)
 	}
-	if err := validateLenientScalars("package blueprints", []string{"Component"},
-		[]lenientType{{Name: "T"}}); err != nil {
-		t.Errorf("roots with entries should pass: %v", err)
+	live := map[string][]lenientType{"Component": {{Name: "T"}}}
+	if err := validateLenientScalars("package blueprints", live, lenientDiagnostics{}); err != nil {
+		t.Errorf("a root with entries should pass: %v", err)
 	}
-	err := validateLenientScalars("package blueprints", []string{"Component"}, nil)
+	err := validateLenientScalars("package blueprints",
+		map[string][]lenientType{"Component": nil}, lenientDiagnostics{})
 	if err == nil {
-		t.Fatal("roots that reach no scalar should fail generation")
+		t.Fatal("a root that reaches no scalar should fail generation")
 	}
 	if !strings.Contains(err.Error(), "Component") {
 		t.Errorf("error = %v, want it to name the root", err)
+	}
+}
+
+// The guard is a claim about one root, so a sibling root that still has
+// entries must not stand in for one that has lost every scalar. Aggregating
+// first is what makes the second root's expiry unreachable.
+func TestValidateLenientScalarsIsPerRoot(t *testing.T) {
+	err := validateLenientScalars("package blueprints", map[string][]lenientType{
+		"Component": {{Name: "OptionalPeriodInDays"}},
+		"Withdrawn": nil,
+	}, lenientDiagnostics{})
+	if err == nil {
+		t.Fatal("a root that reaches no scalar should fail even when a sibling root has entries")
+	}
+	if !strings.Contains(err.Error(), "Withdrawn") {
+		t.Errorf("error = %v, want it to name the dead root", err)
+	}
+	if strings.Contains(err.Error(), "Component") {
+		t.Errorf("error = %v, want only the dead root named", err)
+	}
+}
+
+// The coercion does not reach into a slice or a map, and the justification for
+// that is an observation about writers rather than a guarantee. An observation
+// needs a tripwire, so the plan reports every such field instead of dropping
+// it silently.
+func TestLenientScalarTypesReportsSkippedComposites(t *testing.T) {
+	types := []GoType{
+		{Name: "Root", Fields: []GoField{
+			{Name: "Count", Type: "int", JSONTag: "count"},
+			{Name: "Values", Type: "[]int", JSONTag: "values"},
+			{Name: "Flags", Type: "map[string]bool", JSONTag: "flags"},
+			{Name: "Names", Type: "[]string", JSONTag: "names"},
+		}},
+	}
+	_, diags, err := lenientScalarTypes(types, map[string]bool{"Root": true})
+	if err != nil {
+		t.Fatalf("lenientScalarTypes: %v", err)
+	}
+	joined := strings.Join(diags.SkippedComposites, " ")
+	for _, want := range []string{"Root.values ([]int)", "Root.flags (map[string]bool)"} {
+		if !strings.Contains(joined, want) {
+			t.Errorf("diagnostics = %v, want it to report %s", diags.SkippedComposites, want)
+		}
+	}
+	if strings.Contains(joined, "names") {
+		t.Errorf("diagnostics = %v, want no report for a slice of strings", diags.SkippedComposites)
+	}
+}
+
+// A type the generator already emits an UnmarshalJSON for cannot also carry a
+// lenient one: two methods on one type do not compile. A union in the middle
+// of the closure is reported, because attribution stops there — and a union
+// that declares a coerced scalar of its own fails generation, because there
+// the tolerance itself is what would be lost.
+func TestLenientScalarTypesAndTypesThatOwnAnUnmarshalJSON(t *testing.T) {
+	union := GoType{Name: "SwUpdateConfiguration", Discriminator: &GoDiscriminator{PropertyName: "enforcementType"},
+		Fields: []GoField{
+			{Name: "EnforcementType", Type: "string", JSONTag: "enforcementType"},
+			{Name: "AUTOMATIC", Type: "*Leaf", JSONTag: "-"},
+		}}
+	leaf := GoType{Name: "Leaf", Fields: []GoField{{Name: "Days", Type: "int", JSONTag: "enforceAfterDays"}}}
+
+	entries, diags, err := lenientScalarTypes([]GoType{union, leaf},
+		map[string]bool{"SwUpdateConfiguration": true})
+	if err != nil {
+		t.Fatalf("lenientScalarTypes: %v", err)
+	}
+	for _, e := range entries {
+		if e.Name == "SwUpdateConfiguration" {
+			t.Fatal("a discriminated union must not get a second UnmarshalJSON")
+		}
+	}
+	if len(diags.OwnDecoder) != 1 || diags.OwnDecoder[0] != "SwUpdateConfiguration" {
+		t.Errorf("OwnDecoder = %v, want the union reported", diags.OwnDecoder)
+	}
+
+	union.Fields = append(union.Fields, GoField{Name: "Retries", Type: "int", JSONTag: "retries"})
+	_, _, err = lenientScalarTypes([]GoType{union, leaf}, map[string]bool{"SwUpdateConfiguration": true})
+	if err == nil {
+		t.Fatal("a union declaring a coerced scalar should fail generation")
+	}
+	if !strings.Contains(err.Error(), "SwUpdateConfiguration") {
+		t.Errorf("error = %v, want it to name the type", err)
+	}
+}
+
+// Every coerced key has to name a field the type declares. The generated
+// equality test cannot see a wrong key: encoding/json ignores it on the bare
+// and the quoted side alike, so both decodes land on the same zero value.
+func TestLenientScalarTypesKeysAreRealFieldTags(t *testing.T) {
+	types := []GoType{
+		{Name: "Root", Fields: []GoField{
+			{Name: "Count", Type: "int", JSONTag: "count,omitempty"},
+			{Name: "Hidden", Type: "int", JSONTag: "-"},
+			{Name: "Dashed", Type: "int", JSONTag: "-,"},
+		}},
+	}
+	entries, _, err := lenientScalarTypes(types, map[string]bool{"Root": true})
+	if err != nil {
+		t.Fatalf("lenientScalarTypes: %v", err)
+	}
+	declared := map[string]bool{"count": true, "-": true}
+	for _, e := range entries {
+		for _, k := range e.Keys {
+			if !declared[k.JSON] {
+				t.Errorf("%s: coerced key %q names no field tag", e.Name, k.JSON)
+			}
+		}
+	}
+	if len(entries) != 1 || len(entries[0].Keys) != 2 {
+		t.Fatalf("entries = %+v, want Root carrying count and the dashed key", entries)
+	}
+}
+
+// A union hands the same bytes to the variant it selects, so the whole path
+// renders as one flat object. The case exists because nothing else decodes
+// through the dispatch: the per-type table builds each leaf directly.
+func TestLenientUnionCasesFollowsANestedChain(t *testing.T) {
+	types := []GoType{
+		{Name: "SwUpdateConfiguration", Discriminator: &GoDiscriminator{
+			PropertyName: "enforcementType",
+			Variants: []GoDiscriminatorVariant{
+				{Values: []string{"AUTOMATIC"}, TypeName: "SwUpdateAutomaticConfiguration", FieldName: "AUTOMATIC"},
+			},
+		}},
+		{Name: "SwUpdateAutomaticConfiguration", Discriminator: &GoDiscriminator{
+			PropertyName: "strategy",
+			Variants: []GoDiscriminatorVariant{
+				{Values: []string{"LATEST"}, TypeName: "SwUpdateLatestConfiguration", FieldName: "LATEST"},
+			},
+		}},
+		{Name: "SwUpdateLatestConfiguration", Fields: []GoField{
+			{Name: "EnforceAfterDays", Type: "int", JSONTag: "enforceAfterDays"},
+		}},
+	}
+	entries := []lenientType{{Name: "SwUpdateLatestConfiguration",
+		Keys: []lenientKey{{JSON: "enforceAfterDays", Kind: jsonScalarKindNumber}}}}
+
+	cases := lenientUnionCases(types, entries)
+	// Two entry points: the outer union, carrying both discriminators, and the
+	// inner one on its own, which a caller can also decode into directly.
+	if len(cases) != 2 {
+		t.Fatalf("cases = %+v, want the outer chain and the inner union", cases)
+	}
+	byUnion := make(map[string]lenientUnionCase, len(cases))
+	for _, c := range cases {
+		byUnion[c.UnionType] = c
+	}
+	outer, ok := byUnion["SwUpdateConfiguration"]
+	if !ok {
+		t.Fatalf("cases = %+v, want one decoding into the outer union", cases)
+	}
+	if outer.ScalarJSON != "enforceAfterDays" {
+		t.Errorf("ScalarJSON = %q, want the leaf's coerced key", outer.ScalarJSON)
+	}
+	if len(outer.Discrim) != 2 ||
+		outer.Discrim[0] != (lenientDiscrimValue{JSON: "enforcementType", Value: "AUTOMATIC"}) ||
+		outer.Discrim[1] != (lenientDiscrimValue{JSON: "strategy", Value: "LATEST"}) {
+		t.Errorf("Discrim = %+v, want both discriminators on the path", outer.Discrim)
+	}
+	inner, ok := byUnion["SwUpdateAutomaticConfiguration"]
+	if !ok {
+		t.Fatalf("cases = %+v, want one decoding into the inner union", cases)
+	}
+	if len(inner.Discrim) != 1 || inner.Discrim[0].JSON != "strategy" {
+		t.Errorf("inner Discrim = %+v, want only its own discriminator", inner.Discrim)
+	}
+}
+
+// The parent names the field a child decoder failed on, so the case has to
+// pair a parent with a child that actually carries a coerced number.
+func TestLenientParentCasesPairsAParentWithItsChild(t *testing.T) {
+	types := []GoType{
+		{Name: "Deferrals", Fields: []GoField{
+			{Name: "MajorPeriodInDays", Type: "*OptionalPeriodInDays", JSONTag: "MajorPeriodInDays,omitempty"},
+			{Name: "MinorPeriodInDays", Type: "*OptionalPeriodInDays", JSONTag: "MinorPeriodInDays,omitempty"},
+		}},
+		{Name: "OptionalPeriodInDays", Fields: []GoField{{Name: "Value", Type: "*int", JSONTag: "Value,omitempty"}}},
+	}
+	entries := []lenientType{
+		{Name: "Deferrals"},
+		{Name: "OptionalPeriodInDays", Keys: []lenientKey{{JSON: "Value", Kind: jsonScalarKindNumber}}},
+	}
+	cases := lenientParentCases(types, entries)
+	if len(cases) != 1 {
+		t.Fatalf("cases = %+v, want one parent case", cases)
+	}
+	if cases[0].Name != "Deferrals" || cases[0].ChildJSON != "MajorPeriodInDays" || cases[0].ChildKey != "Value" {
+		t.Errorf("case = %+v, want Deferrals.MajorPeriodInDays/Value", cases[0])
 	}
 }

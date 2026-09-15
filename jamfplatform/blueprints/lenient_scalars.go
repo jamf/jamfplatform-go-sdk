@@ -11,12 +11,19 @@
 // the spec declares — the tolerance is in the decode, not in the surface a
 // consumer programs against — and so this file is the one place to read for
 // what the coercion does and does not do.
+//
+// The tolerance is one-directional. Marshalling is untouched, so decoding a
+// quoted scalar and writing the struct back sends the bare value the spec
+// declares, and the store then holds that encoding instead.
 
 package blueprints
 
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
+	"reflect"
+	"strings"
 )
 
 // jsonScalarKind names the JSON scalar a property is declared as.
@@ -29,36 +36,110 @@ const (
 	jsonScalarBool
 )
 
-// unmarshalLenientScalars decodes data into v, accepting a JSON string
-// wherever keys declares a number or a boolean.
+// unmarshalLenient decodes data into v, accepting a JSON string wherever keys
+// declares a number or a boolean, and naming the field a failure came from.
 //
-// The strict decode is tried first and the rewrite only happens when it fails,
-// so a conforming body costs one extra error check and nothing else. A nested
-// value is fixed by its own type's method during that first attempt, which is
-// why each type only has to describe its own keys.
+// The strict decode is tried first, so a conforming body costs one error check
+// and nothing else. A nested value has already been fixed by its own type's
+// method during that attempt, which is why each type only has to describe its
+// own keys. Note what that does not say about cost: the retry re-decodes the
+// whole object, so a quoted value on this type's own key runs every composite
+// child's decoder a second time. The alternative — decoding key by key on the
+// success path — would tax every conforming body to save a cold one.
 //
 // Three properties worth relying on. Only the listed keys are considered, so a
 // string the spec declares as a string is never touched. Only a JSON string is
 // rewritten, and only when the text it carries is a valid JSON scalar of the
 // declared kind — so "abc" for an integer still fails the decode rather than
 // arriving as zero. And marshalling is untouched: the SDK keeps sending the
-// numbers and booleans the spec declares.
-func unmarshalLenientScalars(data []byte, v any, keys map[string]jsonScalarKind, name string) error {
+// numbers and booleans the spec declares, which makes the tolerance
+// one-directional. Decoding a quoted value and writing the struct back emits
+// the bare scalar, so a round trip through these types rewrites the encoding
+// the store was holding.
+func unmarshalLenient(data []byte, v any, keys map[string]jsonScalarKind, name string) error {
 	err := json.Unmarshal(data, v)
 	if err == nil {
 		return nil
 	}
-	fixed, rewritten := unquoteJSONScalars(data, keys)
-	if rewritten {
+	// body is what the reported error describes, which is the rewritten
+	// document whenever a rewrite happened. Attributing against the original
+	// would blame the key the rewrite already fixed.
+	body := data
+	if fixed, rewritten := unquoteJSONScalars(data, keys); rewritten {
 		// The second error is the one to report when it comes: the rewrite
 		// has handled the encoding the first error described, so what is left
 		// is a fault the coercion has nothing to do with.
-		err = json.Unmarshal(fixed, v)
-		if err == nil {
+		retryErr := json.Unmarshal(fixed, v)
+		if retryErr == nil {
 			return nil
 		}
+		err, body = retryErr, fixed
 	}
-	return namedStructError(err, name)
+	return attributeFieldError(body, v, err, name)
+}
+
+// attributeFieldError prefixes err with the field the failure came from.
+//
+// encoding/json hands a nested value straight to that type's UnmarshalJSON and
+// returns whatever it gets back, so a child decoder's error arrives with no
+// record of the field it travelled through. Deferrals declares four fields of
+// the identical OptionalPeriodInDays type, so the error alone cannot say which
+// one failed — and that path is how the decode bug this whole mechanism exists
+// to fix was diagnosed.
+//
+// It runs only on the error path, and it decides nothing: it decodes each
+// present key on its own into a fresh value of that field's type, and the
+// first key that reproduces a failure is the one to name. A key whose probe
+// succeeds is left alone, and a failure no probe reproduces is returned
+// unattributed rather than guessed at.
+func attributeFieldError(data []byte, v any, err error, name string) error {
+	err = namedStructError(err, name)
+	var obj map[string]json.RawMessage
+	if json.Unmarshal(data, &obj) != nil {
+		return err
+	}
+	rv := reflect.ValueOf(v)
+	if rv.Kind() != reflect.Pointer || rv.Elem().Kind() != reflect.Struct {
+		return err
+	}
+	t := rv.Elem().Type()
+	for i := range t.NumField() {
+		f := t.Field(i)
+		if f.PkgPath != "" {
+			continue
+		}
+		key := jsonFieldName(f)
+		if key == "" {
+			continue
+		}
+		raw, present := obj[key]
+		if !present {
+			continue
+		}
+		probe := reflect.New(f.Type)
+		if fieldErr := json.Unmarshal(raw, probe.Interface()); fieldErr != nil {
+			return fmt.Errorf("%s.%s: %w", name, key, fieldErr)
+		}
+	}
+	return err
+}
+
+// jsonFieldName returns the wire name a struct field travels under, following
+// encoding/json's own rule for the dash: a tag of exactly "-" skips the field,
+// while "-," names it "-". An absent tag leaves the field name.
+func jsonFieldName(f reflect.StructField) string {
+	tag, ok := f.Tag.Lookup("json")
+	if !ok {
+		return f.Name
+	}
+	if tag == "-" {
+		return ""
+	}
+	name, _, _ := strings.Cut(tag, ",")
+	if name == "" {
+		return f.Name
+	}
+	return name
 }
 
 // namedStructError puts the real type name back into a decode error.
@@ -67,6 +148,8 @@ func unmarshalLenientScalars(data []byte, v any, keys map[string]jsonScalarKind,
 // method and avoid recursing, and encoding/json reports the *Go* type it was
 // decoding — so without this a caller reads "json: cannot unmarshal string
 // into Go struct field lenient.Value", which names nothing they can look up.
+// It restores the type name only; the field path is what attributeFieldError
+// puts back.
 func namedStructError(err error, name string) error {
 	var typeErr *json.UnmarshalTypeError
 	if errors.As(err, &typeErr) && typeErr.Struct == "lenient" {
@@ -121,9 +204,14 @@ func unquoteJSONScalars(data []byte, keys map[string]jsonScalarKind) ([]byte, bo
 //
 // The number branch re-emits the text verbatim rather than parsing and
 // reformatting it, so a value wider than float64 keeps every digit and a
-// decimal keeps its exact spelling; json.Valid plus the leading-byte check is
-// what decides it is a JSON number token, which rules out the forms Go's own
-// parsers accept and JSON does not (Inf, NaN, hex floats, a leading +).
+// decimal keeps its exact spelling. Two checks decide it, and both are
+// load-bearing: json.Valid rules out the forms Go's own parsers accept and
+// JSON does not (Inf, NaN, hex floats, a leading +, 01), and the leading-byte
+// check rules out the values that are valid JSON but are not numbers (null,
+// true, false, an array, an object). Without the second, a quoted "null"
+// would be rewritten to bare null, which decodes into a non-pointer field as
+// a silent no-op and leaves the zero value — the one outcome this whole
+// mechanism must never produce.
 func jsonScalarLiteral(s string, kind jsonScalarKind) (string, bool) {
 	switch kind {
 	case jsonScalarNumber:
@@ -147,12 +235,16 @@ var lenientScalarsAcceptCookies = map[string]jsonScalarKind{
 	"Included": jsonScalarBool,
 }
 
-// UnmarshalJSON decodes s, accepting a JSON string for any of its numbers and
-// booleans. See unmarshalLenientScalars for what is and is not coerced.
+// UnmarshalJSON decodes s, accepting a JSON string for any number or boolean
+// it declares, because the store this schema comes from serves back the
+// scalar encoding its writer used. A failure names the field it came from.
+//
+// Marshalling is unaffected, so writing s back sends the bare number or
+// boolean the spec declares rather than the encoding it was read as.
 func (s *AcceptCookies) UnmarshalJSON(data []byte) error {
 	type lenient AcceptCookies
 	var v lenient
-	if err := unmarshalLenientScalars(data, &v, lenientScalarsAcceptCookies, "AcceptCookies"); err != nil {
+	if err := unmarshalLenient(data, &v, lenientScalarsAcceptCookies, "AcceptCookies"); err != nil {
 		return err
 	}
 	*s = AcceptCookies(v)
@@ -165,12 +257,16 @@ var lenientScalarsAllowDisablingFraudWarning = map[string]jsonScalarKind{
 	"Value":    jsonScalarBool,
 }
 
-// UnmarshalJSON decodes s, accepting a JSON string for any of its numbers and
-// booleans. See unmarshalLenientScalars for what is and is not coerced.
+// UnmarshalJSON decodes s, accepting a JSON string for any number or boolean
+// it declares, because the store this schema comes from serves back the
+// scalar encoding its writer used. A failure names the field it came from.
+//
+// Marshalling is unaffected, so writing s back sends the bare number or
+// boolean the spec declares rather than the encoding it was read as.
 func (s *AllowDisablingFraudWarning) UnmarshalJSON(data []byte) error {
 	type lenient AllowDisablingFraudWarning
 	var v lenient
-	if err := unmarshalLenientScalars(data, &v, lenientScalarsAllowDisablingFraudWarning, "AllowDisablingFraudWarning"); err != nil {
+	if err := unmarshalLenient(data, &v, lenientScalarsAllowDisablingFraudWarning, "AllowDisablingFraudWarning"); err != nil {
 		return err
 	}
 	*s = AllowDisablingFraudWarning(v)
@@ -183,12 +279,16 @@ var lenientScalarsAllowHistoryClearing = map[string]jsonScalarKind{
 	"Value":    jsonScalarBool,
 }
 
-// UnmarshalJSON decodes s, accepting a JSON string for any of its numbers and
-// booleans. See unmarshalLenientScalars for what is and is not coerced.
+// UnmarshalJSON decodes s, accepting a JSON string for any number or boolean
+// it declares, because the store this schema comes from serves back the
+// scalar encoding its writer used. A failure names the field it came from.
+//
+// Marshalling is unaffected, so writing s back sends the bare number or
+// boolean the spec declares rather than the encoding it was read as.
 func (s *AllowHistoryClearing) UnmarshalJSON(data []byte) error {
 	type lenient AllowHistoryClearing
 	var v lenient
-	if err := unmarshalLenientScalars(data, &v, lenientScalarsAllowHistoryClearing, "AllowHistoryClearing"); err != nil {
+	if err := unmarshalLenient(data, &v, lenientScalarsAllowHistoryClearing, "AllowHistoryClearing"); err != nil {
 		return err
 	}
 	*s = AllowHistoryClearing(v)
@@ -201,12 +301,16 @@ var lenientScalarsAllowJavaScript = map[string]jsonScalarKind{
 	"Value":    jsonScalarBool,
 }
 
-// UnmarshalJSON decodes s, accepting a JSON string for any of its numbers and
-// booleans. See unmarshalLenientScalars for what is and is not coerced.
+// UnmarshalJSON decodes s, accepting a JSON string for any number or boolean
+// it declares, because the store this schema comes from serves back the
+// scalar encoding its writer used. A failure names the field it came from.
+//
+// Marshalling is unaffected, so writing s back sends the bare number or
+// boolean the spec declares rather than the encoding it was read as.
 func (s *AllowJavaScript) UnmarshalJSON(data []byte) error {
 	type lenient AllowJavaScript
 	var v lenient
-	if err := unmarshalLenientScalars(data, &v, lenientScalarsAllowJavaScript, "AllowJavaScript"); err != nil {
+	if err := unmarshalLenient(data, &v, lenientScalarsAllowJavaScript, "AllowJavaScript"); err != nil {
 		return err
 	}
 	*s = AllowJavaScript(v)
@@ -219,12 +323,16 @@ var lenientScalarsAllowPopups = map[string]jsonScalarKind{
 	"Value":    jsonScalarBool,
 }
 
-// UnmarshalJSON decodes s, accepting a JSON string for any of its numbers and
-// booleans. See unmarshalLenientScalars for what is and is not coerced.
+// UnmarshalJSON decodes s, accepting a JSON string for any number or boolean
+// it declares, because the store this schema comes from serves back the
+// scalar encoding its writer used. A failure names the field it came from.
+//
+// Marshalling is unaffected, so writing s back sends the bare number or
+// boolean the spec declares rather than the encoding it was read as.
 func (s *AllowPopups) UnmarshalJSON(data []byte) error {
 	type lenient AllowPopups
 	var v lenient
-	if err := unmarshalLenientScalars(data, &v, lenientScalarsAllowPopups, "AllowPopups"); err != nil {
+	if err := unmarshalLenient(data, &v, lenientScalarsAllowPopups, "AllowPopups"); err != nil {
 		return err
 	}
 	*s = AllowPopups(v)
@@ -237,12 +345,16 @@ var lenientScalarsAllowPrivateBrowsing = map[string]jsonScalarKind{
 	"Value":    jsonScalarBool,
 }
 
-// UnmarshalJSON decodes s, accepting a JSON string for any of its numbers and
-// booleans. See unmarshalLenientScalars for what is and is not coerced.
+// UnmarshalJSON decodes s, accepting a JSON string for any number or boolean
+// it declares, because the store this schema comes from serves back the
+// scalar encoding its writer used. A failure names the field it came from.
+//
+// Marshalling is unaffected, so writing s back sends the bare number or
+// boolean the spec declares rather than the encoding it was read as.
 func (s *AllowPrivateBrowsing) UnmarshalJSON(data []byte) error {
 	type lenient AllowPrivateBrowsing
 	var v lenient
-	if err := unmarshalLenientScalars(data, &v, lenientScalarsAllowPrivateBrowsing, "AllowPrivateBrowsing"); err != nil {
+	if err := unmarshalLenient(data, &v, lenientScalarsAllowPrivateBrowsing, "AllowPrivateBrowsing"); err != nil {
 		return err
 	}
 	*s = AllowPrivateBrowsing(v)
@@ -255,15 +367,61 @@ var lenientScalarsAllowSummary = map[string]jsonScalarKind{
 	"Value":    jsonScalarBool,
 }
 
-// UnmarshalJSON decodes s, accepting a JSON string for any of its numbers and
-// booleans. See unmarshalLenientScalars for what is and is not coerced.
+// UnmarshalJSON decodes s, accepting a JSON string for any number or boolean
+// it declares, because the store this schema comes from serves back the
+// scalar encoding its writer used. A failure names the field it came from.
+//
+// Marshalling is unaffected, so writing s back sends the bare number or
+// boolean the spec declares rather than the encoding it was read as.
 func (s *AllowSummary) UnmarshalJSON(data []byte) error {
 	type lenient AllowSummary
 	var v lenient
-	if err := unmarshalLenientScalars(data, &v, lenientScalarsAllowSummary, "AllowSummary"); err != nil {
+	if err := unmarshalLenient(data, &v, lenientScalarsAllowSummary, "AllowSummary"); err != nil {
 		return err
 	}
 	*s = AllowSummary(v)
+	return nil
+}
+
+// lenientScalarsAudioAccessorySettingsComponent names the scalars AudioAccessorySettingsComponent declares, for its UnmarshalJSON.
+// It declares none of its own: the decoder exists to name the field a
+// child decoder failed on.
+var lenientScalarsAudioAccessorySettingsComponent = map[string]jsonScalarKind{}
+
+// UnmarshalJSON decodes s, accepting a JSON string for any number or boolean
+// it declares, because the store this schema comes from serves back the
+// scalar encoding its writer used. A failure names the field it came from.
+//
+// Marshalling is unaffected, so writing s back sends the bare number or
+// boolean the spec declares rather than the encoding it was read as.
+func (s *AudioAccessorySettingsComponent) UnmarshalJSON(data []byte) error {
+	type lenient AudioAccessorySettingsComponent
+	var v lenient
+	if err := unmarshalLenient(data, &v, lenientScalarsAudioAccessorySettingsComponent, "AudioAccessorySettingsComponent"); err != nil {
+		return err
+	}
+	*s = AudioAccessorySettingsComponent(v)
+	return nil
+}
+
+// lenientScalarsAudioAccessorySettingsConfiguration names the scalars AudioAccessorySettingsConfiguration declares, for its UnmarshalJSON.
+// It declares none of its own: the decoder exists to name the field a
+// child decoder failed on.
+var lenientScalarsAudioAccessorySettingsConfiguration = map[string]jsonScalarKind{}
+
+// UnmarshalJSON decodes s, accepting a JSON string for any number or boolean
+// it declares, because the store this schema comes from serves back the
+// scalar encoding its writer used. A failure names the field it came from.
+//
+// Marshalling is unaffected, so writing s back sends the bare number or
+// boolean the spec declares rather than the encoding it was read as.
+func (s *AudioAccessorySettingsConfiguration) UnmarshalJSON(data []byte) error {
+	type lenient AudioAccessorySettingsConfiguration
+	var v lenient
+	if err := unmarshalLenient(data, &v, lenientScalarsAudioAccessorySettingsConfiguration, "AudioAccessorySettingsConfiguration"); err != nil {
+		return err
+	}
+	*s = AudioAccessorySettingsConfiguration(v)
 	return nil
 }
 
@@ -272,15 +430,40 @@ var lenientScalarsAutomaticAction = map[string]jsonScalarKind{
 	"Included": jsonScalarBool,
 }
 
-// UnmarshalJSON decodes s, accepting a JSON string for any of its numbers and
-// booleans. See unmarshalLenientScalars for what is and is not coerced.
+// UnmarshalJSON decodes s, accepting a JSON string for any number or boolean
+// it declares, because the store this schema comes from serves back the
+// scalar encoding its writer used. A failure names the field it came from.
+//
+// Marshalling is unaffected, so writing s back sends the bare number or
+// boolean the spec declares rather than the encoding it was read as.
 func (s *AutomaticAction) UnmarshalJSON(data []byte) error {
 	type lenient AutomaticAction
 	var v lenient
-	if err := unmarshalLenientScalars(data, &v, lenientScalarsAutomaticAction, "AutomaticAction"); err != nil {
+	if err := unmarshalLenient(data, &v, lenientScalarsAutomaticAction, "AutomaticAction"); err != nil {
 		return err
 	}
 	*s = AutomaticAction(v)
+	return nil
+}
+
+// lenientScalarsAutomaticActions names the scalars AutomaticActions declares, for its UnmarshalJSON.
+// It declares none of its own: the decoder exists to name the field a
+// child decoder failed on.
+var lenientScalarsAutomaticActions = map[string]jsonScalarKind{}
+
+// UnmarshalJSON decodes s, accepting a JSON string for any number or boolean
+// it declares, because the store this schema comes from serves back the
+// scalar encoding its writer used. A failure names the field it came from.
+//
+// Marshalling is unaffected, so writing s back sends the bare number or
+// boolean the spec declares rather than the encoding it was read as.
+func (s *AutomaticActions) UnmarshalJSON(data []byte) error {
+	type lenient AutomaticActions
+	var v lenient
+	if err := unmarshalLenient(data, &v, lenientScalarsAutomaticActions, "AutomaticActions"); err != nil {
+		return err
+	}
+	*s = AutomaticActions(v)
 	return nil
 }
 
@@ -290,12 +473,16 @@ var lenientScalarsBasicMode = map[string]jsonScalarKind{
 	"Included":      jsonScalarBool,
 }
 
-// UnmarshalJSON decodes s, accepting a JSON string for any of its numbers and
-// booleans. See unmarshalLenientScalars for what is and is not coerced.
+// UnmarshalJSON decodes s, accepting a JSON string for any number or boolean
+// it declares, because the store this schema comes from serves back the
+// scalar encoding its writer used. A failure names the field it came from.
+//
+// Marshalling is unaffected, so writing s back sends the bare number or
+// boolean the spec declares rather than the encoding it was read as.
 func (s *BasicMode) UnmarshalJSON(data []byte) error {
 	type lenient BasicMode
 	var v lenient
-	if err := unmarshalLenientScalars(data, &v, lenientScalarsBasicMode, "BasicMode"); err != nil {
+	if err := unmarshalLenient(data, &v, lenientScalarsBasicMode, "BasicMode"); err != nil {
 		return err
 	}
 	*s = BasicMode(v)
@@ -307,15 +494,40 @@ var lenientScalarsBeta = map[string]jsonScalarKind{
 	"Included": jsonScalarBool,
 }
 
-// UnmarshalJSON decodes s, accepting a JSON string for any of its numbers and
-// booleans. See unmarshalLenientScalars for what is and is not coerced.
+// UnmarshalJSON decodes s, accepting a JSON string for any number or boolean
+// it declares, because the store this schema comes from serves back the
+// scalar encoding its writer used. A failure names the field it came from.
+//
+// Marshalling is unaffected, so writing s back sends the bare number or
+// boolean the spec declares rather than the encoding it was read as.
 func (s *Beta) UnmarshalJSON(data []byte) error {
 	type lenient Beta
 	var v lenient
-	if err := unmarshalLenientScalars(data, &v, lenientScalarsBeta, "Beta"); err != nil {
+	if err := unmarshalLenient(data, &v, lenientScalarsBeta, "Beta"); err != nil {
 		return err
 	}
 	*s = Beta(v)
+	return nil
+}
+
+// lenientScalarsCalculator names the scalars Calculator declares, for its UnmarshalJSON.
+// It declares none of its own: the decoder exists to name the field a
+// child decoder failed on.
+var lenientScalarsCalculator = map[string]jsonScalarKind{}
+
+// UnmarshalJSON decodes s, accepting a JSON string for any number or boolean
+// it declares, because the store this schema comes from serves back the
+// scalar encoding its writer used. A failure names the field it came from.
+//
+// Marshalling is unaffected, so writing s back sends the bare number or
+// boolean the spec declares rather than the encoding it was read as.
+func (s *Calculator) UnmarshalJSON(data []byte) error {
+	type lenient Calculator
+	var v lenient
+	if err := unmarshalLenient(data, &v, lenientScalarsCalculator, "Calculator"); err != nil {
+		return err
+	}
+	*s = Calculator(v)
 	return nil
 }
 
@@ -325,12 +537,16 @@ var lenientScalarsChangeAtNextAuth = map[string]jsonScalarKind{
 	"Value":    jsonScalarBool,
 }
 
-// UnmarshalJSON decodes s, accepting a JSON string for any of its numbers and
-// booleans. See unmarshalLenientScalars for what is and is not coerced.
+// UnmarshalJSON decodes s, accepting a JSON string for any number or boolean
+// it declares, because the store this schema comes from serves back the
+// scalar encoding its writer used. A failure names the field it came from.
+//
+// Marshalling is unaffected, so writing s back sends the bare number or
+// boolean the spec declares rather than the encoding it was read as.
 func (s *ChangeAtNextAuth) UnmarshalJSON(data []byte) error {
 	type lenient ChangeAtNextAuth
 	var v lenient
-	if err := unmarshalLenientScalars(data, &v, lenientScalarsChangeAtNextAuth, "ChangeAtNextAuth"); err != nil {
+	if err := unmarshalLenient(data, &v, lenientScalarsChangeAtNextAuth, "ChangeAtNextAuth"); err != nil {
 		return err
 	}
 	*s = ChangeAtNextAuth(v)
@@ -342,15 +558,61 @@ var lenientScalarsCustomDeclaration = map[string]jsonScalarKind{
 	"payloadKey": jsonScalarNumber,
 }
 
-// UnmarshalJSON decodes s, accepting a JSON string for any of its numbers and
-// booleans. See unmarshalLenientScalars for what is and is not coerced.
+// UnmarshalJSON decodes s, accepting a JSON string for any number or boolean
+// it declares, because the store this schema comes from serves back the
+// scalar encoding its writer used. A failure names the field it came from.
+//
+// Marshalling is unaffected, so writing s back sends the bare number or
+// boolean the spec declares rather than the encoding it was read as.
 func (s *CustomDeclaration) UnmarshalJSON(data []byte) error {
 	type lenient CustomDeclaration
 	var v lenient
-	if err := unmarshalLenientScalars(data, &v, lenientScalarsCustomDeclaration, "CustomDeclaration"); err != nil {
+	if err := unmarshalLenient(data, &v, lenientScalarsCustomDeclaration, "CustomDeclaration"); err != nil {
 		return err
 	}
 	*s = CustomDeclaration(v)
+	return nil
+}
+
+// lenientScalarsCustomDeclarationsComponent names the scalars CustomDeclarationsComponent declares, for its UnmarshalJSON.
+// It declares none of its own: the decoder exists to name the field a
+// child decoder failed on.
+var lenientScalarsCustomDeclarationsComponent = map[string]jsonScalarKind{}
+
+// UnmarshalJSON decodes s, accepting a JSON string for any number or boolean
+// it declares, because the store this schema comes from serves back the
+// scalar encoding its writer used. A failure names the field it came from.
+//
+// Marshalling is unaffected, so writing s back sends the bare number or
+// boolean the spec declares rather than the encoding it was read as.
+func (s *CustomDeclarationsComponent) UnmarshalJSON(data []byte) error {
+	type lenient CustomDeclarationsComponent
+	var v lenient
+	if err := unmarshalLenient(data, &v, lenientScalarsCustomDeclarationsComponent, "CustomDeclarationsComponent"); err != nil {
+		return err
+	}
+	*s = CustomDeclarationsComponent(v)
+	return nil
+}
+
+// lenientScalarsCustomDeclarationsConfiguration names the scalars CustomDeclarationsConfiguration declares, for its UnmarshalJSON.
+// It declares none of its own: the decoder exists to name the field a
+// child decoder failed on.
+var lenientScalarsCustomDeclarationsConfiguration = map[string]jsonScalarKind{}
+
+// UnmarshalJSON decodes s, accepting a JSON string for any number or boolean
+// it declares, because the store this schema comes from serves back the
+// scalar encoding its writer used. A failure names the field it came from.
+//
+// Marshalling is unaffected, so writing s back sends the bare number or
+// boolean the spec declares rather than the encoding it was read as.
+func (s *CustomDeclarationsConfiguration) UnmarshalJSON(data []byte) error {
+	type lenient CustomDeclarationsConfiguration
+	var v lenient
+	if err := unmarshalLenient(data, &v, lenientScalarsCustomDeclarationsConfiguration, "CustomDeclarationsConfiguration"); err != nil {
+		return err
+	}
+	*s = CustomDeclarationsConfiguration(v)
 	return nil
 }
 
@@ -359,15 +621,40 @@ var lenientScalarsCustomRegex = map[string]jsonScalarKind{
 	"Included": jsonScalarBool,
 }
 
-// UnmarshalJSON decodes s, accepting a JSON string for any of its numbers and
-// booleans. See unmarshalLenientScalars for what is and is not coerced.
+// UnmarshalJSON decodes s, accepting a JSON string for any number or boolean
+// it declares, because the store this schema comes from serves back the
+// scalar encoding its writer used. A failure names the field it came from.
+//
+// Marshalling is unaffected, so writing s back sends the bare number or
+// boolean the spec declares rather than the encoding it was read as.
 func (s *CustomRegex) UnmarshalJSON(data []byte) error {
 	type lenient CustomRegex
 	var v lenient
-	if err := unmarshalLenientScalars(data, &v, lenientScalarsCustomRegex, "CustomRegex"); err != nil {
+	if err := unmarshalLenient(data, &v, lenientScalarsCustomRegex, "CustomRegex"); err != nil {
 		return err
 	}
 	*s = CustomRegex(v)
+	return nil
+}
+
+// lenientScalarsDeferrals names the scalars Deferrals declares, for its UnmarshalJSON.
+// It declares none of its own: the decoder exists to name the field a
+// child decoder failed on.
+var lenientScalarsDeferrals = map[string]jsonScalarKind{}
+
+// UnmarshalJSON decodes s, accepting a JSON string for any number or boolean
+// it declares, because the store this schema comes from serves back the
+// scalar encoding its writer used. A failure names the field it came from.
+//
+// Marshalling is unaffected, so writing s back sends the bare number or
+// boolean the spec declares rather than the encoding it was read as.
+func (s *Deferrals) UnmarshalJSON(data []byte) error {
+	type lenient Deferrals
+	var v lenient
+	if err := unmarshalLenient(data, &v, lenientScalarsDeferrals, "Deferrals"); err != nil {
+		return err
+	}
+	*s = Deferrals(v)
 	return nil
 }
 
@@ -376,15 +663,40 @@ var lenientScalarsDetailsURL = map[string]jsonScalarKind{
 	"Included": jsonScalarBool,
 }
 
-// UnmarshalJSON decodes s, accepting a JSON string for any of its numbers and
-// booleans. See unmarshalLenientScalars for what is and is not coerced.
+// UnmarshalJSON decodes s, accepting a JSON string for any number or boolean
+// it declares, because the store this schema comes from serves back the
+// scalar encoding its writer used. A failure names the field it came from.
+//
+// Marshalling is unaffected, so writing s back sends the bare number or
+// boolean the spec declares rather than the encoding it was read as.
 func (s *DetailsURL) UnmarshalJSON(data []byte) error {
 	type lenient DetailsURL
 	var v lenient
-	if err := unmarshalLenientScalars(data, &v, lenientScalarsDetailsURL, "DetailsURL"); err != nil {
+	if err := unmarshalLenient(data, &v, lenientScalarsDetailsURL, "DetailsURL"); err != nil {
 		return err
 	}
 	*s = DetailsURL(v)
+	return nil
+}
+
+// lenientScalarsDiskManagementComponent names the scalars DiskManagementComponent declares, for its UnmarshalJSON.
+// It declares none of its own: the decoder exists to name the field a
+// child decoder failed on.
+var lenientScalarsDiskManagementComponent = map[string]jsonScalarKind{}
+
+// UnmarshalJSON decodes s, accepting a JSON string for any number or boolean
+// it declares, because the store this schema comes from serves back the
+// scalar encoding its writer used. A failure names the field it came from.
+//
+// Marshalling is unaffected, so writing s back sends the bare number or
+// boolean the spec declares rather than the encoding it was read as.
+func (s *DiskManagementComponent) UnmarshalJSON(data []byte) error {
+	type lenient DiskManagementComponent
+	var v lenient
+	if err := unmarshalLenient(data, &v, lenientScalarsDiskManagementComponent, "DiskManagementComponent"); err != nil {
+		return err
+	}
+	*s = DiskManagementComponent(v)
 	return nil
 }
 
@@ -393,12 +705,16 @@ var lenientScalarsDiskManagementSettingsConfiguration = map[string]jsonScalarKin
 	"version": jsonScalarNumber,
 }
 
-// UnmarshalJSON decodes s, accepting a JSON string for any of its numbers and
-// booleans. See unmarshalLenientScalars for what is and is not coerced.
+// UnmarshalJSON decodes s, accepting a JSON string for any number or boolean
+// it declares, because the store this schema comes from serves back the
+// scalar encoding its writer used. A failure names the field it came from.
+//
+// Marshalling is unaffected, so writing s back sends the bare number or
+// boolean the spec declares rather than the encoding it was read as.
 func (s *DiskManagementSettingsConfiguration) UnmarshalJSON(data []byte) error {
 	type lenient DiskManagementSettingsConfiguration
 	var v lenient
-	if err := unmarshalLenientScalars(data, &v, lenientScalarsDiskManagementSettingsConfiguration, "DiskManagementSettingsConfiguration"); err != nil {
+	if err := unmarshalLenient(data, &v, lenientScalarsDiskManagementSettingsConfiguration, "DiskManagementSettingsConfiguration"); err != nil {
 		return err
 	}
 	*s = DiskManagementSettingsConfiguration(v)
@@ -411,12 +727,16 @@ var lenientScalarsFailedAttemptsResetInMinutes = map[string]jsonScalarKind{
 	"Value":    jsonScalarNumber,
 }
 
-// UnmarshalJSON decodes s, accepting a JSON string for any of its numbers and
-// booleans. See unmarshalLenientScalars for what is and is not coerced.
+// UnmarshalJSON decodes s, accepting a JSON string for any number or boolean
+// it declares, because the store this schema comes from serves back the
+// scalar encoding its writer used. A failure names the field it came from.
+//
+// Marshalling is unaffected, so writing s back sends the bare number or
+// boolean the spec declares rather than the encoding it was read as.
 func (s *FailedAttemptsResetInMinutes) UnmarshalJSON(data []byte) error {
 	type lenient FailedAttemptsResetInMinutes
 	var v lenient
-	if err := unmarshalLenientScalars(data, &v, lenientScalarsFailedAttemptsResetInMinutes, "FailedAttemptsResetInMinutes"); err != nil {
+	if err := unmarshalLenient(data, &v, lenientScalarsFailedAttemptsResetInMinutes, "FailedAttemptsResetInMinutes"); err != nil {
 		return err
 	}
 	*s = FailedAttemptsResetInMinutes(v)
@@ -430,12 +750,16 @@ var lenientScalarsInputModes = map[string]jsonScalarKind{
 	"UnitConversion": jsonScalarBool,
 }
 
-// UnmarshalJSON decodes s, accepting a JSON string for any of its numbers and
-// booleans. See unmarshalLenientScalars for what is and is not coerced.
+// UnmarshalJSON decodes s, accepting a JSON string for any number or boolean
+// it declares, because the store this schema comes from serves back the
+// scalar encoding its writer used. A failure names the field it came from.
+//
+// Marshalling is unaffected, so writing s back sends the bare number or
+// boolean the spec declares rather than the encoding it was read as.
 func (s *InputModes) UnmarshalJSON(data []byte) error {
 	type lenient InputModes
 	var v lenient
-	if err := unmarshalLenientScalars(data, &v, lenientScalarsInputModes, "InputModes"); err != nil {
+	if err := unmarshalLenient(data, &v, lenientScalarsInputModes, "InputModes"); err != nil {
 		return err
 	}
 	*s = InputModes(v)
@@ -450,15 +774,61 @@ var lenientScalarsManagedAppAttributes = map[string]jsonScalarKind{
 	"TapToPayScreenLock":                     jsonScalarBool,
 }
 
-// UnmarshalJSON decodes s, accepting a JSON string for any of its numbers and
-// booleans. See unmarshalLenientScalars for what is and is not coerced.
+// UnmarshalJSON decodes s, accepting a JSON string for any number or boolean
+// it declares, because the store this schema comes from serves back the
+// scalar encoding its writer used. A failure names the field it came from.
+//
+// Marshalling is unaffected, so writing s back sends the bare number or
+// boolean the spec declares rather than the encoding it was read as.
 func (s *ManagedAppAttributes) UnmarshalJSON(data []byte) error {
 	type lenient ManagedAppAttributes
 	var v lenient
-	if err := unmarshalLenientScalars(data, &v, lenientScalarsManagedAppAttributes, "ManagedAppAttributes"); err != nil {
+	if err := unmarshalLenient(data, &v, lenientScalarsManagedAppAttributes, "ManagedAppAttributes"); err != nil {
 		return err
 	}
 	*s = ManagedAppAttributes(v)
+	return nil
+}
+
+// lenientScalarsManagedAppComponent names the scalars ManagedAppComponent declares, for its UnmarshalJSON.
+// It declares none of its own: the decoder exists to name the field a
+// child decoder failed on.
+var lenientScalarsManagedAppComponent = map[string]jsonScalarKind{}
+
+// UnmarshalJSON decodes s, accepting a JSON string for any number or boolean
+// it declares, because the store this schema comes from serves back the
+// scalar encoding its writer used. A failure names the field it came from.
+//
+// Marshalling is unaffected, so writing s back sends the bare number or
+// boolean the spec declares rather than the encoding it was read as.
+func (s *ManagedAppComponent) UnmarshalJSON(data []byte) error {
+	type lenient ManagedAppComponent
+	var v lenient
+	if err := unmarshalLenient(data, &v, lenientScalarsManagedAppComponent, "ManagedAppComponent"); err != nil {
+		return err
+	}
+	*s = ManagedAppComponent(v)
+	return nil
+}
+
+// lenientScalarsManagedAppConfiguration names the scalars ManagedAppConfiguration declares, for its UnmarshalJSON.
+// It declares none of its own: the decoder exists to name the field a
+// child decoder failed on.
+var lenientScalarsManagedAppConfiguration = map[string]jsonScalarKind{}
+
+// UnmarshalJSON decodes s, accepting a JSON string for any number or boolean
+// it declares, because the store this schema comes from serves back the
+// scalar encoding its writer used. A failure names the field it came from.
+//
+// Marshalling is unaffected, so writing s back sends the bare number or
+// boolean the spec declares rather than the encoding it was read as.
+func (s *ManagedAppConfiguration) UnmarshalJSON(data []byte) error {
+	type lenient ManagedAppConfiguration
+	var v lenient
+	if err := unmarshalLenient(data, &v, lenientScalarsManagedAppConfiguration, "ManagedAppConfiguration"); err != nil {
+		return err
+	}
+	*s = ManagedAppConfiguration(v)
 	return nil
 }
 
@@ -467,12 +837,16 @@ var lenientScalarsManagedAppEntry = map[string]jsonScalarKind{
 	"IncludeInBackup": jsonScalarBool,
 }
 
-// UnmarshalJSON decodes s, accepting a JSON string for any of its numbers and
-// booleans. See unmarshalLenientScalars for what is and is not coerced.
+// UnmarshalJSON decodes s, accepting a JSON string for any number or boolean
+// it declares, because the store this schema comes from serves back the
+// scalar encoding its writer used. A failure names the field it came from.
+//
+// Marshalling is unaffected, so writing s back sends the bare number or
+// boolean the spec declares rather than the encoding it was read as.
 func (s *ManagedAppEntry) UnmarshalJSON(data []byte) error {
 	type lenient ManagedAppEntry
 	var v lenient
-	if err := unmarshalLenientScalars(data, &v, lenientScalarsManagedAppEntry, "ManagedAppEntry"); err != nil {
+	if err := unmarshalLenient(data, &v, lenientScalarsManagedAppEntry, "ManagedAppEntry"); err != nil {
 		return err
 	}
 	*s = ManagedAppEntry(v)
@@ -485,15 +859,61 @@ var lenientScalarsMathNotesMode = map[string]jsonScalarKind{
 	"Included": jsonScalarBool,
 }
 
-// UnmarshalJSON decodes s, accepting a JSON string for any of its numbers and
-// booleans. See unmarshalLenientScalars for what is and is not coerced.
+// UnmarshalJSON decodes s, accepting a JSON string for any number or boolean
+// it declares, because the store this schema comes from serves back the
+// scalar encoding its writer used. A failure names the field it came from.
+//
+// Marshalling is unaffected, so writing s back sends the bare number or
+// boolean the spec declares rather than the encoding it was read as.
 func (s *MathNotesMode) UnmarshalJSON(data []byte) error {
 	type lenient MathNotesMode
 	var v lenient
-	if err := unmarshalLenientScalars(data, &v, lenientScalarsMathNotesMode, "MathNotesMode"); err != nil {
+	if err := unmarshalLenient(data, &v, lenientScalarsMathNotesMode, "MathNotesMode"); err != nil {
 		return err
 	}
 	*s = MathNotesMode(v)
+	return nil
+}
+
+// lenientScalarsMathSettingsComponent names the scalars MathSettingsComponent declares, for its UnmarshalJSON.
+// It declares none of its own: the decoder exists to name the field a
+// child decoder failed on.
+var lenientScalarsMathSettingsComponent = map[string]jsonScalarKind{}
+
+// UnmarshalJSON decodes s, accepting a JSON string for any number or boolean
+// it declares, because the store this schema comes from serves back the
+// scalar encoding its writer used. A failure names the field it came from.
+//
+// Marshalling is unaffected, so writing s back sends the bare number or
+// boolean the spec declares rather than the encoding it was read as.
+func (s *MathSettingsComponent) UnmarshalJSON(data []byte) error {
+	type lenient MathSettingsComponent
+	var v lenient
+	if err := unmarshalLenient(data, &v, lenientScalarsMathSettingsComponent, "MathSettingsComponent"); err != nil {
+		return err
+	}
+	*s = MathSettingsComponent(v)
+	return nil
+}
+
+// lenientScalarsMathSettingsConfiguration names the scalars MathSettingsConfiguration declares, for its UnmarshalJSON.
+// It declares none of its own: the decoder exists to name the field a
+// child decoder failed on.
+var lenientScalarsMathSettingsConfiguration = map[string]jsonScalarKind{}
+
+// UnmarshalJSON decodes s, accepting a JSON string for any number or boolean
+// it declares, because the store this schema comes from serves back the
+// scalar encoding its writer used. A failure names the field it came from.
+//
+// Marshalling is unaffected, so writing s back sends the bare number or
+// boolean the spec declares rather than the encoding it was read as.
+func (s *MathSettingsConfiguration) UnmarshalJSON(data []byte) error {
+	type lenient MathSettingsConfiguration
+	var v lenient
+	if err := unmarshalLenient(data, &v, lenientScalarsMathSettingsConfiguration, "MathSettingsConfiguration"); err != nil {
+		return err
+	}
+	*s = MathSettingsConfiguration(v)
 	return nil
 }
 
@@ -503,12 +923,16 @@ var lenientScalarsMaximumFailedAttempts = map[string]jsonScalarKind{
 	"Value":    jsonScalarNumber,
 }
 
-// UnmarshalJSON decodes s, accepting a JSON string for any of its numbers and
-// booleans. See unmarshalLenientScalars for what is and is not coerced.
+// UnmarshalJSON decodes s, accepting a JSON string for any number or boolean
+// it declares, because the store this schema comes from serves back the
+// scalar encoding its writer used. A failure names the field it came from.
+//
+// Marshalling is unaffected, so writing s back sends the bare number or
+// boolean the spec declares rather than the encoding it was read as.
 func (s *MaximumFailedAttempts) UnmarshalJSON(data []byte) error {
 	type lenient MaximumFailedAttempts
 	var v lenient
-	if err := unmarshalLenientScalars(data, &v, lenientScalarsMaximumFailedAttempts, "MaximumFailedAttempts"); err != nil {
+	if err := unmarshalLenient(data, &v, lenientScalarsMaximumFailedAttempts, "MaximumFailedAttempts"); err != nil {
 		return err
 	}
 	*s = MaximumFailedAttempts(v)
@@ -521,12 +945,16 @@ var lenientScalarsMaximumGracePeriodInMinutes = map[string]jsonScalarKind{
 	"Value":    jsonScalarNumber,
 }
 
-// UnmarshalJSON decodes s, accepting a JSON string for any of its numbers and
-// booleans. See unmarshalLenientScalars for what is and is not coerced.
+// UnmarshalJSON decodes s, accepting a JSON string for any number or boolean
+// it declares, because the store this schema comes from serves back the
+// scalar encoding its writer used. A failure names the field it came from.
+//
+// Marshalling is unaffected, so writing s back sends the bare number or
+// boolean the spec declares rather than the encoding it was read as.
 func (s *MaximumGracePeriodInMinutes) UnmarshalJSON(data []byte) error {
 	type lenient MaximumGracePeriodInMinutes
 	var v lenient
-	if err := unmarshalLenientScalars(data, &v, lenientScalarsMaximumGracePeriodInMinutes, "MaximumGracePeriodInMinutes"); err != nil {
+	if err := unmarshalLenient(data, &v, lenientScalarsMaximumGracePeriodInMinutes, "MaximumGracePeriodInMinutes"); err != nil {
 		return err
 	}
 	*s = MaximumGracePeriodInMinutes(v)
@@ -539,12 +967,16 @@ var lenientScalarsMaximumInactivityInMinutes = map[string]jsonScalarKind{
 	"Value":    jsonScalarNumber,
 }
 
-// UnmarshalJSON decodes s, accepting a JSON string for any of its numbers and
-// booleans. See unmarshalLenientScalars for what is and is not coerced.
+// UnmarshalJSON decodes s, accepting a JSON string for any number or boolean
+// it declares, because the store this schema comes from serves back the
+// scalar encoding its writer used. A failure names the field it came from.
+//
+// Marshalling is unaffected, so writing s back sends the bare number or
+// boolean the spec declares rather than the encoding it was read as.
 func (s *MaximumInactivityInMinutes) UnmarshalJSON(data []byte) error {
 	type lenient MaximumInactivityInMinutes
 	var v lenient
-	if err := unmarshalLenientScalars(data, &v, lenientScalarsMaximumInactivityInMinutes, "MaximumInactivityInMinutes"); err != nil {
+	if err := unmarshalLenient(data, &v, lenientScalarsMaximumInactivityInMinutes, "MaximumInactivityInMinutes"); err != nil {
 		return err
 	}
 	*s = MaximumInactivityInMinutes(v)
@@ -557,12 +989,16 @@ var lenientScalarsMaximumPasscodeAgeInDays = map[string]jsonScalarKind{
 	"Value":    jsonScalarNumber,
 }
 
-// UnmarshalJSON decodes s, accepting a JSON string for any of its numbers and
-// booleans. See unmarshalLenientScalars for what is and is not coerced.
+// UnmarshalJSON decodes s, accepting a JSON string for any number or boolean
+// it declares, because the store this schema comes from serves back the
+// scalar encoding its writer used. A failure names the field it came from.
+//
+// Marshalling is unaffected, so writing s back sends the bare number or
+// boolean the spec declares rather than the encoding it was read as.
 func (s *MaximumPasscodeAgeInDays) UnmarshalJSON(data []byte) error {
 	type lenient MaximumPasscodeAgeInDays
 	var v lenient
-	if err := unmarshalLenientScalars(data, &v, lenientScalarsMaximumPasscodeAgeInDays, "MaximumPasscodeAgeInDays"); err != nil {
+	if err := unmarshalLenient(data, &v, lenientScalarsMaximumPasscodeAgeInDays, "MaximumPasscodeAgeInDays"); err != nil {
 		return err
 	}
 	*s = MaximumPasscodeAgeInDays(v)
@@ -575,12 +1011,16 @@ var lenientScalarsMinimumComplexCharacters = map[string]jsonScalarKind{
 	"Value":    jsonScalarNumber,
 }
 
-// UnmarshalJSON decodes s, accepting a JSON string for any of its numbers and
-// booleans. See unmarshalLenientScalars for what is and is not coerced.
+// UnmarshalJSON decodes s, accepting a JSON string for any number or boolean
+// it declares, because the store this schema comes from serves back the
+// scalar encoding its writer used. A failure names the field it came from.
+//
+// Marshalling is unaffected, so writing s back sends the bare number or
+// boolean the spec declares rather than the encoding it was read as.
 func (s *MinimumComplexCharacters) UnmarshalJSON(data []byte) error {
 	type lenient MinimumComplexCharacters
 	var v lenient
-	if err := unmarshalLenientScalars(data, &v, lenientScalarsMinimumComplexCharacters, "MinimumComplexCharacters"); err != nil {
+	if err := unmarshalLenient(data, &v, lenientScalarsMinimumComplexCharacters, "MinimumComplexCharacters"); err != nil {
 		return err
 	}
 	*s = MinimumComplexCharacters(v)
@@ -593,12 +1033,16 @@ var lenientScalarsMinimumLength = map[string]jsonScalarKind{
 	"Value":    jsonScalarNumber,
 }
 
-// UnmarshalJSON decodes s, accepting a JSON string for any of its numbers and
-// booleans. See unmarshalLenientScalars for what is and is not coerced.
+// UnmarshalJSON decodes s, accepting a JSON string for any number or boolean
+// it declares, because the store this schema comes from serves back the
+// scalar encoding its writer used. A failure names the field it came from.
+//
+// Marshalling is unaffected, so writing s back sends the bare number or
+// boolean the spec declares rather than the encoding it was read as.
 func (s *MinimumLength) UnmarshalJSON(data []byte) error {
 	type lenient MinimumLength
 	var v lenient
-	if err := unmarshalLenientScalars(data, &v, lenientScalarsMinimumLength, "MinimumLength"); err != nil {
+	if err := unmarshalLenient(data, &v, lenientScalarsMinimumLength, "MinimumLength"); err != nil {
 		return err
 	}
 	*s = MinimumLength(v)
@@ -610,12 +1054,16 @@ var lenientScalarsNewTabStartPage = map[string]jsonScalarKind{
 	"Included": jsonScalarBool,
 }
 
-// UnmarshalJSON decodes s, accepting a JSON string for any of its numbers and
-// booleans. See unmarshalLenientScalars for what is and is not coerced.
+// UnmarshalJSON decodes s, accepting a JSON string for any number or boolean
+// it declares, because the store this schema comes from serves back the
+// scalar encoding its writer used. A failure names the field it came from.
+//
+// Marshalling is unaffected, so writing s back sends the bare number or
+// boolean the spec declares rather than the encoding it was read as.
 func (s *NewTabStartPage) UnmarshalJSON(data []byte) error {
 	type lenient NewTabStartPage
 	var v lenient
-	if err := unmarshalLenientScalars(data, &v, lenientScalarsNewTabStartPage, "NewTabStartPage"); err != nil {
+	if err := unmarshalLenient(data, &v, lenientScalarsNewTabStartPage, "NewTabStartPage"); err != nil {
 		return err
 	}
 	*s = NewTabStartPage(v)
@@ -628,12 +1076,16 @@ var lenientScalarsOptionalPeriodInDays = map[string]jsonScalarKind{
 	"Value":    jsonScalarNumber,
 }
 
-// UnmarshalJSON decodes s, accepting a JSON string for any of its numbers and
-// booleans. See unmarshalLenientScalars for what is and is not coerced.
+// UnmarshalJSON decodes s, accepting a JSON string for any number or boolean
+// it declares, because the store this schema comes from serves back the
+// scalar encoding its writer used. A failure names the field it came from.
+//
+// Marshalling is unaffected, so writing s back sends the bare number or
+// boolean the spec declares rather than the encoding it was read as.
 func (s *OptionalPeriodInDays) UnmarshalJSON(data []byte) error {
 	type lenient OptionalPeriodInDays
 	var v lenient
-	if err := unmarshalLenientScalars(data, &v, lenientScalarsOptionalPeriodInDays, "OptionalPeriodInDays"); err != nil {
+	if err := unmarshalLenient(data, &v, lenientScalarsOptionalPeriodInDays, "OptionalPeriodInDays"); err != nil {
 		return err
 	}
 	*s = OptionalPeriodInDays(v)
@@ -646,12 +1098,16 @@ var lenientScalarsOptionallyEnabled = map[string]jsonScalarKind{
 	"Included": jsonScalarBool,
 }
 
-// UnmarshalJSON decodes s, accepting a JSON string for any of its numbers and
-// booleans. See unmarshalLenientScalars for what is and is not coerced.
+// UnmarshalJSON decodes s, accepting a JSON string for any number or boolean
+// it declares, because the store this schema comes from serves back the
+// scalar encoding its writer used. A failure names the field it came from.
+//
+// Marshalling is unaffected, so writing s back sends the bare number or
+// boolean the spec declares rather than the encoding it was read as.
 func (s *OptionallyEnabled) UnmarshalJSON(data []byte) error {
 	type lenient OptionallyEnabled
 	var v lenient
-	if err := unmarshalLenientScalars(data, &v, lenientScalarsOptionallyEnabled, "OptionallyEnabled"); err != nil {
+	if err := unmarshalLenient(data, &v, lenientScalarsOptionallyEnabled, "OptionallyEnabled"); err != nil {
 		return err
 	}
 	*s = OptionallyEnabled(v)
@@ -664,15 +1120,40 @@ var lenientScalarsPasscodeReuseLimit = map[string]jsonScalarKind{
 	"Value":    jsonScalarNumber,
 }
 
-// UnmarshalJSON decodes s, accepting a JSON string for any of its numbers and
-// booleans. See unmarshalLenientScalars for what is and is not coerced.
+// UnmarshalJSON decodes s, accepting a JSON string for any number or boolean
+// it declares, because the store this schema comes from serves back the
+// scalar encoding its writer used. A failure names the field it came from.
+//
+// Marshalling is unaffected, so writing s back sends the bare number or
+// boolean the spec declares rather than the encoding it was read as.
 func (s *PasscodeReuseLimit) UnmarshalJSON(data []byte) error {
 	type lenient PasscodeReuseLimit
 	var v lenient
-	if err := unmarshalLenientScalars(data, &v, lenientScalarsPasscodeReuseLimit, "PasscodeReuseLimit"); err != nil {
+	if err := unmarshalLenient(data, &v, lenientScalarsPasscodeReuseLimit, "PasscodeReuseLimit"); err != nil {
 		return err
 	}
 	*s = PasscodeReuseLimit(v)
+	return nil
+}
+
+// lenientScalarsPasscodeSettingsComponent names the scalars PasscodeSettingsComponent declares, for its UnmarshalJSON.
+// It declares none of its own: the decoder exists to name the field a
+// child decoder failed on.
+var lenientScalarsPasscodeSettingsComponent = map[string]jsonScalarKind{}
+
+// UnmarshalJSON decodes s, accepting a JSON string for any number or boolean
+// it declares, because the store this schema comes from serves back the
+// scalar encoding its writer used. A failure names the field it came from.
+//
+// Marshalling is unaffected, so writing s back sends the bare number or
+// boolean the spec declares rather than the encoding it was read as.
+func (s *PasscodeSettingsComponent) UnmarshalJSON(data []byte) error {
+	type lenient PasscodeSettingsComponent
+	var v lenient
+	if err := unmarshalLenient(data, &v, lenientScalarsPasscodeSettingsComponent, "PasscodeSettingsComponent"); err != nil {
+		return err
+	}
+	*s = PasscodeSettingsComponent(v)
 	return nil
 }
 
@@ -681,12 +1162,16 @@ var lenientScalarsPasscodeSettingsConfiguration = map[string]jsonScalarKind{
 	"version": jsonScalarNumber,
 }
 
-// UnmarshalJSON decodes s, accepting a JSON string for any of its numbers and
-// booleans. See unmarshalLenientScalars for what is and is not coerced.
+// UnmarshalJSON decodes s, accepting a JSON string for any number or boolean
+// it declares, because the store this schema comes from serves back the
+// scalar encoding its writer used. A failure names the field it came from.
+//
+// Marshalling is unaffected, so writing s back sends the bare number or
+// boolean the spec declares rather than the encoding it was read as.
 func (s *PasscodeSettingsConfiguration) UnmarshalJSON(data []byte) error {
 	type lenient PasscodeSettingsConfiguration
 	var v lenient
-	if err := unmarshalLenientScalars(data, &v, lenientScalarsPasscodeSettingsConfiguration, "PasscodeSettingsConfiguration"); err != nil {
+	if err := unmarshalLenient(data, &v, lenientScalarsPasscodeSettingsConfiguration, "PasscodeSettingsConfiguration"); err != nil {
 		return err
 	}
 	*s = PasscodeSettingsConfiguration(v)
@@ -699,15 +1184,40 @@ var lenientScalarsProgrammerMode = map[string]jsonScalarKind{
 	"Included": jsonScalarBool,
 }
 
-// UnmarshalJSON decodes s, accepting a JSON string for any of its numbers and
-// booleans. See unmarshalLenientScalars for what is and is not coerced.
+// UnmarshalJSON decodes s, accepting a JSON string for any number or boolean
+// it declares, because the store this schema comes from serves back the
+// scalar encoding its writer used. A failure names the field it came from.
+//
+// Marshalling is unaffected, so writing s back sends the bare number or
+// boolean the spec declares rather than the encoding it was read as.
 func (s *ProgrammerMode) UnmarshalJSON(data []byte) error {
 	type lenient ProgrammerMode
 	var v lenient
-	if err := unmarshalLenientScalars(data, &v, lenientScalarsProgrammerMode, "ProgrammerMode"); err != nil {
+	if err := unmarshalLenient(data, &v, lenientScalarsProgrammerMode, "ProgrammerMode"); err != nil {
 		return err
 	}
 	*s = ProgrammerMode(v)
+	return nil
+}
+
+// lenientScalarsRapidSecurityResponse names the scalars RapidSecurityResponse declares, for its UnmarshalJSON.
+// It declares none of its own: the decoder exists to name the field a
+// child decoder failed on.
+var lenientScalarsRapidSecurityResponse = map[string]jsonScalarKind{}
+
+// UnmarshalJSON decodes s, accepting a JSON string for any number or boolean
+// it declares, because the store this schema comes from serves back the
+// scalar encoding its writer used. A failure names the field it came from.
+//
+// Marshalling is unaffected, so writing s back sends the bare number or
+// boolean the spec declares rather than the encoding it was read as.
+func (s *RapidSecurityResponse) UnmarshalJSON(data []byte) error {
+	type lenient RapidSecurityResponse
+	var v lenient
+	if err := unmarshalLenient(data, &v, lenientScalarsRapidSecurityResponse, "RapidSecurityResponse"); err != nil {
+		return err
+	}
+	*s = RapidSecurityResponse(v)
 	return nil
 }
 
@@ -716,12 +1226,16 @@ var lenientScalarsRecommendedCadence = map[string]jsonScalarKind{
 	"Included": jsonScalarBool,
 }
 
-// UnmarshalJSON decodes s, accepting a JSON string for any of its numbers and
-// booleans. See unmarshalLenientScalars for what is and is not coerced.
+// UnmarshalJSON decodes s, accepting a JSON string for any number or boolean
+// it declares, because the store this schema comes from serves back the
+// scalar encoding its writer used. A failure names the field it came from.
+//
+// Marshalling is unaffected, so writing s back sends the bare number or
+// boolean the spec declares rather than the encoding it was read as.
 func (s *RecommendedCadence) UnmarshalJSON(data []byte) error {
 	type lenient RecommendedCadence
 	var v lenient
-	if err := unmarshalLenientScalars(data, &v, lenientScalarsRecommendedCadence, "RecommendedCadence"); err != nil {
+	if err := unmarshalLenient(data, &v, lenientScalarsRecommendedCadence, "RecommendedCadence"); err != nil {
 		return err
 	}
 	*s = RecommendedCadence(v)
@@ -734,12 +1248,16 @@ var lenientScalarsRequireAlphanumericPasscode = map[string]jsonScalarKind{
 	"Value":    jsonScalarBool,
 }
 
-// UnmarshalJSON decodes s, accepting a JSON string for any of its numbers and
-// booleans. See unmarshalLenientScalars for what is and is not coerced.
+// UnmarshalJSON decodes s, accepting a JSON string for any number or boolean
+// it declares, because the store this schema comes from serves back the
+// scalar encoding its writer used. A failure names the field it came from.
+//
+// Marshalling is unaffected, so writing s back sends the bare number or
+// boolean the spec declares rather than the encoding it was read as.
 func (s *RequireAlphanumericPasscode) UnmarshalJSON(data []byte) error {
 	type lenient RequireAlphanumericPasscode
 	var v lenient
-	if err := unmarshalLenientScalars(data, &v, lenientScalarsRequireAlphanumericPasscode, "RequireAlphanumericPasscode"); err != nil {
+	if err := unmarshalLenient(data, &v, lenientScalarsRequireAlphanumericPasscode, "RequireAlphanumericPasscode"); err != nil {
 		return err
 	}
 	*s = RequireAlphanumericPasscode(v)
@@ -752,12 +1270,16 @@ var lenientScalarsRequireComplexPasscode = map[string]jsonScalarKind{
 	"Value":    jsonScalarBool,
 }
 
-// UnmarshalJSON decodes s, accepting a JSON string for any of its numbers and
-// booleans. See unmarshalLenientScalars for what is and is not coerced.
+// UnmarshalJSON decodes s, accepting a JSON string for any number or boolean
+// it declares, because the store this schema comes from serves back the
+// scalar encoding its writer used. A failure names the field it came from.
+//
+// Marshalling is unaffected, so writing s back sends the bare number or
+// boolean the spec declares rather than the encoding it was read as.
 func (s *RequireComplexPasscode) UnmarshalJSON(data []byte) error {
 	type lenient RequireComplexPasscode
 	var v lenient
-	if err := unmarshalLenientScalars(data, &v, lenientScalarsRequireComplexPasscode, "RequireComplexPasscode"); err != nil {
+	if err := unmarshalLenient(data, &v, lenientScalarsRequireComplexPasscode, "RequireComplexPasscode"); err != nil {
 		return err
 	}
 	*s = RequireComplexPasscode(v)
@@ -770,15 +1292,82 @@ var lenientScalarsRequirePasscode = map[string]jsonScalarKind{
 	"Value":    jsonScalarBool,
 }
 
-// UnmarshalJSON decodes s, accepting a JSON string for any of its numbers and
-// booleans. See unmarshalLenientScalars for what is and is not coerced.
+// UnmarshalJSON decodes s, accepting a JSON string for any number or boolean
+// it declares, because the store this schema comes from serves back the
+// scalar encoding its writer used. A failure names the field it came from.
+//
+// Marshalling is unaffected, so writing s back sends the bare number or
+// boolean the spec declares rather than the encoding it was read as.
 func (s *RequirePasscode) UnmarshalJSON(data []byte) error {
 	type lenient RequirePasscode
 	var v lenient
-	if err := unmarshalLenientScalars(data, &v, lenientScalarsRequirePasscode, "RequirePasscode"); err != nil {
+	if err := unmarshalLenient(data, &v, lenientScalarsRequirePasscode, "RequirePasscode"); err != nil {
 		return err
 	}
 	*s = RequirePasscode(v)
+	return nil
+}
+
+// lenientScalarsRestrictions names the scalars Restrictions declares, for its UnmarshalJSON.
+// It declares none of its own: the decoder exists to name the field a
+// child decoder failed on.
+var lenientScalarsRestrictions = map[string]jsonScalarKind{}
+
+// UnmarshalJSON decodes s, accepting a JSON string for any number or boolean
+// it declares, because the store this schema comes from serves back the
+// scalar encoding its writer used. A failure names the field it came from.
+//
+// Marshalling is unaffected, so writing s back sends the bare number or
+// boolean the spec declares rather than the encoding it was read as.
+func (s *Restrictions) UnmarshalJSON(data []byte) error {
+	type lenient Restrictions
+	var v lenient
+	if err := unmarshalLenient(data, &v, lenientScalarsRestrictions, "Restrictions"); err != nil {
+		return err
+	}
+	*s = Restrictions(v)
+	return nil
+}
+
+// lenientScalarsSafariSettingsComponent names the scalars SafariSettingsComponent declares, for its UnmarshalJSON.
+// It declares none of its own: the decoder exists to name the field a
+// child decoder failed on.
+var lenientScalarsSafariSettingsComponent = map[string]jsonScalarKind{}
+
+// UnmarshalJSON decodes s, accepting a JSON string for any number or boolean
+// it declares, because the store this schema comes from serves back the
+// scalar encoding its writer used. A failure names the field it came from.
+//
+// Marshalling is unaffected, so writing s back sends the bare number or
+// boolean the spec declares rather than the encoding it was read as.
+func (s *SafariSettingsComponent) UnmarshalJSON(data []byte) error {
+	type lenient SafariSettingsComponent
+	var v lenient
+	if err := unmarshalLenient(data, &v, lenientScalarsSafariSettingsComponent, "SafariSettingsComponent"); err != nil {
+		return err
+	}
+	*s = SafariSettingsComponent(v)
+	return nil
+}
+
+// lenientScalarsSafariSettingsConfiguration names the scalars SafariSettingsConfiguration declares, for its UnmarshalJSON.
+// It declares none of its own: the decoder exists to name the field a
+// child decoder failed on.
+var lenientScalarsSafariSettingsConfiguration = map[string]jsonScalarKind{}
+
+// UnmarshalJSON decodes s, accepting a JSON string for any number or boolean
+// it declares, because the store this schema comes from serves back the
+// scalar encoding its writer used. A failure names the field it came from.
+//
+// Marshalling is unaffected, so writing s back sends the bare number or
+// boolean the spec declares rather than the encoding it was read as.
+func (s *SafariSettingsConfiguration) UnmarshalJSON(data []byte) error {
+	type lenient SafariSettingsConfiguration
+	var v lenient
+	if err := unmarshalLenient(data, &v, lenientScalarsSafariSettingsConfiguration, "SafariSettingsConfiguration"); err != nil {
+		return err
+	}
+	*s = SafariSettingsConfiguration(v)
 	return nil
 }
 
@@ -788,15 +1377,61 @@ var lenientScalarsScientificMode = map[string]jsonScalarKind{
 	"Included": jsonScalarBool,
 }
 
-// UnmarshalJSON decodes s, accepting a JSON string for any of its numbers and
-// booleans. See unmarshalLenientScalars for what is and is not coerced.
+// UnmarshalJSON decodes s, accepting a JSON string for any number or boolean
+// it declares, because the store this schema comes from serves back the
+// scalar encoding its writer used. A failure names the field it came from.
+//
+// Marshalling is unaffected, so writing s back sends the bare number or
+// boolean the spec declares rather than the encoding it was read as.
 func (s *ScientificMode) UnmarshalJSON(data []byte) error {
 	type lenient ScientificMode
 	var v lenient
-	if err := unmarshalLenientScalars(data, &v, lenientScalarsScientificMode, "ScientificMode"); err != nil {
+	if err := unmarshalLenient(data, &v, lenientScalarsScientificMode, "ScientificMode"); err != nil {
 		return err
 	}
 	*s = ScientificMode(v)
+	return nil
+}
+
+// lenientScalarsSoftwareUpdateSettingsComponent names the scalars SoftwareUpdateSettingsComponent declares, for its UnmarshalJSON.
+// It declares none of its own: the decoder exists to name the field a
+// child decoder failed on.
+var lenientScalarsSoftwareUpdateSettingsComponent = map[string]jsonScalarKind{}
+
+// UnmarshalJSON decodes s, accepting a JSON string for any number or boolean
+// it declares, because the store this schema comes from serves back the
+// scalar encoding its writer used. A failure names the field it came from.
+//
+// Marshalling is unaffected, so writing s back sends the bare number or
+// boolean the spec declares rather than the encoding it was read as.
+func (s *SoftwareUpdateSettingsComponent) UnmarshalJSON(data []byte) error {
+	type lenient SoftwareUpdateSettingsComponent
+	var v lenient
+	if err := unmarshalLenient(data, &v, lenientScalarsSoftwareUpdateSettingsComponent, "SoftwareUpdateSettingsComponent"); err != nil {
+		return err
+	}
+	*s = SoftwareUpdateSettingsComponent(v)
+	return nil
+}
+
+// lenientScalarsSoftwareUpdateSettingsConfiguration names the scalars SoftwareUpdateSettingsConfiguration declares, for its UnmarshalJSON.
+// It declares none of its own: the decoder exists to name the field a
+// child decoder failed on.
+var lenientScalarsSoftwareUpdateSettingsConfiguration = map[string]jsonScalarKind{}
+
+// UnmarshalJSON decodes s, accepting a JSON string for any number or boolean
+// it declares, because the store this schema comes from serves back the
+// scalar encoding its writer used. A failure names the field it came from.
+//
+// Marshalling is unaffected, so writing s back sends the bare number or
+// boolean the spec declares rather than the encoding it was read as.
+func (s *SoftwareUpdateSettingsConfiguration) UnmarshalJSON(data []byte) error {
+	type lenient SoftwareUpdateSettingsConfiguration
+	var v lenient
+	if err := unmarshalLenient(data, &v, lenientScalarsSoftwareUpdateSettingsConfiguration, "SoftwareUpdateSettingsConfiguration"); err != nil {
+		return err
+	}
+	*s = SoftwareUpdateSettingsConfiguration(v)
 	return nil
 }
 
@@ -805,15 +1440,40 @@ var lenientScalarsStorageMode = map[string]jsonScalarKind{
 	"Included": jsonScalarBool,
 }
 
-// UnmarshalJSON decodes s, accepting a JSON string for any of its numbers and
-// booleans. See unmarshalLenientScalars for what is and is not coerced.
+// UnmarshalJSON decodes s, accepting a JSON string for any number or boolean
+// it declares, because the store this schema comes from serves back the
+// scalar encoding its writer used. A failure names the field it came from.
+//
+// Marshalling is unaffected, so writing s back sends the bare number or
+// boolean the spec declares rather than the encoding it was read as.
 func (s *StorageMode) UnmarshalJSON(data []byte) error {
 	type lenient StorageMode
 	var v lenient
-	if err := unmarshalLenientScalars(data, &v, lenientScalarsStorageMode, "StorageMode"); err != nil {
+	if err := unmarshalLenient(data, &v, lenientScalarsStorageMode, "StorageMode"); err != nil {
 		return err
 	}
 	*s = StorageMode(v)
+	return nil
+}
+
+// lenientScalarsSwUpdateComponent names the scalars SwUpdateComponent declares, for its UnmarshalJSON.
+// It declares none of its own: the decoder exists to name the field a
+// child decoder failed on.
+var lenientScalarsSwUpdateComponent = map[string]jsonScalarKind{}
+
+// UnmarshalJSON decodes s, accepting a JSON string for any number or boolean
+// it declares, because the store this schema comes from serves back the
+// scalar encoding its writer used. A failure names the field it came from.
+//
+// Marshalling is unaffected, so writing s back sends the bare number or
+// boolean the spec declares rather than the encoding it was read as.
+func (s *SwUpdateComponent) UnmarshalJSON(data []byte) error {
+	type lenient SwUpdateComponent
+	var v lenient
+	if err := unmarshalLenient(data, &v, lenientScalarsSwUpdateComponent, "SwUpdateComponent"); err != nil {
+		return err
+	}
+	*s = SwUpdateComponent(v)
 	return nil
 }
 
@@ -822,15 +1482,61 @@ var lenientScalarsSwUpdateLatestConfiguration = map[string]jsonScalarKind{
 	"enforceAfterDays": jsonScalarNumber,
 }
 
-// UnmarshalJSON decodes s, accepting a JSON string for any of its numbers and
-// booleans. See unmarshalLenientScalars for what is and is not coerced.
+// UnmarshalJSON decodes s, accepting a JSON string for any number or boolean
+// it declares, because the store this schema comes from serves back the
+// scalar encoding its writer used. A failure names the field it came from.
+//
+// Marshalling is unaffected, so writing s back sends the bare number or
+// boolean the spec declares rather than the encoding it was read as.
 func (s *SwUpdateLatestConfiguration) UnmarshalJSON(data []byte) error {
 	type lenient SwUpdateLatestConfiguration
 	var v lenient
-	if err := unmarshalLenientScalars(data, &v, lenientScalarsSwUpdateLatestConfiguration, "SwUpdateLatestConfiguration"); err != nil {
+	if err := unmarshalLenient(data, &v, lenientScalarsSwUpdateLatestConfiguration, "SwUpdateLatestConfiguration"); err != nil {
 		return err
 	}
 	*s = SwUpdateLatestConfiguration(v)
+	return nil
+}
+
+// lenientScalarsSwUpdateManualConfiguration names the scalars SwUpdateManualConfiguration declares, for its UnmarshalJSON.
+// It declares none of its own: the decoder exists to name the field a
+// child decoder failed on.
+var lenientScalarsSwUpdateManualConfiguration = map[string]jsonScalarKind{}
+
+// UnmarshalJSON decodes s, accepting a JSON string for any number or boolean
+// it declares, because the store this schema comes from serves back the
+// scalar encoding its writer used. A failure names the field it came from.
+//
+// Marshalling is unaffected, so writing s back sends the bare number or
+// boolean the spec declares rather than the encoding it was read as.
+func (s *SwUpdateManualConfiguration) UnmarshalJSON(data []byte) error {
+	type lenient SwUpdateManualConfiguration
+	var v lenient
+	if err := unmarshalLenient(data, &v, lenientScalarsSwUpdateManualConfiguration, "SwUpdateManualConfiguration"); err != nil {
+		return err
+	}
+	*s = SwUpdateManualConfiguration(v)
+	return nil
+}
+
+// lenientScalarsSwUpdateSemanticConfiguration names the scalars SwUpdateSemanticConfiguration declares, for its UnmarshalJSON.
+// It declares none of its own: the decoder exists to name the field a
+// child decoder failed on.
+var lenientScalarsSwUpdateSemanticConfiguration = map[string]jsonScalarKind{}
+
+// UnmarshalJSON decodes s, accepting a JSON string for any number or boolean
+// it declares, because the store this schema comes from serves back the
+// scalar encoding its writer used. A failure names the field it came from.
+//
+// Marshalling is unaffected, so writing s back sends the bare number or
+// boolean the spec declares rather than the encoding it was read as.
+func (s *SwUpdateSemanticConfiguration) UnmarshalJSON(data []byte) error {
+	type lenient SwUpdateSemanticConfiguration
+	var v lenient
+	if err := unmarshalLenient(data, &v, lenientScalarsSwUpdateSemanticConfiguration, "SwUpdateSemanticConfiguration"); err != nil {
+		return err
+	}
+	*s = SwUpdateSemanticConfiguration(v)
 	return nil
 }
 
@@ -841,12 +1547,16 @@ var lenientScalarsSystemBehavior = map[string]jsonScalarKind{
 	"MathNotes":           jsonScalarBool,
 }
 
-// UnmarshalJSON decodes s, accepting a JSON string for any of its numbers and
-// booleans. See unmarshalLenientScalars for what is and is not coerced.
+// UnmarshalJSON decodes s, accepting a JSON string for any number or boolean
+// it declares, because the store this schema comes from serves back the
+// scalar encoding its writer used. A failure names the field it came from.
+//
+// Marshalling is unaffected, so writing s back sends the bare number or
+// boolean the spec declares rather than the encoding it was read as.
 func (s *SystemBehavior) UnmarshalJSON(data []byte) error {
 	type lenient SystemBehavior
 	var v lenient
-	if err := unmarshalLenientScalars(data, &v, lenientScalarsSystemBehavior, "SystemBehavior"); err != nil {
+	if err := unmarshalLenient(data, &v, lenientScalarsSystemBehavior, "SystemBehavior"); err != nil {
 		return err
 	}
 	*s = SystemBehavior(v)
@@ -859,15 +1569,40 @@ var lenientScalarsTemporaryPairing = map[string]jsonScalarKind{
 	"Included": jsonScalarBool,
 }
 
-// UnmarshalJSON decodes s, accepting a JSON string for any of its numbers and
-// booleans. See unmarshalLenientScalars for what is and is not coerced.
+// UnmarshalJSON decodes s, accepting a JSON string for any number or boolean
+// it declares, because the store this schema comes from serves back the
+// scalar encoding its writer used. A failure names the field it came from.
+//
+// Marshalling is unaffected, so writing s back sends the bare number or
+// boolean the spec declares rather than the encoding it was read as.
 func (s *TemporaryPairing) UnmarshalJSON(data []byte) error {
 	type lenient TemporaryPairing
 	var v lenient
-	if err := unmarshalLenientScalars(data, &v, lenientScalarsTemporaryPairing, "TemporaryPairing"); err != nil {
+	if err := unmarshalLenient(data, &v, lenientScalarsTemporaryPairing, "TemporaryPairing"); err != nil {
 		return err
 	}
 	*s = TemporaryPairing(v)
+	return nil
+}
+
+// lenientScalarsTemporaryPairingConfig names the scalars TemporaryPairingConfig declares, for its UnmarshalJSON.
+// It declares none of its own: the decoder exists to name the field a
+// child decoder failed on.
+var lenientScalarsTemporaryPairingConfig = map[string]jsonScalarKind{}
+
+// UnmarshalJSON decodes s, accepting a JSON string for any number or boolean
+// it declares, because the store this schema comes from serves back the
+// scalar encoding its writer used. A failure names the field it came from.
+//
+// Marshalling is unaffected, so writing s back sends the bare number or
+// boolean the spec declares rather than the encoding it was read as.
+func (s *TemporaryPairingConfig) UnmarshalJSON(data []byte) error {
+	type lenient TemporaryPairingConfig
+	var v lenient
+	if err := unmarshalLenient(data, &v, lenientScalarsTemporaryPairingConfig, "TemporaryPairingConfig"); err != nil {
+		return err
+	}
+	*s = TemporaryPairingConfig(v)
 	return nil
 }
 
@@ -876,12 +1611,16 @@ var lenientScalarsUnpairingTime = map[string]jsonScalarKind{
 	"Hour": jsonScalarNumber,
 }
 
-// UnmarshalJSON decodes s, accepting a JSON string for any of its numbers and
-// booleans. See unmarshalLenientScalars for what is and is not coerced.
+// UnmarshalJSON decodes s, accepting a JSON string for any number or boolean
+// it declares, because the store this schema comes from serves back the
+// scalar encoding its writer used. A failure names the field it came from.
+//
+// Marshalling is unaffected, so writing s back sends the bare number or
+// boolean the spec declares rather than the encoding it was read as.
 func (s *UnpairingTime) UnmarshalJSON(data []byte) error {
 	type lenient UnpairingTime
 	var v lenient
-	if err := unmarshalLenientScalars(data, &v, lenientScalarsUnpairingTime, "UnpairingTime"); err != nil {
+	if err := unmarshalLenient(data, &v, lenientScalarsUnpairingTime, "UnpairingTime"); err != nil {
 		return err
 	}
 	*s = UnpairingTime(v)
@@ -893,14 +1632,39 @@ var lenientScalarsUpdateRule = map[string]jsonScalarKind{
 	"enforceAfterDays": jsonScalarNumber,
 }
 
-// UnmarshalJSON decodes s, accepting a JSON string for any of its numbers and
-// booleans. See unmarshalLenientScalars for what is and is not coerced.
+// UnmarshalJSON decodes s, accepting a JSON string for any number or boolean
+// it declares, because the store this schema comes from serves back the
+// scalar encoding its writer used. A failure names the field it came from.
+//
+// Marshalling is unaffected, so writing s back sends the bare number or
+// boolean the spec declares rather than the encoding it was read as.
 func (s *UpdateRule) UnmarshalJSON(data []byte) error {
 	type lenient UpdateRule
 	var v lenient
-	if err := unmarshalLenientScalars(data, &v, lenientScalarsUpdateRule, "UpdateRule"); err != nil {
+	if err := unmarshalLenient(data, &v, lenientScalarsUpdateRule, "UpdateRule"); err != nil {
 		return err
 	}
 	*s = UpdateRule(v)
+	return nil
+}
+
+// lenientScalarsUpdateRules names the scalars UpdateRules declares, for its UnmarshalJSON.
+// It declares none of its own: the decoder exists to name the field a
+// child decoder failed on.
+var lenientScalarsUpdateRules = map[string]jsonScalarKind{}
+
+// UnmarshalJSON decodes s, accepting a JSON string for any number or boolean
+// it declares, because the store this schema comes from serves back the
+// scalar encoding its writer used. A failure names the field it came from.
+//
+// Marshalling is unaffected, so writing s back sends the bare number or
+// boolean the spec declares rather than the encoding it was read as.
+func (s *UpdateRules) UnmarshalJSON(data []byte) error {
+	type lenient UpdateRules
+	var v lenient
+	if err := unmarshalLenient(data, &v, lenientScalarsUpdateRules, "UpdateRules"); err != nil {
+		return err
+	}
+	*s = UpdateRules(v)
 	return nil
 }

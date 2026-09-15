@@ -22,6 +22,25 @@ type lenientScalarCase struct {
 	keys map[string]jsonScalarKind
 }
 
+// lenientUnionCase is one path from a discriminated union down to a leaf that
+// carries a coerced number, rendered as the flat object the union's own
+// UnmarshalJSON dispatches on.
+type lenientUnionCase struct {
+	name       string
+	typ        reflect.Type
+	discrim    [][2]string
+	scalarJSON string
+}
+
+// lenientParentCase is one parent type paired with a child field carrying a
+// coerced number, for the attribution assertion.
+type lenientParentCase struct {
+	name      string
+	typ       reflect.Type
+	childJSON string
+	childKey  string
+}
+
 // body renders a JSON object setting every key in the case, quoting the values
 // when quoted is true. Keys are emitted in sorted order so a failure names the
 // same body every run.
@@ -42,6 +61,22 @@ func (c lenientScalarCase) body(quoted bool) string {
 		}
 		parts = append(parts, fmt.Sprintf("%q:%s", name, lit))
 	}
+	return "{" + strings.Join(parts, ",") + "}"
+}
+
+// body renders the union path as one flat object: every discriminator on the
+// way down plus the leaf's own scalar, which is what the dispatch actually
+// receives since a union hands the same bytes to the variant it selects.
+func (c lenientUnionCase) body(quoted bool) string {
+	parts := make([]string, 0, len(c.discrim)+1)
+	for _, d := range c.discrim {
+		parts = append(parts, fmt.Sprintf("%q:%q", d[0], d[1]))
+	}
+	lit := "1"
+	if quoted {
+		lit = `"1"`
+	}
+	parts = append(parts, fmt.Sprintf("%q:%s", c.scalarJSON, lit))
 	return "{" + strings.Join(parts, ",") + "}"
 }
 
@@ -69,6 +104,81 @@ func TestLenientScalars_StringEncodingDecodesToTheSameValue(t *testing.T) {
 	}
 }
 
+// TestLenientScalars_KeysAreRealFieldTags pins that every coerced key names a
+// field the type actually declares. The equality test above cannot see this:
+// a key matching no field is ignored by encoding/json on both the bare and the
+// quoted side, so both decodes land on the same untouched zero value and the
+// comparison passes with nothing coerced.
+func TestLenientScalars_KeysAreRealFieldTags(t *testing.T) {
+	for _, c := range lenientScalarCases {
+		t.Run(c.name, func(t *testing.T) {
+			declared := make(map[string]bool)
+			for i := range c.typ.NumField() {
+				if name := jsonFieldName(c.typ.Field(i)); name != "" {
+					declared[name] = true
+				}
+			}
+			for key := range c.keys {
+				if !declared[key] {
+					t.Errorf("coerced key %q names no field of %s", key, c.name)
+				}
+			}
+		})
+	}
+}
+
+// TestLenientScalars_UnionDispatchReachesTheLenientLeaf decodes through a
+// discriminated union's own UnmarshalJSON rather than into the leaf directly.
+// Every other test here constructs the leaf type itself, so a discriminator
+// template that stopped delegating to a variant's own UnmarshalJSON — by
+// decoding into a value copy, say — would ship with the whole suite green.
+func TestLenientScalars_UnionDispatchReachesTheLenientLeaf(t *testing.T) {
+	if len(lenientUnionCases) == 0 {
+		t.Skip("no discriminated union in this package reaches a coerced number")
+	}
+	for _, c := range lenientUnionCases {
+		t.Run(c.name, func(t *testing.T) {
+			bare := reflect.New(c.typ)
+			if err := json.Unmarshal([]byte(c.body(false)), bare.Interface()); err != nil {
+				t.Fatalf("decoding the bare form %s: %v", c.body(false), err)
+			}
+			quoted := reflect.New(c.typ)
+			if err := json.Unmarshal([]byte(c.body(true)), quoted.Interface()); err != nil {
+				t.Fatalf("decoding the string form %s through the union: %v", c.body(true), err)
+			}
+			if !reflect.DeepEqual(bare.Elem().Interface(), quoted.Elem().Interface()) {
+				t.Fatalf("the union dispatched the two encodings differently:\n bare:   %#v\n quoted: %#v",
+					bare.Elem().Interface(), quoted.Elem().Interface())
+			}
+		})
+	}
+}
+
+// TestLenientScalars_FailureNamesTheChildField is the regression for the
+// diagnostic half. encoding/json returns a nested Unmarshaler's error verbatim,
+// so before the parent decoders a failure inside a child arrived naming only
+// the child's own type — and a parent declaring several fields of that one type
+// left the caller unable to tell which field was at fault.
+func TestLenientScalars_FailureNamesTheChildField(t *testing.T) {
+	if len(lenientParentCases) == 0 {
+		t.Skip("no emitted type has a child carrying a coerced number")
+	}
+	for _, c := range lenientParentCases {
+		t.Run(c.name+"/"+c.childJSON, func(t *testing.T) {
+			body := fmt.Sprintf(`{%q:{%q:"not-a-number"}}`, c.childJSON, c.childKey)
+			v := reflect.New(c.typ)
+			err := json.Unmarshal([]byte(body), v.Interface())
+			if err == nil {
+				t.Fatalf("decoding %s should fail", body)
+			}
+			want := c.name + "." + c.childJSON
+			if !strings.Contains(err.Error(), want) {
+				t.Errorf("error does not name the field %q: %v", want, err)
+			}
+		})
+	}
+}
+
 // TestLenientScalars_NonScalarStringStillFails pins the boundary. The coercion
 // unquotes a string only when the text it carries is a valid JSON scalar of the
 // declared kind, so a genuinely wrong value has to keep failing the decode —
@@ -88,6 +198,32 @@ func TestLenientScalars_NonScalarStringStillFails(t *testing.T) {
 					t.Fatalf("decoding %s succeeded; a string that is not a scalar of kind %d must still fail", body, kind)
 				}
 			})
+		}
+	}
+}
+
+// TestLenientScalars_ValidJSONNonNumberStillFails is the other half of that
+// boundary, and the half json.Valid cannot carry. "null", "true" and the
+// bracket forms are all valid JSON, so only the leading-byte check rejects
+// them — and a quoted "null" rewritten to bare null decodes into a
+// non-pointer field as a silent no-op, which is the one outcome the coercion
+// must never produce.
+func TestLenientScalars_ValidJSONNonNumberStillFails(t *testing.T) {
+	for _, c := range lenientScalarCases {
+		for name, kind := range c.keys {
+			if kind != jsonScalarNumber {
+				continue
+			}
+			for _, bad := range []string{"null", "true", "false", "[]", "{}"} {
+				t.Run(c.name+"/"+name+"/"+bad, func(t *testing.T) {
+					v := reflect.New(c.typ)
+					body := fmt.Sprintf(`{%q:%q}`, name, bad)
+					if err := json.Unmarshal([]byte(body), v.Interface()); err == nil {
+						t.Fatalf("decoding %s succeeded; %q is valid JSON but not a number", body, bad)
+					}
+				})
+			}
+			break
 		}
 	}
 }
@@ -121,13 +257,38 @@ func TestLenientScalars_NonObjectBodyKeepsTheOriginalError(t *testing.T) {
 	var target struct {
 		Count int `json:"count"`
 	}
-	err := unmarshalLenientScalars([]byte(`["not","an","object"]`), &target,
+	err := unmarshalLenient([]byte(`["not","an","object"]`), &target,
 		map[string]jsonScalarKind{"count": jsonScalarNumber}, "probe")
 	if err == nil {
 		t.Fatal("decoding a JSON array into a struct should fail")
 	}
 	if !strings.Contains(err.Error(), "array") {
 		t.Errorf("error = %v, want the original decode error naming the array", err)
+	}
+}
+
+// TestLenientScalars_ReportsThePostRewriteError pins which of the two errors a
+// caller sees. The rewrite has already handled the encoding the first error
+// described, so reporting that one blames a key the coercion fixed and hides
+// the fault that is actually left.
+func TestLenientScalars_ReportsThePostRewriteError(t *testing.T) {
+	type child struct {
+		N int `json:"n"`
+	}
+	var target struct {
+		Count int    `json:"count"`
+		Child *child `json:"child"`
+	}
+	err := unmarshalLenient([]byte(`{"count":"9","child":123}`), &target,
+		map[string]jsonScalarKind{"count": jsonScalarNumber}, "probe")
+	if err == nil {
+		t.Fatal("decoding an integer into a struct field should fail")
+	}
+	if !strings.Contains(err.Error(), "child") {
+		t.Errorf("error = %v, want it to name child, the fault the rewrite did not fix", err)
+	}
+	if strings.Contains(err.Error(), "count") {
+		t.Errorf("error = %v, names count, which the rewrite already fixed", err)
 	}
 }
 
@@ -139,7 +300,7 @@ func TestLenientScalars_WideNumberKeepsItsDigits(t *testing.T) {
 		Count int64 `json:"count"`
 	}
 	const want = 9007199254740993
-	if err := unmarshalLenientScalars([]byte(`{"count":"9007199254740993"}`), &target,
+	if err := unmarshalLenient([]byte(`{"count":"9007199254740993"}`), &target,
 		map[string]jsonScalarKind{"count": jsonScalarNumber}, "probe"); err != nil {
 		t.Fatalf("decoding: %v", err)
 	}
@@ -148,13 +309,22 @@ func TestLenientScalars_WideNumberKeepsItsDigits(t *testing.T) {
 	}
 }
 
-// TestLenientScalars_JSONScalarLiteralRejectsNonJSONNumbers pins the forms Go's
-// own parsers accept and JSON does not. Every one of these would decode
-// through strconv and none of them is a JSON number token.
+// TestLenientScalars_JSONScalarLiteralRejectsNonJSONNumbers pins both halves of
+// the number check. The first group is what json.Valid rejects: forms Go's own
+// parsers accept and JSON does not. The second is what only the leading-byte
+// check rejects: text that is valid JSON but is not a number.
 func TestLenientScalars_JSONScalarLiteralRejectsNonJSONNumbers(t *testing.T) {
 	for _, s := range []string{"", " ", "+1", "1_0", "0x10", "1e", "Inf", "NaN", "01", ".5", "1.2.3"} {
 		if lit, ok := jsonScalarLiteral(s, jsonScalarNumber); ok {
 			t.Errorf("jsonScalarLiteral(%q) = %q, true; want rejected", s, lit)
+		}
+	}
+	for _, s := range []string{"null", "true", "false", "[]", "{}", `"5"`, "[1,2]"} {
+		if !json.Valid([]byte(s)) {
+			t.Fatalf("%q is meant to be valid JSON; the case has stopped testing the leading-byte check", s)
+		}
+		if lit, ok := jsonScalarLiteral(s, jsonScalarNumber); ok {
+			t.Errorf("jsonScalarLiteral(%q) = %q, true; want rejected — valid JSON, not a number", s, lit)
 		}
 	}
 	for _, s := range []string{"0", "-1", "1.5", "1e5", "-1.5e-3", "90"} {
@@ -162,7 +332,7 @@ func TestLenientScalars_JSONScalarLiteralRejectsNonJSONNumbers(t *testing.T) {
 			t.Errorf("jsonScalarLiteral(%q) = %q, %v; want %q, true", s, lit, ok, s)
 		}
 	}
-	for _, s := range []string{"True", "TRUE", "1", "", "yes"} {
+	for _, s := range []string{"True", "TRUE", "1", "", "yes", "null"} {
 		if lit, ok := jsonScalarLiteral(s, jsonScalarBool); ok {
 			t.Errorf("jsonScalarLiteral(%q, bool) = %q, true; want rejected", s, lit)
 		}
@@ -237,4 +407,19 @@ var lenientScalarCases = []lenientScalarCase{
 	{name: "TemporaryPairing", typ: reflect.TypeOf(TemporaryPairing{}), keys: lenientScalarsTemporaryPairing},
 	{name: "UnpairingTime", typ: reflect.TypeOf(UnpairingTime{}), keys: lenientScalarsUnpairingTime},
 	{name: "UpdateRule", typ: reflect.TypeOf(UpdateRule{}), keys: lenientScalarsUpdateRule},
+}
+
+var lenientUnionCases = []lenientUnionCase{
+	{name: "SwUpdateAutomaticConfiguration/LATEST", typ: reflect.TypeOf(SwUpdateAutomaticConfiguration{}), scalarJSON: "enforceAfterDays", discrim: [][2]string{{"strategy", "LATEST"}}},
+	{name: "SwUpdateConfiguration/AUTOMATIC/LATEST", typ: reflect.TypeOf(SwUpdateConfiguration{}), scalarJSON: "enforceAfterDays", discrim: [][2]string{{"enforcementType", "AUTOMATIC"}, {"strategy", "LATEST"}}},
+}
+
+var lenientParentCases = []lenientParentCase{
+	{name: "CustomDeclarationsConfiguration", typ: reflect.TypeOf(CustomDeclarationsConfiguration{}), childJSON: "declarations", childKey: "payloadKey"},
+	{name: "Deferrals", typ: reflect.TypeOf(Deferrals{}), childJSON: "CombinedPeriodInDays", childKey: "Value"},
+	{name: "DiskManagementComponent", typ: reflect.TypeOf(DiskManagementComponent{}), childJSON: "configuration", childKey: "version"},
+	{name: "PasscodeSettingsComponent", typ: reflect.TypeOf(PasscodeSettingsComponent{}), childJSON: "configuration", childKey: "version"},
+	{name: "PasscodeSettingsConfiguration", typ: reflect.TypeOf(PasscodeSettingsConfiguration{}), childJSON: "FailedAttemptsResetInMinutes", childKey: "Value"},
+	{name: "TemporaryPairingConfig", typ: reflect.TypeOf(TemporaryPairingConfig{}), childJSON: "UnpairingTime", childKey: "Hour"},
+	{name: "UpdateRules", typ: reflect.TypeOf(UpdateRules{}), childJSON: "minor", childKey: "enforceAfterDays"},
 }
