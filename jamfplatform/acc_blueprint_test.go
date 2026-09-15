@@ -8,6 +8,7 @@ package jamfplatform_test
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 
@@ -658,5 +659,150 @@ func TestAcceptance_Blueprint_TypedComponents(t *testing.T) {
 			}
 			t.Logf("Created %s blueprint ID: %s", tc.name, bp.ID)
 		})
+	}
+}
+
+// TestAcceptance_Blueprint_UIWrittenScalarsDecode pins the wire fact behind
+// config.lenientScalarRoots, and it is deliberately asserted rather than
+// logged.
+//
+// A blueprint component configuration is validated on write and then stored
+// and served back verbatim: the service deserialises the document — Jackson
+// coerces "5" to 5, and the declared minimum and maximum are still enforced —
+// but it does not re-serialise from its own model, so a read returns whatever
+// scalar encoding the writer used. The Jamf Pro web UI writes these as JSON
+// strings, so a blueprint built there answers {"Value": "5"} where the spec
+// declares an integer, and before the generated tolerant decoders a strict
+// decode failed on the whole component. That is what cost the Terraform
+// provider every software-update-settings component created in the UI
+// (terraform-provider-jamfplatform#431).
+//
+// The raw-body assertion is the part that expires: the day the service starts
+// normalising to its own model, the quoted form stops arriving, this fails,
+// and config's lenientScalarRoots entry and the 43 generated decoders behind
+// it can go. The typed decode either side of it is the regression itself.
+func TestAcceptance_Blueprint_UIWrittenScalarsDecode(t *testing.T) {
+	groupID := requireSmartGroupFixture(t)
+	c := accEnvClient(t)
+	ctx := context.Background()
+	bp := blueprints.New(c)
+
+	// Written the way the UI writes it: every number and every boolean quoted.
+	// Sent as raw JSON rather than through the generated types on purpose —
+	// the SDK's own types marshal the spec-compliant form, so this encoding is
+	// unreachable through them, which is exactly why no generated test can
+	// cover it.
+	const uiSoftwareUpdate = `{
+		"Deferrals": {
+			"MajorPeriodInDays":    {"Value": "5", "Included": true},
+			"MinorPeriodInDays":    {"Value": "2", "Included": true},
+			"SystemPeriodInDays":   {"Value": "6", "Included": true},
+			"CombinedPeriodInDays": {"Value": "1", "Included": true}
+		},
+		"Notifications": {"Enabled": "true", "Included": "true"}
+	}`
+	const uiPasscode = `{
+		"version": "2",
+		"RequirePasscode": {"Value": true, "Included": true},
+		"MinimumLength":   {"Value": "8", "Included": true}
+	}`
+
+	stepName := "UI-written scalars"
+	steps := []blueprints.BlueprintStep{{
+		Name: &stepName,
+		Components: []blueprints.Component{
+			{Identifier: "com.jamf.ddm.software-update-settings", Configuration: json.RawMessage(uiSoftwareUpdate)},
+			{Identifier: "com.jamf.ddm.passcode-settings", Configuration: json.RawMessage(uiPasscode)},
+		},
+	}}
+
+	name := "sdk-acc-ui-scalars-" + runSuffix()
+	got := createTestBlueprint(t, c, name, groupID, steps)
+	if len(got.Steps) != 1 || len(got.Steps[0].Components) != 2 {
+		t.Fatalf("expected one step carrying two components, got %d step(s)", len(got.Steps))
+	}
+
+	byIdentifier := make(map[string]json.RawMessage, 2)
+	for _, comp := range got.Steps[0].Components {
+		byIdentifier[comp.Identifier] = comp.Configuration
+	}
+
+	// The server echoed the writer's encoding. When this stops being true the
+	// tolerance has become dead weight — see the note above.
+	for identifier, want := range map[string]string{
+		"com.jamf.ddm.software-update-settings": `"Value":"5"`,
+		"com.jamf.ddm.passcode-settings":        `"version":"2"`,
+	} {
+		raw := string(byIdentifier[identifier])
+		if !strings.Contains(strings.ReplaceAll(raw, " ", ""), want) {
+			t.Errorf("%s: read-back configuration no longer carries %s — the service has started "+
+				"re-serialising from its own model, so config.lenientScalarRoots for blueprints and "+
+				"the generated decoders behind it can be deleted.\nbody: %s", identifier, want, raw)
+		}
+	}
+
+	var swu blueprints.SoftwareUpdateSettingsConfiguration
+	if err := json.Unmarshal(byIdentifier["com.jamf.ddm.software-update-settings"], &swu); err != nil {
+		t.Fatalf("decoding a UI-written software-update-settings configuration: %v", err)
+	}
+	if swu.Deferrals == nil {
+		t.Fatal("Deferrals decoded as nil")
+	}
+	for label, pair := range map[string]struct {
+		got  *blueprints.OptionalPeriodInDays
+		want int
+	}{
+		"MajorPeriodInDays":    {swu.Deferrals.MajorPeriodInDays, 5},
+		"MinorPeriodInDays":    {swu.Deferrals.MinorPeriodInDays, 2},
+		"SystemPeriodInDays":   {swu.Deferrals.SystemPeriodInDays, 6},
+		"CombinedPeriodInDays": {swu.Deferrals.CombinedPeriodInDays, 1},
+	} {
+		if pair.got == nil || pair.got.Value == nil {
+			t.Errorf("%s decoded as nil, want %d", label, pair.want)
+			continue
+		}
+		if *pair.got.Value != pair.want {
+			t.Errorf("%s = %d, want %d", label, *pair.got.Value, pair.want)
+		}
+	}
+	// The boolean half of the same coercion. The UI has not been observed
+	// writing a quoted boolean, but the service accepts and echoes one, so a
+	// third-party writer can produce it and the decoders cover it.
+	if swu.Notifications == nil || !swu.Notifications.Enabled {
+		t.Errorf("Notifications.Enabled = %v, want the quoted \"true\" to decode as true", swu.Notifications)
+	}
+
+	var passcode blueprints.PasscodeSettingsConfiguration
+	if err := json.Unmarshal(byIdentifier["com.jamf.ddm.passcode-settings"], &passcode); err != nil {
+		t.Fatalf("decoding a UI-written passcode-settings configuration: %v", err)
+	}
+	if passcode.Version != 2 {
+		t.Errorf("Version = %d, want the quoted \"2\" to decode as 2", passcode.Version)
+	}
+	if passcode.MinimumLength == nil || passcode.MinimumLength.Value == nil || *passcode.MinimumLength.Value != 8 {
+		t.Errorf("MinimumLength = %+v, want 8", passcode.MinimumLength)
+	}
+
+	// The other half of the wire fact, and the reason the coercion can be
+	// this narrow: the service does validate the document it stores, so a
+	// string that is not a number never reaches a later read in the first
+	// place. Checked with a create that must fail, which leaves nothing
+	// behind when it does.
+	desc := "SDK acceptance test — must be refused"
+	_, err := bp.CreateBlueprint(ctx, &blueprints.CreateBlueprintRequest{
+		Name:        "sdk-acc-ui-scalars-refused-" + runSuffix(),
+		Description: &desc,
+		Scope:       blueprints.CreateScope{DeviceGroups: []string{groupID}},
+		Steps: []blueprints.BlueprintStep{{
+			Name: &stepName,
+			Components: []blueprints.Component{{
+				Identifier:    "com.jamf.ddm.software-update-settings",
+				Configuration: json.RawMessage(`{"Deferrals":{"MajorPeriodInDays":{"Value":"abc","Included":true}}}`),
+			}},
+		}},
+	})
+	if err == nil {
+		t.Error("a non-numeric string for an integer property was accepted; the store no longer " +
+			"validates what it echoes, so a read can now carry a value no consumer can decode")
 	}
 }

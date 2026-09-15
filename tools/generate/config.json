@@ -148,6 +148,9 @@
           "configuration": "object"
         }
       },
+      "lenientScalarRoots": [
+        "Component"
+      ],
       "fieldTypeOverrides": {
         "component.configuration": "json.RawMessage",
         "configuration_profile_configuration.payloadContent": "[]json.RawMessage"

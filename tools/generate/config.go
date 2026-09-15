@@ -298,6 +298,41 @@ type SpecDef struct {
 	// of the same "v1" across three specs.
 	Version string `json:"version,omitempty"`
 
+	// LenientScalarRoots names component schemas whose reachable subtree is
+	// decoded leniently: every number and boolean under them also accepts a
+	// JSON string carrying the same value. Emitted as one UnmarshalJSON per
+	// affected type in lenient_scalars.go; field types, marshalling and the
+	// published spec under api/ are all untouched.
+	//
+	// It exists for a store that serves back the JSON its writer sent instead
+	// of re-serialising from its own model. blueprints is that store, and
+	// "Component" is the root: the service validates a component
+	// configuration on write — Jackson coerces "5" to 5, and the declared
+	// minimum and maximum are still enforced — but a read returns the writer's
+	// own encoding. The Jamf Pro web UI writes these scalars as JSON strings,
+	// so a blueprint built there answers {"Value": "5"} where the spec
+	// declares an integer, and a strict decode fails on the whole component
+	// rather than on the one field. That cost the Terraform provider every
+	// software-update-settings component created in the UI
+	// (terraform-provider-jamfplatform#431); wire-verified 2026-09-15 on a
+	// UI-built blueprint and reproduced by writing both encodings through the
+	// API — see docs/WIRE-FACTS.md.
+	//
+	// The root is the *union*, not the twelve configuration schemas under it,
+	// so a component added upstream inherits the tolerance with no config
+	// change. Naming the union is also why the key is a root list rather than
+	// a type list: the set it covers is derived, and cannot drift from the
+	// spec.
+	//
+	// Self-expiring in one direction only. Generation fails when a root names
+	// no schema the spec declares, which is what catches a rename or a
+	// withdrawal upstream, and when a root's subtree reaches no scalar at all.
+	// It cannot expire on the server being fixed — nothing in a spec says how
+	// a store serialises — so the acceptance test is what carries that:
+	// TestAcceptance_Blueprint_UIWrittenScalarsDecode asserts the wire still
+	// returns a string, and fails the day it stops.
+	LenientScalarRoots []string `json:"lenientScalarRoots,omitempty"`
+
 	// TagRenames remaps an OpenAPI tag before it picks the output filename,
 	// and nothing else — method names, godoc and the published spec are
 	// untouched. Needed when two specs in one package share a tag, since

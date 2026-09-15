@@ -456,6 +456,8 @@ func processPackage(root string, cfg Config, pkgName string, specs []loadedSpec)
 	var allSpecs []specWithMethods
 	pkgEmitted := make(map[string]bool)
 	var allTypes []GoType
+	lenientSeed := make(map[string]bool)
+	var lenientRoots []string
 
 	for _, ls := range specs {
 		doc, err := loadSpec(ls.specPath, allowedOpsSet(ls.spec))
@@ -518,6 +520,16 @@ func processPackage(root string, cfg Config, pkgName string, specs []loadedSpec)
 		if err := applyDocNotes(types, spec.DocNotes); err != nil {
 			return fmt.Errorf("%s: %w", spec.File, err)
 		}
+		// Seeded from the doc after every schema pass, so a hoisted inline
+		// object is already present under its emitted name.
+		seed, err := lenientScalarSeed(doc, spec.LenientScalarRoots)
+		if err != nil {
+			return fmt.Errorf("%s: %w", spec.File, err)
+		}
+		for name := range seed {
+			lenientSeed[name] = true
+		}
+		lenientRoots = append(lenientRoots, spec.LenientScalarRoots...)
 		for _, t := range types {
 			pkgEmitted[t.Name] = true
 		}
@@ -567,6 +579,16 @@ func processPackage(root string, cfg Config, pkgName string, specs []loadedSpec)
 		return err
 	}
 	if err := emitUnionRoundTripTest(pkgDir, goPkgName, structTypes); err != nil {
+		return err
+	}
+	lenientEntries := lenientScalarTypes(structTypes, lenientSeed)
+	if err := validateLenientScalars(fmt.Sprintf("package %s", pkgName), lenientRoots, lenientEntries); err != nil {
+		return err
+	}
+	if err := emitPkgLenientScalars(pkgDir, goPkgName, lenientEntries); err != nil {
+		return err
+	}
+	if err := emitPkgLenientScalarsTest(pkgDir, goPkgName, lenientEntries); err != nil {
 		return err
 	}
 
@@ -633,6 +655,8 @@ func processPackageTypesOnly(root string, cfg Config, pkgDir, goPkgName string, 
 	pkgEmitted := make(map[string]bool)
 	var allTypes []GoType
 	pkgFormat := ""
+	lenientSeed := make(map[string]bool)
+	var lenientRoots []string
 
 	for _, ls := range specs {
 		doc, err := loadSpec(ls.specPath, nil)
@@ -678,6 +702,14 @@ func processPackageTypesOnly(root string, cfg Config, pkgDir, goPkgName string, 
 		if err := applyDocNotes(types, ls.spec.DocNotes); err != nil {
 			return fmt.Errorf("%s: %w", ls.spec.File, err)
 		}
+		seed, err := lenientScalarSeed(doc, ls.spec.LenientScalarRoots)
+		if err != nil {
+			return fmt.Errorf("%s: %w", ls.spec.File, err)
+		}
+		for name := range seed {
+			lenientSeed[name] = true
+		}
+		lenientRoots = append(lenientRoots, ls.spec.LenientScalarRoots...)
 		// This path emits types and no methods, so there is nothing for a
 		// method note to attach to. Refuse rather than skip: a silently
 		// dropped note leaves the gap it was written to close.
@@ -705,7 +737,14 @@ func processPackageTypesOnly(root string, cfg Config, pkgDir, goPkgName string, 
 	if err := emitTypesOnlyTest(pkgDir, goPkgName, allTypes); err != nil {
 		return err
 	}
-	return nil
+	lenientEntries := lenientScalarTypes(structTypes, lenientSeed)
+	if err := validateLenientScalars("package "+goPkgName, lenientRoots, lenientEntries); err != nil {
+		return err
+	}
+	if err := emitPkgLenientScalars(pkgDir, goPkgName, lenientEntries); err != nil {
+		return err
+	}
+	return emitPkgLenientScalarsTest(pkgDir, goPkgName, lenientEntries)
 }
 
 // partitionEnumTypes splits emitted declarations into the structs and scalar

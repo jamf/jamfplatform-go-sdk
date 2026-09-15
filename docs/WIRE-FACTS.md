@@ -1754,6 +1754,107 @@ no enum, so the vocabulary is wire-only.
 
 ## Blueprints (`blueprints`) — environment scope
 
+### A component configuration is stored as its writer sent it, and the UI writes numbers as strings (2026-09-15)
+
+Probed under environment scope on `eu`, with `GET /blueprints/v1/blueprints/{id}`
+at 200 and a bogus path in the same namespace returning `403 BAD_PERMISSIONS` as
+the control in the same invocation.
+
+**A blueprint component `configuration` is validated on write and then served
+back verbatim.** The service deserialises the document into its own typed
+models — so Jackson's string-to-number coercion applies, and the declared
+bounds are still enforced — but it does not re-serialise from those models on
+read. Whatever JSON scalar encoding the writer used is what every later read
+returns.
+
+**The Jamf Pro web UI writes these scalars as JSON strings.** `<blueprint-ui-swu>`
+was built in the UI and `GET` returns:
+
+```json
+{"identifier":"com.jamf.ddm.software-update-settings","configuration":{
+  "Beta":null,
+  "Deferrals":{
+    "MajorPeriodInDays":{"Value":"5","Included":true},
+    "MinorPeriodInDays":{"Value":"2","Included":true},
+    "SystemPeriodInDays":{"Value":"6","Included":true},
+    "CombinedPeriodInDays":{"Value":"1","Included":true}},
+  "Notifications":{"Enabled":false,"Included":false},
+  …}}
+```
+
+`OptionalPeriodInDays.Value` is `type: integer, format: int32, minimum: 1,
+maximum: 90`. The same tenant, same environment, written through the SDK's own
+generated types (`<blueprint-sdk-swu>`), reads back `{"Value":5,"Included":true}`
+— so this is the writer's encoding surviving, not a property of the field.
+
+**That is what broke the Terraform provider.** `Component.Configuration` is
+`json.RawMessage`, so the transport never decodes a configuration and the
+consumer does: `FromRawConfiguration` unmarshals the raw bytes into
+`blueprints.SoftwareUpdateSettingsConfiguration`, and a strict decode fails
+with `json: cannot unmarshal string into Go struct field
+SoftwareUpdateSettingsConfiguration.Deferrals.MajorPeriodInDays.Value of type
+int`. Go's decoder stops at the first fault, so the whole component was dropped
+from state and `terraform plan -generate-config-out` emitted a resource missing
+a component the blueprint has — `terraform-provider-jamfplatform#431`. The
+software-update *enforcement* component in the same blueprint decoded fine
+because its scalars happened to be written bare.
+
+**Four probes establish the shape of it**, each a create-then-read on this
+environment:
+
+| written | read back | note |
+|---|---|---|
+| `"Value": 5` (integer) | `5` | the SDK's own encoding round-trips |
+| `"Value": "5"` | `"5"` | echoed verbatim |
+| `"Enabled": "true"`, `"Included": "true"` | `"true"`, `"true"` | quoted booleans are accepted and echoed too |
+| `"version": "2"` | `"2"` | a declared-required integer is no different |
+
+So it is not confined to `Value`, to one component, or to integers. The
+`passcode-settings` component behaves identically — `MinimumLength`,
+`MaximumFailedAttempts` and `MaximumInactivityInMinutes` all echo the quoted
+form — which matters because the same 8 integer `Value` properties live under
+Apple's PascalCase DDM payload keys there.
+
+**The store does validate, and that is what lets the SDK's tolerance be
+narrow.** A string that is not a number never reaches a read:
+
+```
+POST …/blueprints  {"Deferrals":{"MajorPeriodInDays":{"Value":"abc","Included":true}}}
+→ 400 INPUT_MISMATCH  steps[0].components[0].configuration.Deferrals.MajorPeriodInDays.Value
+  "Cannot deserialize value of type `java.lang.Integer` from String \"abc\": not a valid `java.lang.Integer` value"
+```
+
+and the bounds are enforced against the coerced value, in both encodings:
+
+```
+"Value": 500   → 400 MAX  steps[0].components[0].configuration.deferrals.majorPeriodInDays.value  "must be less than or equal to 90"
+"Value": "500" → 400 MAX  (identical body)
+```
+
+Note the field path in the `MAX` errors is lowerCamelCase while the
+`INPUT_MISMATCH` one is the wire spelling: deserialisation reports the JSON
+path and bean validation reports the Java property path. Neither is a rename.
+
+**The SDK's fix is a read-side coercion emitted per type**, driven by
+`config.lenientScalarRoots` naming the `Component` union — 43 generated
+`UnmarshalJSON` methods across the subtree, no change to any field type,
+signature or marshalled body. Mechanism:
+[STYLE.md](STYLE.md#lenient-scalar-decoding). The generated decoders coerce a
+JSON string only when the text is a valid JSON scalar of the declared kind, so
+`"abc"` still fails — which costs nothing, the server having refused it on the
+way in.
+
+**Report upstream: a read should serialise from the service's own model.** The
+validated value is already in hand at write time; echoing the request document
+instead makes every consumer's decoder tolerate its own UI's encoding. It is
+also unbounded — any writer's encoding becomes a permanent property of that
+blueprint — and a consumer cannot tell a UI-built blueprint from an API-built
+one without inspecting raw JSON.
+
+`TestAcceptance_Blueprint_UIWrittenScalarsDecode` asserts both halves: that the
+quoted form still arrives (failing the day the service starts normalising,
+which is when the tolerance can be deleted), and that it decodes.
+
 ### Blueprints do not support sites; sites reach the platform as *divisions* (2026-09-11)
 
 Probed under environment scope on `eu`, on a tenant that has one Jamf Pro site
