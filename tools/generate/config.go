@@ -298,6 +298,52 @@ type SpecDef struct {
 	// of the same "v1" across three specs.
 	Version string `json:"version,omitempty"`
 
+	// LenientScalarRoots names component schemas whose reachable subtree is
+	// decoded leniently: every number and boolean under them also accepts a
+	// JSON string carrying the same value. Emitted as one UnmarshalJSON per
+	// affected type in lenient_scalars.go; field types, marshalling and the
+	// published spec under api/ are all untouched.
+	//
+	// It exists for a store that serves back the JSON its writer sent instead
+	// of re-serialising from its own model. blueprints is that store, and
+	// "Component" is the root: the service validates a component
+	// configuration on write — Jackson coerces "5" to 5, and the declared
+	// minimum and maximum are still enforced — but a read returns the writer's
+	// own encoding. The Jamf Pro web UI writes these scalars as JSON strings,
+	// so a blueprint built there answers {"Value": "5"} where the spec
+	// declares an integer, and a strict decode fails on the whole component
+	// rather than on the one field. That cost the Terraform provider every
+	// software-update-settings component created in the UI
+	// (terraform-provider-jamfplatform#431); wire-verified 2026-09-15 on a
+	// UI-built blueprint and reproduced by writing both encodings through the
+	// API — see docs/WIRE-FACTS.md.
+	//
+	// The root is the *union*, not the twelve configuration schemas under it,
+	// so a component added upstream inherits the tolerance with no config
+	// change. Naming the union is also why the key is a root list rather than
+	// a type list: the set it covers is derived, and cannot drift from the
+	// spec.
+	//
+	// A type earns a decoder when a coerced scalar lies at *or below* it, so
+	// the ancestors get one too, with an empty key map. encoding/json returns
+	// a nested Unmarshaler's error verbatim, so without one the failure names
+	// only the child's own type — and Deferrals declares four fields of the
+	// identical OptionalPeriodInDays. The parent's decoder is what puts the
+	// field name back. A type that already carries a generated UnmarshalJSON
+	// is excluded and reported, since a second one will not compile, and one
+	// that also declares a coerced scalar fails generation outright.
+	//
+	// Self-expiring in one direction only, and per root. Generation fails when
+	// a root names no schema the spec declares, which is what catches a rename
+	// or a withdrawal upstream, and when *that root's* subtree reaches no
+	// scalar at all — per root because the guard is a claim about one root, and
+	// merging first would let a sibling root's entries stand in for one that
+	// has lost every scalar. It cannot expire on the server being fixed —
+	// nothing in a spec says how a store serialises — so the acceptance test
+	// is what carries that: TestAcceptance_Blueprint_UIWrittenScalarsDecode
+	// asserts the wire still returns a string, and fails the day it stops.
+	LenientScalarRoots []string `json:"lenientScalarRoots,omitempty"`
+
 	// TagRenames remaps an OpenAPI tag before it picks the output filename,
 	// and nothing else — method names, godoc and the published spec are
 	// untouched. Needed when two specs in one package share a tag, since

@@ -125,6 +125,7 @@ deliberately kept three of them for exactly that reason.
 | `scopeTypes` | 3 | spec → the scope kinds its operations accept (`tenant`, `environment`, `organization`), overriding a published `x-scope-types` that understates what the gateway serves. Carried to each method's `Scopes` in the Privileges registry, never into `api/`, with `ScopesSource` recording that the value is a config correction rather than the spec's own claim. Self-expiring in both directions: generation fails once the spec declares the same set, and also once the spec declares anything the override omits — an override widens an understated spec, so a spec that has moved past it is about to lose a declared scope, which the equality check alone cannot see. The account trio is the only user: no account spec declares the extension at all. `securitycloud-devices` was the second until 2026-09-04, when its hold lifted and the entry self-expired |
 | `schemaPatches` | 3 | schema → dotted property path → raw OpenAPI 3 Schema. Adds or replaces at that path |
 | `requiredPrivileges` | 3 | `"METHOD /path"` → GA capability permissions, for an operation the **published spec declares none for** but an authoritative out-of-band source does. Carried straight to the generated registry with `Source: "gateway-policy"`, never into the spec document, so `api/` stays faithful to upstream. **Fails generation if the operation now declares `x-required-privileges`** — that means upstream published them and the entry must go. All three users are the `account` specs; see [Required privileges](#required-privileges) |
+| `lenientScalarRoots` | 1 | component schema names whose **reachable subtree** decodes leniently: every number and boolean under them also accepts a JSON string carrying the same value. Emitted as one `UnmarshalJSON` per affected type in `lenient_scalars.go`; field types, marshalling and `api/` are untouched. For a store that serves back the JSON its *writer* sent rather than re-serialising from its own model — blueprints is that store and `Component` is the only user, covering 67 types — the ones that declare a coerced scalar, plus every ancestor, which carries the field name into a child's decode error. Self-expiring on the spec side only, and **per root**: generation fails when a root names no declared schema, and when *that root's* subtree reaches no scalar. It cannot expire on the server being fixed, so the acceptance test carries that half. See [Lenient scalar decoding](#lenient-scalar-decoding) |
 | `enumAdditions` | 1 | schema name → wire values to append to its `enum`, for a value the server produces or accepts that the spec omits. Applied with the other schema patches, so the value reaches `api/` too. **Panics when the value is already declared**, when the schema declares no enum, or when the schema is missing — a duplicated enum member would emit two identical constants and compile, so nothing else would ever notice. One user: `Region` gaining `RAMP` |
 | `emitNullForOptional` | 2 | schema names whose optional pointer fields must marshal as explicit `null` when nil rather than being omitted. For servers that distinguish "omitted" (keep) from "present and null" (clear). Accepts snake_case or PascalCase; JSON marshalling only |
 | `propertyRenames` | 3 | schema → dotted path → new key. Repairs a spec key that doesn't match the wire, which otherwise decodes silently to nothing. **Panics on a missing path**, so it self-expires the day upstream adopts the wire's name. Carries the property's `required` entry with it, and rewrites the key inside the spec's own **examples** too — otherwise `api/*.json` publishes a schema declaring one name beside an example showing the other. The example rewrite is shape-guarded: an object is touched only when it carries the old key *and* every key it has is a property of the target schema, because a property name is not unique across a spec (`categories`, `users` and `security_name` are all renamed somewhere in Classic). `DomainAllocationConnection.authRegion` → `region` is the worked example, and the only one that matches an example today |
@@ -801,6 +802,135 @@ item always uses pointer fields.
   `collapseNullableOneOf` is untouched and worth fixing separately.
 
 ---
+
+### Lenient scalar decoding
+
+`lenientScalarRoots` exists for one wire fact and should not be reached for
+anything else: **a store that serves back the JSON its writer sent, instead of
+re-serialising from its own model.** blueprints is that store. A component
+`configuration` is validated on write — the service deserialises it into typed
+Java models, so Jackson coerces `"5"` to `5` and the declared `minimum` and
+`maximum` are still enforced — and then echoed verbatim on every later read. The
+Jamf Pro web UI writes these scalars as JSON strings, so a blueprint built there
+answers `{"Value": "5"}` where the spec declares an integer. Evidence, including
+the four create-then-read probes and the two refusals that prove the store
+validates:
+[WIRE-FACTS.md](WIRE-FACTS.md#a-component-configuration-is-stored-as-its-writer-sent-it-and-the-ui-writes-numbers-as-strings-2026-09-15).
+
+**The tolerance is per *type*, not per operation, because the SDK never decodes
+a configuration.** `Component.Configuration` is `json.RawMessage`
+(`fieldTypeOverrides`), so the transport hands the bytes through and the
+consumer unmarshals them into the typed configuration itself — which is how
+`terraform-provider-jamfplatform` does it, and why the decode failure landed
+there rather than in any SDK method. A lenient decode at the transport, or on
+an opted-in operation, would never have seen the body. An `UnmarshalJSON` on
+the leaf type travels with the type wherever it is used, including in a
+consumer's own `json.Unmarshal`.
+
+**The root is the union, not the twelve configurations under it.**
+`lenientScalarSeed` walks the schema graph from `Component` — through its
+`oneOf`, each variant's `configuration` `$ref`, and everything below — so a
+component added upstream inherits the tolerance with no config change. The key
+takes roots rather than type names for exactly that reason: the covered set is
+derived and cannot drift from the spec.
+
+**Two passes, because the seed is schema names and the emission is Go types.**
+`lenientScalarTypes` closes the seed over the emitted types' own references, so
+a hoisted inline object or a type the seed named under a different spelling
+still comes in; then it selects, per reached type, the fields whose Go type is
+a number or a boolean (a numeric-enum alias counts, a string enum does not, and
+slices and maps are excluded — a struct leaf is decoded by its own method).
+
+**The closure follows a union's variants, not just its fields.** A discriminated
+or request-body union carries its variant pointers in `Discriminator` or
+`Union` and declares **no `Fields` at all**, so a walk that reads only `Fields`
+stops dead at one: `SwUpdateConfiguration` has none, and
+`SwUpdateLatestConfiguration.enforceAfterDays` is unreachable through it.
+`lenientRefs` reads the variants back, which is the one place the schema seed
+and the Go-space closure would otherwise disagree about what a type contains.
+
+**A type earns a decoder when a coerced scalar lies at *or below* it, so the
+ancestors get one too.** `encoding/json` hands a nested value straight to that
+type's `UnmarshalJSON` and returns whatever comes back, so a child's failure
+arrives naming only the child's own type — and `Deferrals` declares four fields
+of the identical `OptionalPeriodInDays`, which makes that error useless. The
+parent's decoder exists to put the field name back, so `Deferrals` does get
+one, with an empty key map. That is why the count is 67 rather than the 43 that
+coerce anything.
+
+Five properties of the emitted decoder are load-bearing:
+
+- **The strict decode runs first.** A conforming body costs one error check.
+  The rewrite only happens on failure, and a nested value has already been
+  fixed by its own type's method during that first attempt — which is why each
+  type only describes its own keys and no walk of the tree is needed. Note what
+  that does *not* claim about cost: the retry re-decodes the whole object, so a
+  quoted value on a type's own key runs every composite child's decoder a
+  second time. `PasscodeSettingsConfiguration`,
+  `DiskManagementSettingsConfiguration` and `CustomDeclaration` are that shape.
+  It is bounded at 2x and paid only on the cold path; decoding key by key
+  instead would tax every conforming body to save a failing one.
+- **Only a JSON string is rewritten, and only into the declared kind.**
+  `jsonScalarLiteral` re-emits the text verbatim rather than parsing and
+  reformatting it, so a value wider than `float64` keeps its digits. Two checks
+  decide it and **both** are load-bearing: `json.Valid` rules out the forms
+  Go's own parsers accept and JSON does not (`Inf`, `NaN`, hex floats, a
+  leading `+`, `01`), and the leading-byte check rules out the text that *is*
+  valid JSON but is not a number (`null`, `true`, `false`, an array, an
+  object). Without the second, a quoted `"null"` would be rewritten to bare
+  `null`, which decodes into a non-pointer field as a silent no-op and leaves
+  the zero value. So `"abc"` for an integer still fails the decode — it must,
+  since decoding it to zero would turn a visible fault into a silently wrong
+  configuration, and the server refused it on the way in anyway.
+- **Marshalling is untouched, which makes the tolerance one-directional.** The
+  SDK keeps sending the numbers and booleans the spec declares; `api/*.json` is
+  byte-identical. The tolerance is in the decode, not in the surface a consumer
+  programs against — no field type moved, so nothing downstream recompiles.
+  The consequence is worth stating to a consumer and the generated godoc does:
+  decoding a quoted value and writing the struct back emits the bare scalar, so
+  a read-modify-write through these types rewrites the encoding the store was
+  holding.
+- **The error names the field it came from.** `namedStructError` puts the real
+  type name back in place of the local `lenient` alias each decoder decodes
+  into, and `attributeFieldError` puts the field back: on the error path it
+  decodes each present key on its own into a fresh value of that field's type,
+  and the first key that reproduces the failure is the one named. It decides
+  nothing — a failure no probe reproduces is returned unattributed rather than
+  guessed at. A UI-written `"none"` now reads
+  `Deferrals.SystemPeriodInDays: OptionalPeriodInDays.Value: json: cannot
+  unmarshal string into Go value of type int`.
+- **Attribution against the *rewritten* body, not the original.** Whenever a
+  rewrite happened the reported error describes the fixed document, so probing
+  the original would blame the key the rewrite already repaired — on
+  `{"version":"9","Restrictions":123}` it would name `version` instead of
+  `Restrictions`.
+
+**A type that already has a generated `UnmarshalJSON` cannot have a second
+one**, so a discriminated union, a request-body union and a raw-JSON schema are
+excluded. The exclusion is not silent: each such type reached by a root is
+reported at generation time, because **attribution stops there** — a union's
+variant fields carry `json:"-"`, so nothing below it can be probed. And a union
+that *also* declares a coerced scalar **fails generation**, since there the
+tolerance itself would be lost rather than merely the field name.
+
+**A slice or map of scalars is skipped and reported.** The coercion does not
+reach into a composite, and the justification for that is an observation about
+writers rather than a guarantee, so `lenientScalarTypes` names every such field
+it skipped. There are none in blueprints today; a component that gained an
+array-of-integer property would otherwise pass both guards below while leaving
+that property completely uncovered.
+
+**Self-expiry is one-sided, per root, and the acceptance test carries the other
+half.** Generation fails when a root names no declared schema (a rename or
+withdrawal upstream, which would otherwise drop the tolerance from a whole
+subtree silently) and when **that root's** subtree reaches no scalar. Per root
+matters: the guard is a claim about one root, and merging the roots first would
+let a sibling root's entries stand in for one that has lost every scalar, which
+is the expiry becoming unreachable. Nothing in a spec says how a store
+serialises, so no config mechanism can see the server being fixed:
+`TestAcceptance_Blueprint_UIWrittenScalarsDecode` asserts the quoted form still
+arrives, and fails the day it stops — which is when the config entry and the 67
+generated decoders can go.
 
 ## A shared schema's optionality follows its request/response reachability
 

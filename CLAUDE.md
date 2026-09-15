@@ -1826,6 +1826,31 @@ formatting is inert to the generator, and bundle diffs become exact.
   the opposite call from account-sso above, and the difference is that here the
   tag lives *inside* each variant where the wire carries it. Mechanism and the
   full refusal list: [docs/STYLE.md](docs/STYLE.md#schema-handling).
+- **A store that echoes its writer's JSON is a decode problem, not a spec
+  problem — fix it in the decode and leave the field types alone.** blueprints
+  validates a component `configuration` on write and then serves it back
+  verbatim, so the Jamf Pro UI's habit of writing `{"Value": "5"}` where the
+  spec declares an integer is a permanent property of every blueprint built
+  there. Because `Component.Configuration` is `json.RawMessage`, no SDK method
+  decodes a configuration and the **consumer** does — which is why this
+  surfaced as `terraform-provider-jamfplatform#431` ("cannot unmarshal string
+  into … MajorPeriodInDays.Value of type int", the whole component dropped from
+  state) with every SDK test passing. `config.lenientScalarRoots` names the
+  `Component` union and the generator emits 67 tolerant `UnmarshalJSON` methods
+  across its subtree: **zero change to any field type, signature, marshalled
+  body or `api/*.json`**, so nothing downstream recompiles and the SDK keeps
+  writing the spec's own encoding. Only some of the 67 coerce anything — the
+  rest exist because `encoding/json` returns a nested `Unmarshaler`'s error
+  verbatim, so without a decoder on the parent a failure names only the
+  child's own type, and `Deferrals` declares four fields of the identical
+  `OptionalPeriodInDays`. Do **not** reach for this for a spec/wire
+  *type* disagreement — that is `fieldTypeOverrides` or a report upstream. The
+  test is `TestAcceptance_Blueprint_UIWrittenScalarsDecode`, and it asserts the
+  quoted form still arrives, so it fails the day the service starts
+  re-serialising from its own model and the whole mechanism can be deleted.
+  Mechanism: [docs/STYLE.md](docs/STYLE.md#lenient-scalar-decoding); wire
+  evidence:
+  [WIRE-FACTS.md](docs/WIRE-FACTS.md#a-component-configuration-is-stored-as-its-writer-sent-it-and-the-ui-writes-numbers-as-strings-2026-09-15).
 - **A shared schema's optional scalars can change pointer-ness with no diff in
   their own schema**, because `needsPtr` follows request/response reachability —
   `SmartGroupCriteria`'s paren fields went `*bool` → `bool` at v1942 that way.
