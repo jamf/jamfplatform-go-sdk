@@ -23,8 +23,8 @@ import (
 // retryWaitMax is not reached by that curve at retryMax=4; it exists as a
 // ceiling for two other cases — a caller who raises maxRetries via
 // WithRetryPolicy, and a server-supplied Retry-After or x-ratelimit-reset,
-// which would otherwise be honored verbatim and could stall a request far longer than any
-// caller-supplied context deadline is likely to allow for.
+// which would otherwise be honored verbatim and could stall a request far
+// longer than any caller-supplied context deadline is likely to allow for.
 const (
 	retryWaitMin = 1 * time.Second
 	retryWaitMax = 60 * time.Second
@@ -34,8 +34,13 @@ const (
 // isRetryableWriteStatus reports whether a response with the given status,
 // from a request using method, is safe to retry automatically.
 //
-// 429 and 503 are gateway-level rejections — the request never reached
-// Jamf's application logic, so retrying is safe regardless of method. 501
+// 429 and 503 are refusals, not partial writes, so retrying is safe regardless
+// of method. Most come from the gateway before the request reaches a service,
+// but a service can send its own 429 too — the blueprints report does when its
+// data store is overloaded, and pro and Security Cloud declare 429s on some
+// POST and PATCH operations. Those are retried on every method as well, on the
+// premise that a service refusing for load has not acted on the request
+// (docs/WIRE-FACTS.md#rate-limiting). 501
 // ("Not Implemented") is permanent and never retried. Any other 5xx (500,
 // 502, 504, or a malformed/zero status) may mean the application partially
 // processed the request before failing, so retrying is restricted to
@@ -158,8 +163,8 @@ func jamfCheckRetry(ctx context.Context, resp *http.Response, err error) (bool, 
 // adds its own jitter. The exponential curve stays deterministic, because it
 // now only serves 5xx and a 429 that carries neither header.
 func jamfBackoff(minWait, maxWait time.Duration, attemptNum int, resp *http.Response) time.Duration {
-	if wait, ok := rateLimitResetWait(resp); ok {
-		return min(wait, maxWait)
+	if wait, ok := rateLimitResetWait(resp, maxWait); ok {
+		return wait
 	}
 	return min(retryablehttp.DefaultBackoff(minWait, maxWait, attemptNum, resp), maxWait)
 }
@@ -203,7 +208,13 @@ func jamfBackoff(minWait, maxWait time.Duration, attemptNum int, resp *http.Resp
 // an overloaded service every second or so with no backoff, so such a 429
 // falls back to the exponential curve. So does a reset that cannot be parsed
 // or is not positive.
-func rateLimitResetWait(resp *http.Response) (time.Duration, bool) {
+//
+// The wait is clamped to maxWait here rather than by the caller, and the
+// seconds until reset are counted as integers. A reset centuries away, such as
+// one sent in epoch milliseconds, saturates time.Time.Sub at the largest
+// Duration, and adding the extra second to that wraps the wait negative, which
+// retryablehttp treats as no wait at all.
+func rateLimitResetWait(resp *http.Response, maxWait time.Duration) (time.Duration, bool) {
 	if resp == nil || resp.StatusCode != http.StatusTooManyRequests || resp.Header.Get("Retry-After") != "" {
 		return 0, false
 	}
@@ -218,8 +229,9 @@ func rateLimitResetWait(resp *http.Response) (time.Duration, bool) {
 	if err != nil {
 		now = time.Now()
 	}
-	wait := max(time.Unix(reset, 0).Sub(now), 0) + time.Second
-	return wait + rand.N(time.Second), true
+	secs := min(max(reset-now.Unix(), 0), int64(maxWait/time.Second))
+	wait := time.Duration(secs)*time.Second + time.Second + rand.N(time.Second)
+	return min(wait, maxWait), true
 }
 
 // logRetryAttempt is the RequestLogHook: retryablehttp calls it immediately

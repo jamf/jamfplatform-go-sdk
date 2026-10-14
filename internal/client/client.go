@@ -636,8 +636,8 @@ func (c *Transport) DoWithContentType(ctx context.Context, method, path string, 
 // method instead of DoWithContentType for any such endpoint; see
 // isRetryableWriteStatus's doc for the mechanism and the current callers
 // (computer/mobile-device prestage enrollment). 429/503 retry still applies
-// — those are gateway-level rejections that never reached the precondition
-// check in the first place, so they carry none of this risk.
+// — those are refusals that did not apply the write, so they never advanced
+// the precondition and carry none of this risk.
 //
 // This is a workaround for an upstream response-serializer bug, not a
 // permanent architectural split: once Jamf fixes it, this opt-out and its

@@ -4507,8 +4507,10 @@ What is established, and what is not:
 
 - **Established: the 100, the 429's shape, and that it comes from the gateway.**
   `x-generator: tyk.io` and Tyk's default body, not the `ApiError` envelope,
-  mean the request never reached the service. A 429 is therefore safe to retry
-  for any method, which `isRetryableWriteStatus` already assumes.
+  mean the request never reached the service, so this 429 is safe to retry
+  for any method. A service's own 429 (below) did reach the service;
+  `isRetryableWriteStatus` retries it on every method too, on the premise that
+  a refusal for load has not acted on the request.
 - **Established: there is no `Retry-After`.** `x-ratelimit-reset` is the only
   timing signal the server gives. It is in epoch seconds, and on the 429 it was
   the same second as `Date`. Both are whole seconds, so the window ends
