@@ -27,11 +27,11 @@ jobs:
       # Separate module: the root run never reaches the generator's own unit
       # tests (config validation, parameter doc rendering, enum naming).
       - run: cd tools/generate && go test -count=1 -timeout=120s ./...
-      # acctargets and acclanes live in the tools module, which the root run
-      # also misses. Scoped to the subpackages rather than ./... because
-      # tools/tools.go is a build-tagged blank import of copywrite that
+      # acctargets, acclanes and appleschemas live in the tools module, which
+      # the root run also misses. Scoped to the subpackages rather than ./...
+      # because tools/tools.go is a build-tagged blank import of copywrite that
       # typecheck rejects by design.
-      - run: cd tools && go test -count=1 -timeout=120s ./acctargets/... ./acclanes/...
+      - run: cd tools && go test -count=1 -timeout=120s ./acctargets/... ./acclanes/... ./appleschemas/...
 
   vet:
     name: Vet
@@ -166,7 +166,7 @@ jobs:
           - module: "tools/generate"
             path: "./..."
           - module: "tools"
-            path: "./acctargets/... ./acclanes/..."
+            path: "./acctargets/... ./acclanes/... ./appleschemas/..."
           - module: "."
             path: "./jamfplatform/..."
             extra: "--build-tags=acceptance --enable-only=errcheck,ineffassign"
