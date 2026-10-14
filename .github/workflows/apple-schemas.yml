@@ -152,8 +152,14 @@ jobs:
           git commit --file=/tmp/commit-message
           git push --force origin "$branch"
 
+          # An open pull request gets its title and body rewritten as well as its tables: the body
+          # carries the removal report, and one written on the day the pull request opened says
+          # nothing about a withdrawal a later run force-pushed onto the branch.
           if [ -n "$(gh pr list --head "$branch" --state open --json number --jq '.[].number')" ]; then
-            echo "An open refresh pull request already exists; it now carries the newer tables."
+            gh pr edit "$branch" \
+              --title "chore(appleschemas): refresh Apple schemas to ${UPSTREAM_RELEASE}" \
+              --body-file /tmp/pr-body
+            echo "An open refresh pull request already exists; its tables, title and body are updated."
             exit 0
           fi
           gh pr create \

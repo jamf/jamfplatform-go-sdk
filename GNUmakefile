@@ -47,7 +47,9 @@ test:
 # (seed_OS_27_0 -> seed_OS_28_0). Discovery finding NOTHING is expected for part of the year: Apple
 # promotes the seed branch into release at OS GA and deletes it, so between that and the next beta
 # release is the whole vocabulary — seed_OS_27_0 went this way, release becoming Release-v27.0 on
-# 2026-09-18. So it builds from release alone rather than refusing. Override to pin a branch
+# 2026-09-18. So it builds from release alone rather than refusing — but only when discovery
+# answered and found nothing. A discovery that FAILED is fatal, because a network error that read
+# as "no seed" would drop the whole seed vocabulary and report it as withdrawn. Override to pin a branch
 # discovery would miss:
 #   make apple-schemas SEED_REF=seed_OS_28_0
 #
@@ -64,8 +66,9 @@ apple-schemas:
 	seed='$(SEED_REF)'; \
 	if [ -z "$$seed" ]; then \
 		echo "Discovering Apple's newest seed branch..."; \
-		seed="$$(git ls-remote --heads https://github.com/apple/device-management.git 'seed_OS_*' \
-			| sed 's#.*refs/heads/##' | sort -V | tail -1)"; \
+		heads="$$(git ls-remote --heads https://github.com/apple/device-management.git 'seed_OS_*')" \
+			|| { echo "Seed branch discovery failed (git ls-remote exited non-zero); refusing to build from $(RELEASE_REF) alone." >&2; exit 1; }; \
+		seed="$$(printf '%s\n' "$$heads" | sed -n 's#.*refs/heads/##p' | sort -V | tail -1)"; \
 	fi; \
 	if [ -z "$$seed" ]; then \
 		echo "No seed_OS_* branch upstream, which is expected between an OS release and"; \
@@ -78,9 +81,9 @@ apple-schemas:
 	newest='$(RELEASE_REF)'; \
 	for ref in '$(RELEASE_REF)' $$seed; do \
 		echo "Cloning apple/device-management ($$ref)..."; \
-		git clone --depth 1 --branch "$$ref" --filter=blob:none --sparse \
-			https://github.com/apple/device-management.git "$$work/$$ref" >/dev/null 2>&1; \
-		git -C "$$work/$$ref" sparse-checkout set mdm/profiles declarative >/dev/null 2>&1; \
+		git clone --quiet --depth 1 --branch "$$ref" --filter=blob:none --sparse \
+			https://github.com/apple/device-management.git "$$work/$$ref"; \
+		git -C "$$work/$$ref" sparse-checkout set mdm/profiles declarative; \
 		newest="$$ref"; \
 	done; \
 	release='$(RELEASE_REF)'; \
