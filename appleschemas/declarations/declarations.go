@@ -128,8 +128,10 @@ func (d *Declaration) SeedOnly() bool {
 	return !slices.Contains(d.Refs, ReleaseRef())
 }
 
-// Table is the generated declaration table.
-type Table struct {
+// table is the generated declaration table. It is unexported because nothing hands a caller the
+// table itself: the package functions expose what a diagnostic needs, and keeping the shape private
+// leaves the generator free to change it.
+type table struct {
 	Source  string            `json:"source"`
 	Commits map[string]string `json:"commits"`
 	// Refs lists the upstream branches unioned, in read order: the release branch first, the most
@@ -146,15 +148,15 @@ type Table struct {
 // table every declaration reports as UnknownDeclarationType. Only the status-item check goes quiet,
 // since it has no vocabulary to compare against. The package's own tests fail on a table that
 // decodes to nothing.
-var load = sync.OnceValue(func() *Table {
-	table := &Table{}
-	if err := json.Unmarshal(embeddedTable, table); err != nil {
-		return &Table{Declarations: map[string]*Declaration{}}
+var load = sync.OnceValue(func() *table {
+	decoded := &table{}
+	if err := json.Unmarshal(embeddedTable, decoded); err != nil {
+		return &table{Declarations: map[string]*Declaration{}}
 	}
-	if table.Declarations == nil {
-		table.Declarations = map[string]*Declaration{}
+	if decoded.Declarations == nil {
+		decoded.Declarations = map[string]*Declaration{}
 	}
-	return table
+	return decoded
 })
 
 // ReleaseRef returns the branch the table treats as released, which is the first one read.
@@ -175,8 +177,8 @@ func Refs() []string { return slices.Clone(load().Refs) }
 // branch is open it is the seed's ("Seed8") rather than release's. ProvenanceSummary names each
 // branch with its own commit.
 func Provenance() (commit, release string) {
-	table := load()
-	return table.Commits[ReleaseRef()], table.Release
+	loaded := load()
+	return loaded.Commits[ReleaseRef()], loaded.Release
 }
 
 // ProvenanceSummary renders the branches and commits the table was built from, e.g.
@@ -184,10 +186,10 @@ func Provenance() (commit, release string) {
 // Apple's commit subjects are terse internal labels ("Seed8"), which read as a typo when dropped
 // into a sentence, whereas a branch and commit are things an operator can actually look up.
 func ProvenanceSummary() string {
-	table := load()
-	parts := make([]string, 0, len(table.Refs))
-	for _, ref := range table.Refs {
-		commit := table.Commits[ref]
+	loaded := load()
+	parts := make([]string, 0, len(loaded.Refs))
+	for _, ref := range loaded.Refs {
+		commit := loaded.Commits[ref]
 		if len(commit) > 12 {
 			commit = commit[:12]
 		}
@@ -206,6 +208,11 @@ func StatusItems() []string { return slices.Clone(load().StatusItems) }
 
 // Lookup returns the declared shape of a declaration type. The match is case-sensitive, mirroring
 // the service, which renders no form at all for a wrong-cased type.
+//
+// The returned value points into the package's decoded table, which every caller and every later
+// Validate share, so it must not be modified. Unlike Refs and StatusItems it is not cloned, because
+// Validate looks up every declaration it checks and a deep copy of a type's key tree would be paid
+// on each call.
 func Lookup(declarationType string) (*Declaration, bool) {
 	declaration, ok := load().Declarations[declarationType]
 	return declaration, ok

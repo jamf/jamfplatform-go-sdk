@@ -81,12 +81,14 @@ type Schema struct {
 }
 
 // SeedOnly reports whether a key is declared only on a pre-release branch, so a diagnostic about it
-// can name that as the likely reason the running Jamf tenant may or may not accept it yet.
-func (s *Schema) SeedOnly(releaseRef string) bool {
+// can name that as the likely reason the running Jamf tenant may or may not accept it yet. The
+// release branch is the embedded table's own, so a caller cannot ask the question against a branch
+// the table never read.
+func (s *Schema) SeedOnly() bool {
 	if s == nil || len(s.Refs) == 0 {
 		return false
 	}
-	return !slices.Contains(s.Refs, releaseRef)
+	return !slices.Contains(s.Refs, ReleaseRef())
 }
 
 // Payload is the declared shape of one payload type. Any is set when the payload accepts arbitrary
@@ -99,26 +101,28 @@ type Payload struct {
 	Refs []string `json:"refs,omitempty"`
 }
 
-// Table is the generated schema table. It is the union of several upstream branches — Apple's
+// SeedOnly reports whether this payload type is declared only on a pre-release branch.
+func (p *Payload) SeedOnly() bool {
+	if p == nil || len(p.Refs) == 0 {
+		return false
+	}
+	return !slices.Contains(p.Refs, ReleaseRef())
+}
+
+// table is the generated schema table. It is the union of several upstream branches — Apple's
 // release branch plus its newest seed (pre-release) branch — because Jamf's services validate
 // against seed, so a table built from release alone reports keys the Jamf UI already offers as
 // unknown. Commits records the revision each branch was read at; Refs lists them in read order,
 // the first being the release branch and the last the most forward-looking.
-type Table struct {
+//
+// It is unexported because nothing hands a caller the table itself: the package functions expose
+// what a diagnostic needs, and keeping the shape private leaves the generator free to change it.
+type table struct {
 	Source   string              `json:"source"`
 	Commits  map[string]string   `json:"commits"`
 	Refs     []string            `json:"refs"`
 	Release  string              `json:"release,omitempty"`
 	Payloads map[string]*Payload `json:"payloads"`
-}
-
-// ReleaseRef returns the branch the table treats as released, which is the first read. Callers use
-// it with Schema.SeedOnly to tell a long-standing key from a pre-release one.
-func (t *Table) ReleaseRef() string {
-	if len(t.Refs) == 0 {
-		return ""
-	}
-	return t.Refs[0]
 }
 
 // load decodes the embedded table once. A table that fails to decode yields an empty one rather than
@@ -128,19 +132,19 @@ func (t *Table) ReleaseRef() string {
 // Jamf would refuse — and it means a build shipping a corrupt profiles.json is loud rather than
 // silently unvalidated. `make apple-schemas` regenerates the file, and the package's own tests fail
 // on a table that decodes to nothing.
-var load = sync.OnceValue(func() *Table {
-	table := &Table{}
+var load = sync.OnceValue(func() *table {
+	decoded := &table{}
 	raw, err := embedded.ReadFile("profiles.json")
 	if err != nil {
-		return &Table{Payloads: map[string]*Payload{}}
+		return &table{Payloads: map[string]*Payload{}}
 	}
-	if err := json.Unmarshal(raw, table); err != nil {
-		return &Table{Payloads: map[string]*Payload{}}
+	if err := json.Unmarshal(raw, decoded); err != nil {
+		return &table{Payloads: map[string]*Payload{}}
 	}
-	if table.Payloads == nil {
-		table.Payloads = map[string]*Payload{}
+	if decoded.Payloads == nil {
+		decoded.Payloads = map[string]*Payload{}
 	}
-	return table
+	return decoded
 })
 
 // Provenance returns the upstream commit and release the embedded table was generated from, for
@@ -150,8 +154,8 @@ var load = sync.OnceValue(func() *Table {
 // branch is open it is the seed's ("Seed8") rather than release's. ProvenanceSummary names each
 // branch with its own commit.
 func Provenance() (commit, release string) {
-	table := load()
-	return table.Commits[table.ReleaseRef()], table.Release
+	loaded := load()
+	return loaded.Commits[ReleaseRef()], loaded.Release
 }
 
 // ProvenanceSummary renders the branches and commits the table was built from, e.g.
@@ -159,10 +163,10 @@ func Provenance() (commit, release string) {
 // Apple's commit subjects are terse internal labels ("Seed8"), which read as a typo when dropped
 // into a sentence, whereas a branch and commit are things an operator can look up.
 func ProvenanceSummary() string {
-	table := load()
-	parts := make([]string, 0, len(table.Refs))
-	for _, ref := range table.Refs {
-		commit := table.Commits[ref]
+	loaded := load()
+	parts := make([]string, 0, len(loaded.Refs))
+	for _, ref := range loaded.Refs {
+		commit := loaded.Commits[ref]
 		if len(commit) > 12 {
 			commit = commit[:12]
 		}
@@ -176,9 +180,15 @@ func Refs() []string {
 	return slices.Clone(load().Refs)
 }
 
-// ReleaseRef returns the branch the embedded table treats as released.
+// ReleaseRef returns the branch the embedded table treats as released, which is the first one read.
+// Schema.SeedOnly and Payload.SeedOnly compare against it to tell a long-standing key from a
+// pre-release one.
 func ReleaseRef() string {
-	return load().ReleaseRef()
+	refs := load().Refs
+	if len(refs) == 0 {
+		return ""
+	}
+	return refs[0]
 }
 
 // PayloadTypes returns every payload type in the table, sorted.
@@ -188,6 +198,10 @@ func PayloadTypes() []string {
 
 // Lookup returns the declared shape of a payload type. The match is case-sensitive, mirroring Jamf,
 // which rejects `com.apple.Dock` while accepting `com.apple.dock`.
+//
+// The returned value points into the package's decoded table, which every caller and every later
+// Validate share, so it must not be modified. Unlike Refs it is not cloned, because Validate looks
+// up every payload it checks and a deep copy of a payload's key tree would be paid on each call.
 func Lookup(payloadType string) (*Payload, bool) {
 	payload, ok := load().Payloads[payloadType]
 	return payload, ok
@@ -220,6 +234,28 @@ const (
 	// rejects the write, so this is not advisory.
 	IntegerOutOfRange
 )
+
+// String names the kind, for test failure messages and diagnostics that group findings.
+func (k ProblemKind) String() string {
+	switch k {
+	case UnknownPayloadType:
+		return "unknown payload type"
+	case MiscasedPayloadType:
+		return "miscased payload type"
+	case UnknownKey:
+		return "unknown key"
+	case MiscasedKey:
+		return "miscased key"
+	case WrongType:
+		return "wrong type"
+	case MissingRequiredKey:
+		return "missing required key"
+	case IntegerOutOfRange:
+		return "integer out of range"
+	default:
+		return "unknown problem"
+	}
+}
 
 // The bounds of the 32-bit signed field Jamf stores an integer payload value in.
 const (

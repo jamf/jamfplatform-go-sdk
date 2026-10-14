@@ -129,6 +129,76 @@ func TestStaleTableSuspect_PinsTheSet(t *testing.T) {
 	}
 }
 
+// TestProblemKindString pins a distinct name for every kind. A kind that falls through to the
+// default prints as "unknown problem" in every test failure and grouped diagnostic, which reads as a
+// finding about the table rather than about the payload. The walk runs to IntegerOutOfRange, the
+// last kind declared, so a kind appended after it must extend both the walk and the table.
+func TestProblemKindString(t *testing.T) {
+	want := map[ProblemKind]string{
+		UnknownPayloadType:  "unknown payload type",
+		MiscasedPayloadType: "miscased payload type",
+		UnknownKey:          "unknown key",
+		MiscasedKey:         "miscased key",
+		WrongType:           "wrong type",
+		MissingRequiredKey:  "missing required key",
+		IntegerOutOfRange:   "integer out of range",
+	}
+	seen := map[string]ProblemKind{}
+	for kind := UnknownPayloadType; kind <= IntegerOutOfRange; kind++ {
+		got := kind.String()
+		if got != want[kind] {
+			t.Errorf("ProblemKind(%d).String() = %q, want %q", int(kind), got, want[kind])
+		}
+		if previous, duplicate := seen[got]; duplicate {
+			t.Errorf("ProblemKind(%d) and ProblemKind(%d) both print as %q", int(previous), int(kind), got)
+		}
+		seen[got] = kind
+	}
+	if got := (IntegerOutOfRange + 1).String(); got != "unknown problem" {
+		t.Errorf("an undeclared kind prints as %q, want the default", got)
+	}
+}
+
+// TestPayloadSeedOnly asserts a payload type is seed-only exactly when the release branch does not
+// declare it. The embedded table may carry no seed branch at all — Apple deletes seed at GA — so the
+// seed case is constructed rather than looked up.
+func TestPayloadSeedOnly(t *testing.T) {
+	release := ReleaseRef()
+	if release == "" {
+		t.Fatal("table records no release branch; SeedOnly would report every payload as seed-only")
+	}
+	for _, tc := range []struct {
+		name    string
+		payload *Payload
+		want    bool
+	}{
+		{"nil payload", nil, false},
+		{"no refs recorded", &Payload{}, false},
+		{"release only", &Payload{Refs: []string{release}}, false},
+		{"release and seed", &Payload{Refs: []string{release, "seed_OS_99_0"}}, false},
+		{"seed only", &Payload{Refs: []string{"seed_OS_99_0"}}, true},
+	} {
+		if got := tc.payload.SeedOnly(); got != tc.want {
+			t.Errorf("%s: SeedOnly() = %t, want %t", tc.name, got, tc.want)
+		}
+	}
+
+	dock, ok := Lookup("com.apple.dock")
+	if !ok {
+		t.Fatal("com.apple.dock missing from the table")
+	}
+	if dock.SeedOnly() {
+		t.Error("com.apple.dock reads as seed-only; it has been on the release branch for years")
+	}
+	orientation, ok := dock.Keys["orientation"]
+	if !ok {
+		t.Fatal("com.apple.dock orientation missing; a nil schema reports false and would pass vacuously")
+	}
+	if orientation.SeedOnly() {
+		t.Error("com.apple.dock orientation reads as seed-only; it is declared on the release branch")
+	}
+}
+
 func TestValidate_MissingRequiredKeyInsideArrayEntry(t *testing.T) {
 	problems := Validate("com.apple.notificationsettings", settings(t, `{"NotificationSettings":[{"AlertType":1}]}`))
 	if len(problems) != 1 {
