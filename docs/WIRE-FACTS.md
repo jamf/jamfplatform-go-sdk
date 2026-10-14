@@ -2144,6 +2144,45 @@ or group remained after the acceptance lane.
 `TestAcceptance_Blueprint_DeclarationsComponentRoundTrip` pins the round trip
 and the unlisted-type acceptance.
 
+### Configuration-profile payloads: named keys beside a wildcard are type-checked, and `extensiblesso` is disabled (2026-10-14)
+
+Probed for `appleschemas/profiles`, whose validator used to skip a dictionary
+that accepts arbitrary key names entirely. EU environment credential;
+`ListBlueprints` at 200 as the control, and one create per case on a
+`com.jamf.ddm-configuration-profile` component, so each status is that
+payload's alone:
+
+```
+applicationaccess  safariAllowJavaScript:false                     -> 201
+applicationaccess  safariAllowJavaScript:"notabool"                -> 400 VALIDATION_FAILURE
+firstethernet.managed  AutoJoin:true                               -> 201
+firstethernet.managed  AutoJoin:true, PayloadVersion:1             -> 201
+firstethernet.managed  AutoJoin:true, PayloadVersion:"x"           -> 400 VALIDATION_FAILURE
+applicationaccess  safariAllowJavaScript:false, PayloadVersion:"x" -> 400 VALIDATION_FAILURE
+firstethernet.managed  AutoJoin:"notabool", VendorThing:{a:[1,"b"]} -> 201, both read back verbatim
+```
+
+`com.apple.firstethernet.managed`'s root accepts arbitrary key names and also
+declares the common `Payload*` keys. Everything beneath the wildcard is stored
+untouched whatever its value, but a declared key beside it is still
+type-checked. The validator now follows package `declarations`: the wildcard
+suppresses only the unknown-key finding
+(`TestValidate_NamedKeysBesideAWildcardAreChecked`). The evidence is a common
+metadata key, and the K row shows that check fires on a plain payload too. The
+one payload whose wildcard sits beside Apple-documented keys,
+`com.apple.extensiblesso.ExtensionData` (38 of them), could not be probed:
+
+```
+com.apple.extensiblesso (any body, valid or not) -> 400 INVALID_INPUT
+  steps[0].components[0].configuration.payloadContent[0].payloadType: Payload disabled: com.apple.extensiblesso
+```
+
+every time, ahead of body validation. So the service refuses a payload type the
+table carries and `profiles.Validate` passes. Whether `disabled` is per
+environment or global is not established from one environment. Every probe
+blueprint that was created was deleted, and a re-list of the probe prefix
+came back empty. Report upstream.
+
 ## Jamf Security Cloud (`securitycloud`)
 
 ### URL shape

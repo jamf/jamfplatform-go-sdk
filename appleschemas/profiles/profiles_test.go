@@ -299,6 +299,32 @@ func TestValidate_WildcardPayloadAcceptsAnyKey(t *testing.T) {
 	}
 }
 
+// TestValidate_NamedKeysBesideAWildcardAreChecked pins the wire probe of 2026-10-14 against
+// com.apple.firstethernet.managed, a payload whose root accepts arbitrary key names and also
+// declares the common metadata keys. Jamf stored an undeclared key with any value, and refused
+// `PayloadVersion: "x"` while accepting `PayloadVersion: 1`, so the wildcard suppresses only the
+// unknown-key finding.
+func TestValidate_NamedKeysBesideAWildcardAreChecked(t *testing.T) {
+	problems := Validate("com.apple.firstethernet.managed", settings(t,
+		`{"AutoJoin":"notabool","VendorThing":{"a":[1,"b"]},"PayloadVersion":1}`))
+	if len(problems) != 0 {
+		t.Errorf("expected undeclared keys beside a wildcard to pass, got %v", problems)
+	}
+
+	problems = Validate("com.apple.firstethernet.managed", settings(t, `{"AutoJoin":true,"PayloadVersion":"x"}`))
+	if len(problems) != 1 || problems[0].Kind != WrongType || problems[0].Path != "PayloadVersion" {
+		t.Errorf("expected PayloadVersion reported as the wrong type, got %v", problems)
+	}
+
+	// The same rule reaches a nested dictionary: ExtensionData carries Apple's documented keys
+	// beside vendor extensions.
+	problems = Validate("com.apple.extensiblesso", settings(t,
+		`{"ExtensionIdentifier":"com.example.sso","Type":"Redirect","ExtensionData":{"allowPassword":"notabool","vendorKey":"x"}}`))
+	if len(problems) != 1 || problems[0].Kind != WrongType || problems[0].Path != "ExtensionData.allowPassword" {
+		t.Errorf("expected ExtensionData.allowPassword reported as the wrong type, got %v", problems)
+	}
+}
+
 func TestValidate_ProblemsAreOrderedByPath(t *testing.T) {
 	problems := Validate("com.apple.applicationaccess", settings(t, `{"zzBogus":1,"aaBogus":2}`))
 	if len(problems) != 2 {

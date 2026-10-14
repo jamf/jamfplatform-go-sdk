@@ -343,11 +343,19 @@ func canonicalPayloadType(payloadType string) (string, bool) {
 	return "", false
 }
 
-// validateDictionary checks a dictionary value against its declared keys. A dictionary that accepts
-// arbitrary key names is free-form: its contents are left alone entirely, because Jamf stops
-// validating there too — it stores an unrecognised key inside an MCX preference domain untouched.
+// validateDictionary checks a dictionary value against its declared keys.
+//
+// A dictionary that accepts arbitrary key names is free-form, and a name it does not declare cannot
+// be unknown: Jamf stores such a key untouched, whatever its value — an unrecognised key inside an
+// MCX preference domain, or `VendorThing` beside a wrong-typed undeclared `AutoJoin` in
+// com.apple.firstethernet.managed (probed 2026-10-14, stored verbatim). But a wildcard and named
+// keys can be declared together, and Jamf still type-checks the named ones: the same ethernet
+// payload with `PayloadVersion: "x"` is refused with VALIDATION_FAILURE where `PayloadVersion: 1`
+// is accepted. So the wildcard suppresses only the unknown-key finding, exactly as in package
+// declarations; returning early on it would pass a write Jamf refuses.
 func validateDictionary(declared *Schema, value map[string]any, path string, problems *[]Problem) {
-	if declared.Any != nil {
+	freeForm := declared.Any != nil
+	if freeForm && len(declared.Keys) == 0 {
 		return
 	}
 
@@ -360,6 +368,9 @@ func validateDictionary(declared *Schema, value map[string]any, path string, pro
 		if !exact {
 			canonical, matched := index[strings.ToLower(name)]
 			if !matched {
+				if freeForm {
+					continue
+				}
 				*problems = append(*problems, Problem{
 					Kind: UnknownKey,
 					Path: child,
