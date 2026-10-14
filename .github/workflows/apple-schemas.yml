@@ -1,0 +1,264 @@
+name: Apple Schemas
+
+# Keeps both embedded Apple schema tables current with apple/device-management:
+# appleschemas/profiles/profiles.json (configuration profile payloads) and
+# appleschemas/declarations/declarations.json (declarative device management declarations).
+# Consumers validate legacy payloads and declarations against them before sending.
+# See docs/STYLE.md, "Apple schemas generator".
+#
+# This is deliberately a scheduled job that opens a pull request, NOT a check on every pull request:
+# a freshness check on the critical path would block unrelated work the day Apple publishes. It
+# follows the pattern Dependabot already uses here for Go modules and actions — a scheduled,
+# reviewable pull request — because a schema diff can turn a passing configuration into a failing
+# one and so needs a human to look at it.
+#
+# Runs DAILY, which is more often than upstream moves, and deliberately so. An unrecognised key or
+# declaration type is an **error** rather than a warning, because the platform silently discards
+# one and the device never receives it — so while the table is stale a consumer blocks a
+# configuration that would work. Apple publishes keys on a seed branch around OS betas and Jamf
+# offers them in its UI immediately, which is faster than the SDK's release cadence; a daily
+# refresh keeps the window before the table is current to a day rather than a month. The job costs
+# a sparse clone and a diff.
+
+on:
+  schedule:
+    # 04:00 UTC daily.
+    - cron: "0 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  # A pull request opened with GITHUB_TOKEN triggers no pull_request workflows, so ci.yml would never
+  # run on the refresh. workflow_dispatch is the one event GITHUB_TOKEN may raise, and a dispatched
+  # run reports against the branch head, which is the commit the pull request shows checks for.
+  actions: write
+
+# A refresh must never race itself; a queued run picks up whatever the previous one committed.
+concurrency:
+  group: apple-schemas
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    name: Refresh Schemas
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      # apple-schemas discovers Apple's newest seed_OS_* branch and unions it with release, building
+      # from release alone when no seed branch is open — which is the normal state between an OS
+      # release and its next beta, since Apple promotes seed into release at GA and deletes it.
+      #
+      # The tables track upstream rather than accumulating a vocabulary Apple has retired, so a key
+      # Apple withdraws leaves the SDK with it. That is deliberate, and it is also the refresh that
+      # turns a configuration which validates today into a failing one — as is a constraint Apple
+      # tightens. So the generator's report of both is captured here and carried into the pull
+      # request body, where it reaches a reviewer instead of hiding in several thousand changed
+      # lines. Its other warnings go into the body too, collapsed: each names an upstream construct
+      # the generator worked around, which is otherwise visible only in this log.
+      - name: Regenerate the schema tables
+        run: |
+          set -euo pipefail
+          make apple-schemas 2>&1 | tee /tmp/apple-schemas.log
+          # grep exits 1 for no match, which is the normal case, and 2 for a real error, which must
+          # not read as "nothing was withdrawn".
+          status=0
+          grep -E '^  - ' /tmp/apple-schemas.log > /tmp/apple-schemas-removals.txt || status=$?
+          if [ "$status" -gt 1 ]; then
+            echo "::error::Could not extract the removal report from the generator log."
+            exit "$status"
+          fi
+          status=0
+          grep -E '^appleschemas: ' /tmp/apple-schemas.log \
+            | grep -vE '^appleschemas: (wrote |union of )' > /tmp/apple-schemas-warnings.txt || status=$?
+          if [ "$status" -gt 1 ]; then
+            echo "::error::Could not extract the generator warnings from its log."
+            exit "$status"
+          fi
+          if [ -s /tmp/apple-schemas-removals.txt ]; then
+            echo "::warning::This refresh withdraws or tightens names the committed tables carry; see the pull request body."
+          fi
+
+      - name: Check for changes
+        id: diff
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- appleschemas/profiles/profiles.json appleschemas/declarations/declarations.json; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Schema tables are already current."
+            exit 0
+          fi
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+          # Both tables are generated from one clone, so their provenance always agrees; report the
+          # declaration table's, which names every branch unioned.
+          table=appleschemas/declarations/declarations.json
+          {
+            echo "refs=$(jq -r '.refs | join(" + ")' "$table")"
+            echo "release=$(jq -r .release "$table")"
+            echo "commits=$(jq -r '.commits | to_entries | map("\(.key)@\(.value[0:12])") | join(", ")' "$table")"
+            echo "declarations=$(jq -r '.declarations | length' "$table")"
+            echo "payloads=$(jq -r '.payloads | length' appleschemas/profiles/profiles.json)"
+          } >> "$GITHUB_OUTPUT"
+
+      # A schema diff changes what the validators accept, so the suites that consume the tables run
+      # against it. The generator's own tests run too: they read no table, but a refresh that only
+      # passes against a broken generator proves nothing.
+      #
+      # A failure does NOT stop the pull request. Several tests pin upstream vocabulary — the
+      # canaries, the SDK's ddm-strict types — so the refresh most worth reviewing, one where Apple
+      # withdrew a pinned name, is exactly the one they fail. Stopping here would turn it into a red
+      # scheduled run nobody is notified of and leave the table stale every day after. The pull
+      # request opens as a draft carrying the failure instead, and the job still fails at the end.
+      - name: Test against the new tables
+        id: tests
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          set -uo pipefail
+          status=0
+          {
+            go test ./appleschemas/... ./jamfplatform/blueprints/... &&
+            (cd tools && go test ./appleschemas/...)
+          } 2>&1 | tee /tmp/apple-schemas-tests.log || status=$?
+          if [ "$status" -eq 0 ]; then
+            echo "passed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "passed=false" >> "$GITHUB_OUTPUT"
+            echo "::error::The suites fail against the regenerated tables; the refresh pull request is a draft carrying the failure."
+          fi
+
+      # A fixed branch is force-pushed, so an unreviewed run does not accumulate branches and an
+      # already-open pull request picks up the newer tables instead of a second one being opened.
+      # Two things stop the push, because each would otherwise undo a person's decision:
+      #   - a refresh pull request closed unmerged for these same upstream commits, which is how a
+      #     reviewer defers one; a new upstream commit opens a fresh one;
+      #   - a commit on the branch that the workflow did not write, such as a reviewer's fixup,
+      #     which a force-push would discard.
+      - name: Open or update the refresh pull request
+        id: pr
+        if: steps.diff.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          UPSTREAM_COMMITS: ${{ steps.diff.outputs.commits }}
+          UPSTREAM_RELEASE: ${{ steps.diff.outputs.release }}
+          UPSTREAM_REFS: ${{ steps.diff.outputs.refs }}
+          DECLARATION_COUNT: ${{ steps.diff.outputs.declarations }}
+          PAYLOAD_COUNT: ${{ steps.diff.outputs.payloads }}
+          TESTS_PASSED: ${{ steps.tests.outputs.passed }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          branch="chore/apple-schemas-refresh"
+          title="chore(appleschemas): refresh Apple schemas to ${UPSTREAM_RELEASE}"
+          upstream_line="- Upstream: \`${UPSTREAM_COMMITS}\` (\`${UPSTREAM_RELEASE}\`)"
+
+          declined="$(gh pr list --head "$branch" --state closed --limit 1 --json mergedAt,body \
+            --jq '.[] | select(.mergedAt == null) | .body')"
+          if [ -n "$declined" ] && printf '%s\n' "$declined" | grep -qxF -- "$upstream_line"; then
+            echo "::notice::A refresh for ${UPSTREAM_COMMITS} was closed unmerged; not reopening it until upstream moves."
+            exit 0
+          fi
+
+          if git ls-remote --exit-code --heads origin "$branch" >/dev/null; then
+            foreign="$(gh api "repos/${GITHUB_REPOSITORY}/compare/${GITHUB_REF_NAME}...${branch}" \
+              --jq '[.commits[] | select(.author.login != "github-actions[bot]") | .sha[0:12]] | join(", ")')"
+            if [ -n "$foreign" ]; then
+              echo "::warning::${branch} carries commits the workflow did not write (${foreign}); not force-pushing over them."
+              if [ -n "$(gh pr list --head "$branch" --state open --json number --jq '.[].number')" ]; then
+                gh pr comment "$branch" --body "Upstream moved to \`${UPSTREAM_COMMITS}\` (\`${UPSTREAM_RELEASE}\`), but this branch carries commits the Apple Schemas workflow did not write (${foreign}), so it was not refreshed. Merge or close this pull request, or rebase those commits onto a fresh \`make apple-schemas\`, and the next run picks it up. [Run](${RUN_URL})"
+              fi
+              exit 0
+            fi
+          fi
+
+          # The generator's removal report, if it found any, promoted from a log line nobody reads
+          # into the body of the pull request a human is about to review.
+          REMOVALS=""
+          if [ -s /tmp/apple-schemas-removals.txt ]; then
+            REMOVALS="$(printf '\n**This refresh withdraws or tightens names the committed tables carry.** The tables track upstream rather than retaining a retired vocabulary, so each becomes an error in validation and a configuration relying on one stops working. A report capped with "and N more" is complete in the [run log](%s):\n\n%s\n' "$RUN_URL" "$(cat /tmp/apple-schemas-removals.txt)")"
+          fi
+          WARNINGS=""
+          if [ -s /tmp/apple-schemas-warnings.txt ]; then
+            WARNINGS="$(printf '\n<details>\n<summary>Generator warnings (%s)</summary>\n\n~~~\n%s\n~~~\n\n</details>\n' "$(wc -l < /tmp/apple-schemas-warnings.txt | tr -d ' ')" "$(cat /tmp/apple-schemas-warnings.txt)")"
+          fi
+          FAILURE=""
+          if [ "${TESTS_PASSED}" != "true" ]; then
+            FAILURE="$(printf '\n> [!CAUTION]\n> **The suites fail against these tables**, so this pull request is a draft. A failing canary or SDK cross-check usually means Apple withdrew a name a test pins: decide whether the SDK follows upstream, then update the test in this branch. [Run log](%s)\n\n~~~\n%s\n~~~\n' "$RUN_URL" "$(grep -E -e '^(--- FAIL|FAIL|ok )' -e '_test\.go:[0-9]+:' /tmp/apple-schemas-tests.log | head -60)")"
+          fi
+
+          cat > /tmp/commit-message <<EOF
+          chore(appleschemas): refresh Apple schemas to ${UPSTREAM_RELEASE}
+
+          Regenerated both embedded tables from apple/device-management
+          (${UPSTREAM_COMMITS}).
+          EOF
+
+          cat > /tmp/pr-body <<EOF
+          Apple published new schemas. This refreshes both embedded tables the SDK validates against.
+          ${FAILURE}
+          ${upstream_line}
+          - Branches unioned: \`${UPSTREAM_REFS}\`
+          - Now carrying ${PAYLOAD_COUNT} payload types and ${DECLARATION_COUNT} declaration types
+
+          **Review focus** — most of a refresh is newly added keys, which is harmless. What matters is anything that could fail a configuration that works today, because these findings are errors rather than warnings. The generator reports each of these below when it finds one:
+
+          - a key whose \`type\` changed, or which gained \`required\`
+          - a declaration key whose \`enum\` lost a value, or whose \`min\`/\`max\` narrowed (payload enums and bounds are not enforced, so they are not reported)
+          - a payload type or declaration type that disappeared upstream, which would start reporting as unrecognised
+          - a change to \`statusItems\`, which would start reporting existing status subscriptions as unknown
+
+          A key moving from the seed branch to release is expected and safe; watch instead for a key leaving the union entirely.
+          ${REMOVALS}
+          ${WARNINGS}
+
+          Opened by the Apple Schemas workflow. CI is dispatched on this branch by the same run, because a pull request opened with \`GITHUB_TOKEN\` triggers none.
+          EOF
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          git add appleschemas/profiles/profiles.json \
+                  appleschemas/declarations/declarations.json
+          git commit --file=/tmp/commit-message
+          git push --force origin "$branch"
+          echo "pushed=true" >> "$GITHUB_OUTPUT"
+
+          # An open pull request gets its title and body rewritten as well as its tables: the body
+          # carries the removal report, and one written on the day the pull request opened says
+          # nothing about a withdrawal a later run force-pushed onto the branch. Its draft state
+          # follows the tests the same way.
+          number="$(gh pr list --head "$branch" --state open --json number --jq '.[].number')"
+          if [ -n "$number" ]; then
+            gh pr edit "$number" --title "$title" --body-file /tmp/pr-body
+            draft="$(gh pr view "$number" --json isDraft --jq .isDraft)"
+            if [ "${TESTS_PASSED}" = "true" ] && [ "$draft" = "true" ]; then
+              gh pr ready "$number"
+            elif [ "${TESTS_PASSED}" != "true" ] && [ "$draft" = "false" ]; then
+              gh pr ready "$number" --undo
+            fi
+            echo "An open refresh pull request already exists; its tables, title, body and draft state are updated."
+          else
+            draft_flag=()
+            if [ "${TESTS_PASSED}" != "true" ]; then
+              draft_flag=(--draft)
+            fi
+            gh pr create --head "$branch" --title "$title" --body-file /tmp/pr-body "${draft_flag[@]}"
+          fi
+
+      - name: Run CI on the refresh branch
+        if: steps.pr.outputs.pushed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run ci.yml --ref chore/apple-schemas-refresh
+
+      # The draft carries the failure for a reviewer; the run still goes red so it is not mistaken
+      # for a clean refresh in the Actions history.
+      - name: Fail the run when the suites failed
+        if: steps.diff.outputs.changed == 'true' && steps.tests.outputs.passed != 'true'
+        run: |
+          echo "::error::The suites fail against the regenerated tables; see the draft refresh pull request."
+          exit 1

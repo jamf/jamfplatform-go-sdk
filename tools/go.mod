@@ -2,7 +2,10 @@ module github.com/jamf/jamfplatform-go-sdk/tools
 
 go 1.27.2
 
-require github.com/hashicorp/copywrite v0.25.3
+require (
+	github.com/hashicorp/copywrite v0.25.3
+	gopkg.in/yaml.v3 v3.0.1
+)
 
 require (
 	github.com/AlecAivazis/survey/v2 v2.3.7 // indirect
@@ -54,5 +57,4 @@ require (
 	golang.org/x/sys v0.46.0 // indirect
 	golang.org/x/term v0.44.0 // indirect
 	golang.org/x/text v0.38.0 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
