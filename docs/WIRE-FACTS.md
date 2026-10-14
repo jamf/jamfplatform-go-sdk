@@ -4446,51 +4446,103 @@ every family.
 
 ## Rate limiting
 
-**No Jamf path rate-limits as of 2026-08-31. This is a fact with an expiry date
-— rate limiting is planned — so treat it as a snapshot, not a standing
-property, and re-probe before relying on it.**
+**The gateway rate-limits as of 2026-10-14: 100 requests per window, enforced
+by Tyk, answered with a `429` that carries no `Retry-After`.** This supersedes
+the 2026-08-31 snapshot, when every response carried `x-ratelimit-limit: 0`
+(Tyk's value for "disabled") and the 30-request burst that recorded it never
+saw a 429.
 
-Wire evidence, `us` prod, one `pro` GET plus a 30-request burst shaped like
-Terraform's default parallelism (3 rounds x 10 concurrent, no client pacing):
-all 30 returned 200, and every response carried
+**The thresholds are gateway configuration and can change without a spec or
+SDK release, so nothing in the SDK may encode them** — only the header shape.
+They are not in the gateway's config repository either: on its 2026-10-14
+head every prod plan still carries `rate: -1`, `per: -1`, so the limit is
+applied somewhere that repository does not show. Ask the gateway team where,
+rather than reading it off the wire.
+
+Wire evidence, `us` prod, one environment credential, from one client IP:
+
+- **Idle, one request a second**, `GET /pro/v1/jamf-pro-version`: every 200
+  carried
+
+  ```
+  x-ratelimit-limit: 100
+  x-ratelimit-remaining: 19
+  x-ratelimit-reset: <epoch seconds, about one second after the request>
+  ```
+
+  `devices`, `blueprints` and `ai/governance/policies` GETs carried the same
+  three headers. A bogus path's `403 BAD_PERMISSIONS` and a bad bearer's `401`
+  carried none, so the limiter runs after authentication and routing.
+- **40 requests in rounds of 10 concurrent, about 30 inside one second**: all
+  200. The lowest `remaining` was 12, and the values were not monotonic across
+  concurrent responses (19, 14, 18, 13, …).
+- **One burst of 120 concurrent requests, inside one to two seconds: exactly
+  100 × 200 and 20 × 429.** Across the 200s, every `remaining` value from 19
+  down to 0 appeared exactly five times.
+- **Recovery was immediate.** A request about 20 seconds after the burst got 200
+  with `remaining: 19`, and the edge did not block the IP.
+
+The 429 — all twenty identical except for request identifiers:
 
 ```
-x-ratelimit-limit: 0
+HTTP/2 429
+content-type: application/json
+content-length: 38
+x-generator: tyk.io
+x-ratelimit-limit: 100
 x-ratelimit-remaining: 0
-x-ratelimit-reset: 0
+x-ratelimit-reset: 1791988853
+x-tyk-trace-id: <trace-id>
+date: Wed, 14 Oct 2026 14:40:53 GMT
+strict-transport-security: max-age=15768000
+x-cache: Error from cloudfront
+via: 1.1 <edge>.cloudfront.net (CloudFront)
+
+{
+    "error": "Rate Limit Exceeded"
+}
 ```
 
-Tyk reports the limit as `0` when rate limiting is disabled for the key. **No
-response carried a `Retry-After` header.**
+What is established, and what is not:
 
-Corroborated in the gateway's API definitions: both prod plans carry `rate: -1`,
-`per: -1`, `quota_max: -1`. The only global rate limit anywhere in prod is on the
-m2m Auth0 client-registration path (`rate: 2, per: 3`), which the SDK never
-calls. `Retry-After` appears nowhere in the gateway config or in its plugins.
+- **Established: the 100, the 429's shape, and that it comes from the gateway.**
+  `x-generator: tyk.io` and Tyk's default body, not the `ApiError` envelope,
+  mean the request never reached the service. A 429 is therefore safe to retry
+  for any method, which `isRetryableWriteStatus` already assumes.
+- **Established: there is no `Retry-After`.** `x-ratelimit-reset` is the only
+  timing signal the server gives. It is in epoch seconds, and on the 429 it was
+  the same second as `Date`. Both are whole seconds, so the window ends
+  somewhere in the second after `reset`.
+- **Inferred: the window is about one second.** The evidence is `reset` sitting
+  about a second ahead of each request and the immediate refill. Two timed
+  bursts would prove it, and none has been run.
+- **Inferred: the 100 is split into five counters of 20.** The "each value five
+  times" distribution fits Tyk's distributed rate limiter dividing a key's rate
+  across gateway nodes, and each response reports only the counter of the node
+  that served it. The node count has not been confirmed.
+- **Unknown: what the limit is keyed on** — token, credential, environment or
+  client IP. Only one credential and one IP were used.
 
-Two consequences for the transport:
+Consequences for the transport:
 
-- **429 is currently unreachable on SDK paths**, so `jamfBackoff`'s
-  `Retry-After` branch is untested against the real gateway. It is written to
-  be correct when rate limiting arrives rather than tuned to the present
-  absence — `retryablehttp.DefaultBackoff` supplies the parsing, and the SDK
-  adds only a clamp to `retryWaitMax`.
-- **When rate limiting does land, the shape matters.** If it emits
-  `Retry-After`, the transport already honors it and nothing needs changing. If
-  it does not, the exponential curve is the only backpressure response, and
-  jittering it becomes worth adding — retries are routinely concurrent and a
-  deterministic curve makes requests that failed together collide again. Worth
-  asking the gateway team to emit `Retry-After` on 429 and to populate the
-  `x-ratelimit-*` headers that currently return `0`; that removes the guessing
-  entirely.
+- **`remaining` cannot drive client-side pacing.** It reports one node's share,
+  not the budget, and that budget is shared with every other process using the
+  same key.
+- **One SDK client cannot reach today's limit with default settings.** The
+  default `WithMinRequestInterval` of 100ms caps it at 10 request starts a
+  second. The 429 comes from several processes sharing one credential, or from
+  a caller that turns off pacing.
+- **With no `Retry-After`, `x-ratelimit-reset` is the signal to wait on.** See
+  `jamfBackoff`.
 
 **First spec declaration of a 429, at GitOps v2209 (2026-09-17), and it is not
-a gateway rate limit.** `GET /v1/blueprints/{blueprintId}/report` gained a
-declared `429` bodied with `ApiError` and described as *"The reporting is
-overloaded, retry the request later"* — a service-level backpressure signal
-from the blueprints reporting component, not Tyk. That is the whole of v2209's
-delta. It does not disturb the snapshot above: the gateway plans still carry
-`rate: -1` and no probe has seen an `x-ratelimit-*` value other than `0`.
+the gateway's.** `GET /v1/blueprints/{blueprintId}/report` gained a declared
+`429` bodied with `ApiError` and described as *"The reporting is overloaded,
+retry the request later"* — a service-level backpressure signal from the
+blueprints reporting component, not Tyk. That is the whole of v2209's delta.
+`pro` (three operations, *"Rate limit exceeded"*) and the Security Cloud specs
+(a shared `RateLimited` response) also declare 429s on some operations. The
+gateway's limit applies to every operation, and no spec declares it that way.
 
 **Deliberately not probed, and the reason is the standing one.** Inducing it
 means hammering an endpoint whose own description says it is overloaded, and
