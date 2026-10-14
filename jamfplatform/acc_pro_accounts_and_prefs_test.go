@@ -15,6 +15,7 @@ import (
 
 	"github.com/jamf/jamfplatform-go-sdk/jamfplatform"
 	"github.com/jamf/jamfplatform-go-sdk/jamfplatform/pro"
+	"github.com/jamf/jamfplatform-go-sdk/jamfplatform/proclassic"
 )
 
 // Batch 20 — accounts + user-preferences + notifications + dashboard
@@ -104,6 +105,79 @@ func TestAcceptance_Pro_AccountsV1(t *testing.T) {
 	}
 	if updated.Realname == nil || *updated.Realname != updatedRealname {
 		t.Errorf("realname update mismatch: got %v, want %q", updated.Realname, updatedRealname)
+	}
+}
+
+// PUT /v1/accounts/{id} is a full replace for siteId: omitting it applies
+// the default of -1 and clears a site already set, while accessLevel stays
+// SiteAccess. Documented on UserAccount.SiteID from 11.33.0 (v2414), and
+// already the behaviour of the 11.32 server it was probed on (2026-10-02).
+// A caller that builds an update body without the current SiteID descopes
+// the account silently, so this pins the field-level consequence.
+func TestAcceptance_Pro_AccountUpdateWithoutSiteIDClearsSite(t *testing.T) {
+	c := accClient(t)
+	ctx := context.Background()
+	p := pro.New(c)
+	pc := proclassic.New(c)
+
+	siteName := "sdk-acc-account-site-" + runSuffix()
+	site, err := pc.CreateSiteByID(ctx, "0", &proclassic.Site{Name: new(siteName)})
+	if err != nil {
+		t.Fatalf("CreateSiteByID: %v", err)
+	}
+	if site == nil || site.ID == nil {
+		t.Fatalf("CreateSiteByID returned no ID: %+v", site)
+	}
+	siteID := *site.ID
+	cleanupDelete(t, "Site "+intToStr(siteID), func() error { return pc.DeleteSiteByID(ctx, intToStr(siteID)) })
+
+	uname := "sdk-acc-siteid-" + runSuffix()
+	created, err := p.CreateAccountV1(ctx, &pro.UserAccount{
+		Username:                  new(uname),
+		Realname:                  new("SDK Acc SiteID " + runSuffix()),
+		Email:                     new(uname + "@example.invalid"),
+		Phone:                     new("000-000-0000"),
+		PlainPassword:             new("SDKAccTestPwd!" + runSuffix()),
+		LdapServerID:              new(-1),
+		DistinguishedName:         new(""),
+		SiteID:                    new(siteID),
+		AccessLevel:               new("SiteAccess"),
+		PrivilegeLevel:            new("AUDITOR"),
+		AccountStatus:             new("Enabled"),
+		ChangePasswordOnNextLogin: new(false),
+	})
+	if err != nil {
+		t.Fatalf("CreateAccountV1: %v", err)
+	}
+	if created.ID == nil {
+		t.Fatalf("CreateAccountV1: nil ID on response")
+	}
+	id := *created.ID
+	cleanupDelete(t, "Account "+id, func() error { return p.DeleteAccountV1(ctx, id) })
+
+	got, err := p.GetAccountV1(ctx, id)
+	if err != nil {
+		t.Fatalf("GetAccountV1: %v", err)
+	}
+	if got.SiteID == nil || *got.SiteID != siteID {
+		t.Fatalf("siteId after create = %v, want %d", got.SiteID, siteID)
+	}
+
+	got.SiteID = nil
+	got.Realname = new(*got.Realname + " (updated)")
+	if _, err := p.UpdateAccountV1(ctx, id, got); err != nil {
+		t.Fatalf("UpdateAccountV1: %v", err)
+	}
+
+	after, err := p.GetAccountV1(ctx, id)
+	if err != nil {
+		t.Fatalf("GetAccountV1 after update: %v", err)
+	}
+	if after.SiteID == nil || *after.SiteID != -1 {
+		t.Errorf("siteId after an update omitting it = %v, want -1 (cleared)", after.SiteID)
+	}
+	if after.AccessLevel == nil || *after.AccessLevel != "SiteAccess" {
+		t.Errorf("accessLevel after update = %v, want SiteAccess (unchanged)", after.AccessLevel)
 	}
 }
 

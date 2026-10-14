@@ -15,10 +15,96 @@ at the top.
 
 ## Builds
 
-**Ingested through v2362 (2026-09-29), and nothing is held.** All nineteen
-specs are at v2362; both `_permissions` files are byte-identical to v2267 and
-stay recorded there. **v2219 was evaluated and not ingested** — its entire
-delta is outside `external/`; see below.
+**Ingested through v2414 (2026-10-02), and nothing is held.** jpapi and
+compliance-benchmarks are at v2414, the other seventeen specs at v2362, and
+both `_permissions` files at v2414. **v2219 and v2417 were evaluated and not
+ingested** — v2219's entire delta is outside `external/`; v2417 is a pipeline
+re-run. See below.
+
+**v2417 (bundle dated 2026-10-03) is a pure pipeline re-run of v2414, and was
+not ingested.** Archive SHA-256
+`2c4cd9309367ac4796e5c986cdf45d4812ae3b1bbc8d72f4488b512d6cdcfa7f`. The dry run
+reports all nineteen specs and both `_permissions` files `unchanged (since
+v2414)` against the ingest manifest, and the same three families unmapped
+(`users`, `account-organization`, `ai-visibility`) with no new ones. Nothing
+written, nothing to regenerate; the provenance table keeps v2414. Evaluated
+2026-10-14, a day after Jamf Pro 11.33's planned 2026-10-13 ship date. The
+EU environment answers `GET /pro/v1/jamf-pro-version` at 200 with
+`{"version": "11.33.0-t1790886091046"}` (token and routing proven by that same
+200), so jpapi's `11.33.0` no longer leads the server and `JamfProAPIVersion`
+is correct.
+
+*Standing pins re-run 2026-10-14 on two environments, nothing resolved.*
+`TestAcceptance_` Dss, CacheSettings, ListMdmCommandsV1 (both-parameters still
+`500`), Classic `PatchByName` / `PatchByIDWrites` / `GetActivationCode`,
+Blueprint component round-trip and `AiGovernancePreviewHeader` all still pass
+as recorded, and `AiGovernanceDeploymentReportsReferencingBlueprints` still
+logs `KNOWN DEFECT` (0 blueprints reported for policies two blueprints
+reference). Not exercised: `DismissAllNotifications` (destructive, opt-in),
+tenant-scope (no tenant credential), account trio (no organization
+credential), and the uem-connect `Accept` pin (needs the
+`JAMFPLATFORM_ACC_SECURITYCLOUD_TENANT_*` set). The ZTNA gateway lifecycles
+skipped on the write gate. One environment's credential answered `403
+BAD_PERMISSIONS` on `/ai/governance/policies/v1/*` while a second EU credential
+read it at 200 in the same invocation — a capability grant, not a regression.
+
+*The 11.33 changelog against the ingested spec.* Removals landed (unversioned
+and `/v1` inventory-preload, `/v2/environment-type`, none whitelisted). The
+`404` on `/v2/oidc/dispatch` and the `500` on
+`/v1/cloud-idp/{id}/test-user-membership` are declared. **Two changelog items
+are not in the spec as operations:** `POST /v1/system/fedramp-initialize` (only
+the orphan `FedRampBrokerInitializeV1` schema arrived) and `POST
+/v1/oidc/dispatch` (the changelog lists it beside the v2). Both answer a
+repeated `403 BAD_PERMISSIONS` on 11.33.0 — the unrouted tell, identical to a
+bogus path in the same namespace — while `POST /v2/oidc/dispatch` reaches the
+service (`400 Email address is required`). To report upstream; nothing to
+whitelist.
+
+**v2414 (2026-10-02) changed two carried specs, and published a
+twenty-first family that is not carried.** Archive SHA-256
+`e2eaf2e37b52305f55398b5e4e248cd601c8ad7b6c3bf7fab0da4a105dd7236d`.
+
+- **`ai-visibility` stopped the dry run**, as the unmapped-family refusal is
+  meant to: `AI Visibility - Preview`, 24 Preview `GET`s under
+  `/ai/governance/visibility`, environment scope, all `ai-visibility:read`.
+  The namespace is mounted, but a real and a bogus path both answer a repeated
+  `403 BAD_PERMISSIONS` on an environment credential that reads
+  `/ai/governance/policies` at 200 in the same invocation. The capability is
+  in `_permissions` but not in the published permissions map, and the
+  API-integration UI offers nothing new to grant. Recorded in `knownUnmapped`;
+  [evidence](WIRE-FACTS.md#ai-visibility-is-published-and-ungrantable-2026-10-02).
+- **jpapi went to `11.33.0`, and 11.33 does not ship until 2026-10-13.** No
+  operation change. Eight operations gained declared error responses
+  (`ApiError` bodies on 400/404/409/500, an empty 403), which the generator does
+  not emit. `FedRampBrokerInitializeV1` was added, referenced by nothing; five
+  schemas referenced by nothing were dropped (`EnvironmentType` and four
+  `InventoryPreload*`). The generated Go is godoc only: three
+  extension-attribute `ID` comments now all read "Computer Extension Attribute"
+  (upstream copy-paste, wrong on `MobileDeviceExtensionAttributes`), curly
+  apostrophes in `BatteryHealth`, and `UserAccount`'s `accessLevel`,
+  `privilegeLevel` and `siteId` defaults. The `siteId` one is a behavioural
+  claim and **already holds on the 11.32 server**: an update that omits it
+  clears the site to `-1`
+  ([evidence](WIRE-FACTS.md#put-v1accountsid-without-siteid-clears-the-site-2026-10-02)),
+  pinned by `TestAcceptance_Pro_AccountUpdateWithoutSiteIDClearsSite`.
+  `JamfProAPIVersion` reads `11.33.0` ahead of the release; taken anyway,
+  since nothing else in the delta depends on the server.
+- **compliance-benchmarks added `sectionName` to `RuleResult`** as required —
+  a new `SectionName string`. Live: every row of
+  `GET /v1/benchmarks/{id}/rules` carries it (`"System Settings"`,
+  `"Auditing"`), and `TestAcceptance_Benchmark_Reporting/RulesStats` now
+  fails on an empty one.
+- **`_permissions`**: `ai-visibility` added to both files, and the 20
+  unversioned and `/v1/` `inventory-preload` routes dropped from
+  `routes.yaml`. The `/v1/` routes are still served
+  ([evidence](WIRE-FACTS.md#v2414s-routesyaml-dropped-v1inventory-preload-which-is-still-served-2026-10-02)).
+
+Verified: `go test ./...`, the generator tests, tagged `go vet`, `make lint`,
+fmt and both `go fix` passes clean; live (EU environment) the benchmark,
+`AccountsV1` and new `siteId` tests pass, and the tenant was re-listed clean
+afterwards. Report upstream: `ai-visibility:read` is published in the specs
+and `_permissions` but absent from the permissions map and ungrantable; the
+"Computer Extension Attribute" description on the mobile-device schema.
 
 **v2362 (2026-09-29) touched every spec, and three of the nineteen changed
 anything.** The bundle-wide edit is `info.title` losing its ` API` suffix on

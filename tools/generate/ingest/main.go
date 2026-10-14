@@ -149,6 +149,11 @@ var knownUnmapped = map[string]string{
 		"404 page not found as a nonsense namespace, on an organization credential that reads " +
 		"/licensing/v1/licenses at 200 in the same invocation (2026-09-30). No x-required-privileges, no " +
 		"routes.yaml entry and no capability in the published permissions map either.",
+	"ai-visibility": "AI Visibility API (24 Preview GETs under /ai/governance/visibility) — first published at v2414. " +
+		"The namespace is mounted, but every path, real or bogus, answers a repeated 403 BAD_PERMISSIONS on an " +
+		"environment credential that reads /ai/governance/policies at 200 in the same invocation (2026-10-02). " +
+		"ai-visibility:read is in routes.yaml and scopes.yaml but not in the published permissions map, and it " +
+		"cannot be granted to an API integration.",
 }
 
 // permissionFiles are the privilege oracle, copied alongside the specs. They

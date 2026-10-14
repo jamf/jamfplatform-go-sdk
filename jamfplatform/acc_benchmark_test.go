@@ -222,7 +222,12 @@ func TestAcceptance_Benchmark_Reporting(t *testing.T) {
 		}
 		t.Logf("Found %d rule stats", len(stats))
 		for _, s := range stats {
-			t.Logf("  %s: passed=%d failed=%d unknown=%d (%.1f%%)", s.RuleTitle, s.Passed, s.Failed, s.Unknown, s.PassPercentage)
+			t.Logf("  %s [%s]: passed=%d failed=%d unknown=%d (%.1f%%)", s.RuleTitle, s.SectionName, s.Passed, s.Failed, s.Unknown, s.PassPercentage)
+			// sectionName is required since v2414 and served on the wire
+			// (2026-10-02); an empty value means the field stopped arriving.
+			if s.SectionName == "" {
+				t.Errorf("rule %s: empty sectionName", s.RuleID)
+			}
 		}
 	})
 
