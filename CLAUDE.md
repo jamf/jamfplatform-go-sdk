@@ -321,6 +321,17 @@ error. Mechanism, the one known race, and the OAuth refresh — the one call the
 context cannot reach — are in
 [docs/STYLE.md](docs/STYLE.md#timeouts-and-retries).
 
+**The gateway rate-limits, and the SDK handles it only after a 429.** Tyk's 429
+has no `Retry-After`, so `jamfBackoff` waits until `x-ratelimit-reset`,
+measured against the response's `Date`, plus jitter — **only when
+`x-ratelimit-remaining` is `0`**, because the gateway stamps the same headers
+on a service's own 429 (the blueprints report), whose reset is meaningless and
+which needs the exponential backoff instead. **Never encode the
+thresholds** — they are gateway configuration that changes without notice —
+and **never pace on `x-ratelimit-remaining`**, which reports one of several
+per-node counters, not the budget. Evidence:
+[WIRE-FACTS.md](docs/WIRE-FACTS.md#rate-limiting).
+
 ---
 
 ## Pagination

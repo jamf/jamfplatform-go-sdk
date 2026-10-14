@@ -6,8 +6,11 @@ package client
 import (
 	"context"
 	"errors"
+	"maps"
+	"math"
 	"net/http"
 	"slices"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -447,6 +450,204 @@ func TestJamfBackoff_RetryAfterIgnoredOnOther5xx(t *testing.T) {
 	}
 	if got := jamfBackoff(1*time.Second, 60*time.Second, 0, resp); got != 1*time.Second {
 		t.Errorf("jamfBackoff(500 + Retry-After: 30) = %v, want 1s (exponential curve)", got)
+	}
+}
+
+// tyk429 builds the gateway's rate-limit refusal as observed on 2026-10-14
+// (docs/WIRE-FACTS.md#rate-limiting): no Retry-After, and x-ratelimit-reset
+// offset from the response's Date by resetIn.
+func tyk429(date time.Time, resetIn time.Duration) *http.Response {
+	return &http.Response{
+		StatusCode: http.StatusTooManyRequests,
+		Header: http.Header{
+			"Date":                  []string{date.UTC().Format(http.TimeFormat)},
+			"X-Generator":           []string{"tyk.io"},
+			"X-Ratelimit-Limit":     []string{"100"},
+			"X-Ratelimit-Remaining": []string{"0"},
+			"X-Ratelimit-Reset":     []string{strconv.FormatInt(date.Add(resetIn).Unix(), 10)},
+		},
+	}
+}
+
+// TestJamfBackoff_RateLimitResetWaitsForWindow pins the wait for a 429 that
+// carries x-ratelimit-reset and no Retry-After: the time until reset, plus one
+// second for the headers' whole-second resolution, plus up to one second of
+// jitter. A reset already in the past waits the same as one in the current
+// second.
+func TestJamfBackoff_RateLimitResetWaitsForWindow(t *testing.T) {
+	date := time.Now().Truncate(time.Second)
+	for _, tc := range []struct {
+		name    string
+		resetIn time.Duration
+		lo      time.Duration
+	}{
+		{"same second as Date (as observed)", 0, 1 * time.Second},
+		{"three seconds ahead", 3 * time.Second, 4 * time.Second},
+		{"already past", -10 * time.Second, 1 * time.Second},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := jamfBackoff(1*time.Second, 60*time.Second, 0, tyk429(date, tc.resetIn))
+			if got < tc.lo || got >= tc.lo+time.Second {
+				t.Errorf("jamfBackoff = %v, want in [%v, %v)", got, tc.lo, tc.lo+time.Second)
+			}
+		})
+	}
+}
+
+// TestJamfBackoff_RateLimitResetUsesServerDate pins that the wait is measured
+// against the response's Date, not the local clock. Date here is an hour
+// behind the local clock. Measured locally, the reset would be long past and
+// the wait would be the 1s floor.
+func TestJamfBackoff_RateLimitResetUsesServerDate(t *testing.T) {
+	date := time.Now().Add(-time.Hour).Truncate(time.Second)
+	got := jamfBackoff(1*time.Second, 60*time.Second, 0, tyk429(date, 2*time.Second))
+	if got < 3*time.Second || got >= 4*time.Second {
+		t.Errorf("jamfBackoff = %v, want in [3s, 4s) measured from Date", got)
+	}
+}
+
+// TestJamfBackoff_RateLimitResetFallsBackToLocalClock covers a 429 with no
+// Date header.
+func TestJamfBackoff_RateLimitResetFallsBackToLocalClock(t *testing.T) {
+	resp := tyk429(time.Now(), 3*time.Second)
+	resp.Header.Del("Date")
+	got := jamfBackoff(1*time.Second, 60*time.Second, 0, resp)
+	if got < 3*time.Second || got >= 5*time.Second {
+		t.Errorf("jamfBackoff = %v, want in [3s, 5s)", got)
+	}
+}
+
+// TestJamfBackoff_RateLimitResetClamped pins the maxWait ceiling on the reset
+// path. A limit with a long window must not stall a request past what
+// WithRetryPolicy promises.
+func TestJamfBackoff_RateLimitResetClamped(t *testing.T) {
+	got := jamfBackoff(1*time.Second, 5*time.Second, 0, tyk429(time.Now(), time.Hour))
+	if got != 5*time.Second {
+		t.Errorf("jamfBackoff with reset an hour away and max=5s = %v, want 5s (clamped)", got)
+	}
+}
+
+// TestJamfBackoff_RetryAfterBeatsRateLimitReset pins the precedence. No Jamf
+// source observed sends Retry-After, but if a 429 carries one, that header
+// decides the wait.
+func TestJamfBackoff_RetryAfterBeatsRateLimitReset(t *testing.T) {
+	resp := tyk429(time.Now(), 0)
+	resp.Header.Set("Retry-After", "5")
+	if got := jamfBackoff(1*time.Second, 60*time.Second, 0, resp); got != 5*time.Second {
+		t.Errorf("jamfBackoff with Retry-After=5 and reset now = %v, want 5s", got)
+	}
+}
+
+// TestJamfBackoff_RateLimitResetIgnored pins the cases that stay on the
+// exponential curve: a reset that cannot be used, and a status other than 429.
+func TestJamfBackoff_RateLimitResetIgnored(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		edit func(*http.Response)
+	}{
+		{"unparseable reset", func(r *http.Response) { r.Header.Set("X-Ratelimit-Reset", "soon") }},
+		{"zero reset (Tyk with limiting disabled)", func(r *http.Response) { r.Header.Set("X-Ratelimit-Reset", "0") }},
+		{"negative reset", func(r *http.Response) { r.Header.Set("X-Ratelimit-Reset", "-5") }},
+		{"absent reset", func(r *http.Response) { r.Header.Del("X-Ratelimit-Reset") }},
+		{"503 carrying a reset", func(r *http.Response) { r.StatusCode = http.StatusServiceUnavailable }},
+		{"remaining above 0", func(r *http.Response) { r.Header.Set("X-Ratelimit-Remaining", "18") }},
+		{"absent remaining", func(r *http.Response) { r.Header.Del("X-Ratelimit-Remaining") }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			resp := tyk429(time.Now(), 3*time.Second)
+			tc.edit(resp)
+			if got := jamfBackoff(1*time.Second, 60*time.Second, 0, resp); got != 1*time.Second {
+				t.Errorf("jamfBackoff = %v, want 1s (exponential curve)", got)
+			}
+		})
+	}
+}
+
+// TestJamfBackoff_ServiceOverload429Escalates replays the blueprints report's
+// 429 as observed on 2026-10-14: the service's ApiError, with the gateway's
+// headers stamped on it, remaining 18 and a reset taken when the 10-second
+// request started, 9s before Date. Reading that reset would retry an
+// overloaded data store every second or so. The wait must grow with each
+// attempt instead.
+func TestJamfBackoff_ServiceOverload429Escalates(t *testing.T) {
+	date := time.Now().Truncate(time.Second)
+	resp := tyk429(date, -9*time.Second)
+	resp.Header.Del("X-Generator")
+	resp.Header.Set("X-Ratelimit-Remaining", "18")
+	for attempt, want := range map[int]time.Duration{0: 1 * time.Second, 1: 2 * time.Second, 2: 4 * time.Second} {
+		if got := jamfBackoff(1*time.Second, 60*time.Second, attempt, resp); got != want {
+			t.Errorf("attempt %d: jamfBackoff = %v, want %v (exponential curve)", attempt, got, want)
+		}
+	}
+}
+
+// TestJamfBackoff_RateLimitResetJitters pins the jitter. Without it, requests
+// refused together all retry at the same instant at the start of the next
+// window.
+//
+// The spread is asserted, not just inequality: a jitter shrunk to a
+// millisecond still varies but no longer spreads a burst across the window.
+func TestJamfBackoff_RateLimitResetJitters(t *testing.T) {
+	resp := tyk429(time.Now(), 0)
+	lo, hi := time.Duration(1<<62), time.Duration(0)
+	for range 200 {
+		got := jamfBackoff(1*time.Second, 60*time.Second, 0, resp)
+		lo, hi = min(lo, got), max(hi, got)
+	}
+	if spread := hi - lo; spread < 500*time.Millisecond {
+		t.Errorf("200 waits for the same 429 spread over %v (%v to %v); want at least 500ms of the 1s jitter", spread, lo, hi)
+	}
+}
+
+// TestJamfBackoff_RateLimitResetOverflow pins the wait for a reset far enough
+// out to saturate time.Time.Sub, as one sent in epoch milliseconds would be.
+// Adding the extra second to the saturated Duration once wrapped the wait
+// negative, and every retry then fired at once.
+func TestJamfBackoff_RateLimitResetOverflow(t *testing.T) {
+	for _, reset := range []string{"1791988853000", "99999999999", strconv.FormatInt(math.MaxInt64, 10)} {
+		t.Run(reset, func(t *testing.T) {
+			resp := tyk429(time.Now(), 0)
+			resp.Header.Set("X-Ratelimit-Reset", reset)
+			if got := jamfBackoff(1*time.Second, 60*time.Second, 0, resp); got != 60*time.Second {
+				t.Errorf("jamfBackoff = %v, want 60s (clamped)", got)
+			}
+		})
+	}
+}
+
+// TestRateLimitReset_GatewayRefusedPostIsRetried runs the observed gateway 429
+// through the transport. The refusal comes from Tyk before the service sees
+// the request, so even a POST is retried, and the retry gets through.
+//
+// The two waits are far apart so the elapsed time shows which path ran: the
+// exponential curve would wait 1ms, while the reset wait (at least 1s) clamps
+// to 300ms.
+func TestRateLimitReset_GatewayRefusedPostIsRetried(t *testing.T) {
+	c, _, mux := newTestClient(t)
+	c.throttle.setInterval(0)
+	shrinkRetryWaits(c, 1*time.Millisecond, 300*time.Millisecond)
+	c.retry.RetryMax = 1
+	var calls atomic.Int32
+	mux.HandleFunc("/api/rate", func(w http.ResponseWriter, r *http.Request) {
+		if calls.Add(1) == 1 {
+			maps.Copy(w.Header(), tyk429(time.Now(), 0).Header)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusTooManyRequests)
+			_, _ = w.Write([]byte("{\n    \"error\": \"Rate Limit Exceeded\"\n}"))
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	})
+
+	start := time.Now()
+	if err := c.Do(context.Background(), http.MethodPost, "/api/rate", map[string]string{"k": "v"}, nil); err != nil {
+		t.Fatalf("Do: %v", err)
+	}
+	if got := calls.Load(); got != 2 {
+		t.Errorf("expected 2 calls (refused, then retried), got %d", got)
+	}
+	if elapsed := time.Since(start); elapsed < 250*time.Millisecond {
+		t.Errorf("Do took %v; want at least 250ms, the clamped reset wait, not the 1ms exponential one", elapsed)
 	}
 }
 
