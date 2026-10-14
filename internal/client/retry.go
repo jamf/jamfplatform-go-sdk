@@ -5,7 +5,9 @@ package client
 
 import (
 	"context"
+	"math/rand/v2"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/hashicorp/go-retryablehttp"
@@ -20,8 +22,8 @@ import (
 // values bound a full retry sequence at 1+2+4+8 = 15s of waiting.
 // retryWaitMax is not reached by that curve at retryMax=4; it exists as a
 // ceiling for two other cases — a caller who raises maxRetries via
-// WithRetryPolicy, and a server-supplied Retry-After, which would otherwise
-// be honored verbatim and could stall a request far longer than any
+// WithRetryPolicy, and a server-supplied Retry-After or x-ratelimit-reset,
+// which would otherwise be honored verbatim and could stall a request far longer than any
 // caller-supplied context deadline is likely to allow for.
 const (
 	retryWaitMin = 1 * time.Second
@@ -126,16 +128,19 @@ func jamfCheckRetry(ctx context.Context, resp *http.Response, err error) (bool, 
 	return isRetryableWriteStatus(resp.Request.Method, resp.StatusCode), nil
 }
 
-// jamfBackoff is retryablehttp.DefaultBackoff with one addition: the wait is
-// always clamped to maxWait.
+// jamfBackoff is retryablehttp.DefaultBackoff with two additions: a 429 with
+// no Retry-After waits for x-ratelimit-reset (see rateLimitResetWait), and the
+// wait is always clamped to maxWait.
 //
-// DefaultBackoff supplies everything else — exponential backoff of
-// minWait*2^attemptNum capped at maxWait, overflow-guarded, plus Retry-After
-// parsing (seconds and date form) for 429 and 503. The clamp is needed
-// because that Retry-After path returns the server's value verbatim and
-// uncapped, which would let a misconfigured or hostile header stall a
-// request far past what maxWait promises callers. For the exponential path
-// the clamp is a no-op, since DefaultBackoff already caps there.
+// The order of precedence is Retry-After, then x-ratelimit-reset, then the
+// exponential curve. DefaultBackoff supplies the first and the last —
+// exponential backoff of minWait*2^attemptNum capped at maxWait,
+// overflow-guarded, plus Retry-After parsing (seconds and date form) for 429
+// and 503. The clamp is needed because the Retry-After and reset paths both
+// take the server's value uncapped, which would let a misconfigured or hostile
+// header stall a request far past what maxWait promises callers. For the
+// exponential path the clamp is a no-op, since DefaultBackoff already caps
+// there.
 //
 // This deliberately does NOT use retryablehttp.RateLimitLinearJitterBackoff,
 // which the SDK previously selected — presumably for its Retry-After
@@ -149,14 +154,62 @@ func jamfCheckRetry(ctx context.Context, resp *http.Response, err error) (bool, 
 //
 // One property is given up in the swap: DefaultBackoff is deterministic, so
 // concurrent requests that fail together wake together and collide again.
-// That is tolerable while no Jamf path rate-limits (as of 2026-08-31 every
-// prod Tyk plan carries rate: -1 and the gateway reports
-// x-ratelimit-limit: 0 with no Retry-After on any response). If rate
-// limiting arrives without a Retry-After header, revisit this and add
-// jittering around the exponential band — not by returning to the linear
-// variant. See docs/WIRE-FACTS.md#rate-limiting.
+// The gateway's rate limit is the case where that matters, and the reset path
+// adds its own jitter. The exponential curve stays deterministic, because it
+// now only serves 5xx and a 429 that carries neither header.
 func jamfBackoff(minWait, maxWait time.Duration, attemptNum int, resp *http.Response) time.Duration {
+	if wait, ok := rateLimitResetWait(resp); ok {
+		return min(wait, maxWait)
+	}
 	return min(retryablehttp.DefaultBackoff(minWait, maxWait, attemptNum, resp), maxWait)
+}
+
+// rateLimitResetWait returns how long to wait before retrying a 429, read
+// from the x-ratelimit-reset header, and false when that header does not
+// apply.
+//
+// The gateway's 429 has no Retry-After. Its only timing signal is
+// x-ratelimit-reset, the epoch second at which the window ends (see
+// docs/WIRE-FACTS.md#rate-limiting). This is the same reactive handling the
+// Okta and GitHub SDKs use for their X-Rate-Limit-Reset headers. Nothing here
+// assumes the limit, the window length or the counter layout. Those are
+// gateway configuration that can change at any time, and the header carries
+// whatever they currently are.
+//
+// Four details, each deliberate:
+//
+//   - The wait is measured against the response's Date header, not the local
+//     clock. Both values come from the same server, so the client's clock
+//     skew cancels out. The local clock is the fallback when Date is absent.
+//   - One second is added, because both values are whole seconds. On the 429
+//     observed, reset was the same second as Date, so the window ends some
+//     time in the second after reset. Without the second, a retry can land
+//     inside the window that refused it and use up a retry for nothing.
+//   - Up to one more second of random jitter is added. Requests that were
+//     refused together would otherwise all retry at the same instant at the
+//     start of the next window.
+//   - x-ratelimit-remaining is not used, and no request is held back before a
+//     429. The gateway splits the limit across several counters and each
+//     response shows only one of them, and other processes using the same
+//     credential spend the same budget. So remaining does not show how much
+//     budget is left. A 429 costs one retry of about a second.
+//
+// A reset that cannot be parsed, or that is not positive, gives false. The
+// 429 then falls back to the exponential curve.
+func rateLimitResetWait(resp *http.Response) (time.Duration, bool) {
+	if resp == nil || resp.StatusCode != http.StatusTooManyRequests || resp.Header.Get("Retry-After") != "" {
+		return 0, false
+	}
+	reset, err := strconv.ParseInt(resp.Header.Get("X-Ratelimit-Reset"), 10, 64)
+	if err != nil || reset <= 0 {
+		return 0, false
+	}
+	now, err := http.ParseTime(resp.Header.Get("Date"))
+	if err != nil {
+		now = time.Now()
+	}
+	wait := max(time.Unix(reset, 0).Sub(now), 0) + time.Second
+	return wait + rand.N(time.Second), true
 }
 
 // logRetryAttempt is the RequestLogHook: retryablehttp calls it immediately
