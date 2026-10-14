@@ -1898,16 +1898,13 @@ applies to the whole suite.
   upstream later cannot either. Bodies have credential-shaped members replaced by
   name, which is best-effort: **treat a trace as sensitive.**
 - **`JAMFPLATFORM_ACC_FAST_RETRY=1`** installs `WithRetryPolicy(50ms, 500ms, 2)`.
-  A trace makes the retry policy look like a hang, because retries happen inside
-  `retryablehttp`, *below* the SDK's `Logger`: a trace shows one request line and
-  then silence for minutes. The production policy is `RetryMax=4`,
-  `RetryWaitMin=1s`, `RetryWaitMax=60s`, and `RateLimitLinearJitterBackoff` treats
-  the two durations as the **jitter range, not (initial, cap)**: the wait is
-  `(1s + rand×59s) × attemptNum`, capped at 60s. So the *first* retry alone waits a
-  median of ~30 s and four retries total a median of ~184 s. Worth considering
-  separately: anyone reading `RetryWaitMin = 1s` expects the first retry to wait
-  about a second, not thirty. That is a production-timing question, not a test one,
-  and has deliberately not been changed.
+  The production policy is `RetryMax=4`, `RetryWaitMin=1s`, `RetryWaitMax=60s`
+  through `jamfBackoff`: an exponential curve of 1+2+4+8 = 15s for a run of
+  retried 5xx, and about one to two seconds per retry for the gateway's 429,
+  which waits for `x-ratelimit-reset`. A suite that hits many transient failures
+  still spends real time waiting, and the switch removes it. Each retry shows
+  in a trace as its own request and status line (`logRetryAttempt`,
+  `logRetriedResponse`), so a wait no longer reads as a hang.
 
 `tools/acctargets` scopes a run per test function. Package-level scoping cannot
 work — there is only one test package.

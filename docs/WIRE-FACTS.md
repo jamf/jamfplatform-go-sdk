@@ -4580,17 +4580,6 @@ The load is concurrency, not request rate. Ten requests are far below the
 gateway's limit and below what the SDK's 100ms pacing allows, but each report
 holds the data store for seconds.
 
-**Deliberately not probed, and the reason is the standing one.** Inducing it
-means hammering an endpoint whose own description says it is overloaded, and
-~150 probe requests during one WAF investigation already cost this project a
-second, broader outage. The claim left open is the one the bullet above already
-names: **whether this 429 carries a `Retry-After`.** If it does, the transport
-honours it and nothing changes. If it does not, this is the first real
-occasion for jittering the exponential band — around it, never by returning to
-`RateLimitLinearJitterBackoff`, whose 1s/60s sampling averaged ~30s on the
-first retry. Ask the blueprints team which it sends rather than finding out by
-triggering it.
-
 ### Tyk enforced timeouts on smart-group writes
 
 Not rate limiting, but found in the same config pass and shares the
