@@ -526,8 +526,9 @@ func TestJamfBackoff_RateLimitResetClamped(t *testing.T) {
 	}
 }
 
-// TestJamfBackoff_RetryAfterBeatsRateLimitReset pins the precedence. If the
-// gateway starts sending Retry-After, that header decides the wait.
+// TestJamfBackoff_RetryAfterBeatsRateLimitReset pins the precedence. No Jamf
+// source observed sends Retry-After, but if a 429 carries one, that header
+// decides the wait.
 func TestJamfBackoff_RetryAfterBeatsRateLimitReset(t *testing.T) {
 	resp := tyk429(time.Now(), 0)
 	resp.Header.Set("Retry-After", "5")
@@ -547,6 +548,8 @@ func TestJamfBackoff_RateLimitResetIgnored(t *testing.T) {
 		{"zero reset (Tyk with limiting disabled)", func(r *http.Response) { r.Header.Set("X-Ratelimit-Reset", "0") }},
 		{"absent reset", func(r *http.Response) { r.Header.Del("X-Ratelimit-Reset") }},
 		{"503 carrying a reset", func(r *http.Response) { r.StatusCode = http.StatusServiceUnavailable }},
+		{"remaining above 0", func(r *http.Response) { r.Header.Set("X-Ratelimit-Remaining", "18") }},
+		{"absent remaining", func(r *http.Response) { r.Header.Del("X-Ratelimit-Remaining") }},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			resp := tyk429(time.Now(), 3*time.Second)
@@ -555,6 +558,24 @@ func TestJamfBackoff_RateLimitResetIgnored(t *testing.T) {
 				t.Errorf("jamfBackoff = %v, want 1s (exponential curve)", got)
 			}
 		})
+	}
+}
+
+// TestJamfBackoff_ServiceOverload429Escalates replays the blueprints report's
+// 429 as observed on 2026-10-14: the service's ApiError, with the gateway's
+// headers stamped on it, remaining 18 and a reset taken when the 10-second
+// request started, 9s before Date. Reading that reset would retry an
+// overloaded data store every second or so. The wait must grow with each
+// attempt instead.
+func TestJamfBackoff_ServiceOverload429Escalates(t *testing.T) {
+	date := time.Now().Truncate(time.Second)
+	resp := tyk429(date, -9*time.Second)
+	resp.Header.Del("X-Generator")
+	resp.Header.Set("X-Ratelimit-Remaining", "18")
+	for attempt, want := range map[int]time.Duration{0: 1 * time.Second, 1: 2 * time.Second, 2: 4 * time.Second} {
+		if got := jamfBackoff(1*time.Second, 60*time.Second, attempt, resp); got != want {
+			t.Errorf("attempt %d: jamfBackoff = %v, want %v (exponential curve)", attempt, got, want)
+		}
 	}
 }
 

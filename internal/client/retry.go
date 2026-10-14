@@ -188,16 +188,26 @@ func jamfBackoff(minWait, maxWait time.Duration, attemptNum int, resp *http.Resp
 //   - Up to one more second of random jitter is added. Requests that were
 //     refused together would otherwise all retry at the same instant at the
 //     start of the next window.
-//   - x-ratelimit-remaining is not used, and no request is held back before a
-//     429. The gateway splits the limit across several counters and each
-//     response shows only one of them, and other processes using the same
-//     credential spend the same budget. So remaining does not show how much
-//     budget is left. A 429 costs one retry of about a second.
+//   - x-ratelimit-remaining is used only to tell whose 429 this is, and no
+//     request is held back before a 429. The gateway splits the limit across
+//     several counters and each response shows only one of them, and other
+//     processes using the same credential spend the same budget. So remaining
+//     does not show how much budget is left. A 429 costs one retry of about a
+//     second.
 //
-// A reset that cannot be parsed, or that is not positive, gives false. The
-// 429 then falls back to the exponential curve.
+// The reset applies only when remaining is 0, which is the gateway's own
+// refusal. A service behind the gateway can answer 429 too — the blueprints
+// report does when its data store is overloaded — and the gateway stamps its
+// x-ratelimit-* headers on that response as well, with remaining above 0 and
+// a reset taken when the request started. Waiting for that reset would retry
+// an overloaded service every second or so with no backoff, so such a 429
+// falls back to the exponential curve. So does a reset that cannot be parsed
+// or is not positive.
 func rateLimitResetWait(resp *http.Response) (time.Duration, bool) {
 	if resp == nil || resp.StatusCode != http.StatusTooManyRequests || resp.Header.Get("Retry-After") != "" {
+		return 0, false
+	}
+	if resp.Header.Get("X-Ratelimit-Remaining") != "0" {
 		return 0, false
 	}
 	reset, err := strconv.ParseInt(resp.Header.Get("X-Ratelimit-Reset"), 10, 64)

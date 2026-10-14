@@ -4544,6 +4544,42 @@ blueprints reporting component, not Tyk. That is the whole of v2209's delta.
 (a shared `RateLimited` response) also declare 429s on some operations. The
 gateway's limit applies to every operation, and no spec declares it that way.
 
+**The report's 429 is real, and it carries no `Retry-After` either**
+(2026-10-14). Ten concurrent `GET /v1/blueprints/<blueprint-id>/report` for one
+deployed blueprint: 8 × 200 (`{"succeeded":1,"failed":0,"pending":0}`), taking
+7.7–16.6s each, and 2 × 429:
+
+```
+HTTP/2 429
+content-type: application/json
+date: Wed, 14 Oct 2026 14:57:07 GMT
+x-jamf-trace-id: <trace-id>
+x-ratelimit-limit: 100
+x-ratelimit-remaining: 18
+x-ratelimit-reset: 1791989818
+x-cache: Error from cloudfront
+
+{"httpStatus":429,"traceId":"<trace-id>","errors":[{"id":null,"code":"TOO_MANY_REQUESTS","field":"","description":"The reporting data store is currently overloaded. Retry the request later."}]}
+```
+
+(Cache-control and security headers omitted.) The same ten requests to list
+blueprints all returned 200 in 0.3–1.6s. Two facts here matter for the
+transport:
+
+- **The gateway stamps its `x-ratelimit-*` headers on a service's 429 too**,
+  with `remaining` above 0 and a `reset` taken when the request *started* —
+  here 9s before `Date`, because the request took 10s. So `remaining: 0` is
+  what marks the gateway's own refusal, and `jamfBackoff` reads the reset only
+  then. Otherwise an overloaded report would be retried about once a second
+  with no backoff. A service 429 stays on the exponential curve.
+- **No Jamf source observed sends `Retry-After`:** not the gateway, and not the
+  only service whose 429 has been seen. The SDK still honours it, since
+  `retryablehttp.DefaultBackoff` supplies that for free.
+
+The load is concurrency, not request rate. Ten requests are far below the
+gateway's limit and below what the SDK's 100ms pacing allows, but each report
+holds the data store for seconds.
+
 **Deliberately not probed, and the reason is the standing one.** Inducing it
 means hammering an endpoint whose own description says it is overloaded, and
 ~150 probe requests during one WAF investigation already cost this project a
