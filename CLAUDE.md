@@ -148,6 +148,12 @@ stale and gets deleted on the next run.
 - **`internal/client/`** — HTTP transport: OAuth2, marshaling, error handling,
   logging, `ListAllPages[T]`, `ListAllCursorPages[T]`, `PollUntil`, RSQL building.
 
+**`appleschemas/` is handwritten, plus a generated table from a non-OpenAPI
+upstream** (Apple's `apple/device-management`; `make apple-schemas`, never part
+of `make generate`). It is outside `jamfplatform/` on purpose: that tree is
+generated and pruned. See
+[docs/STYLE.md](docs/STYLE.md#apple-schemas-generator).
+
 Transport entry points: `Do(ctx, method, path, body, result)` expects 200;
 `DoExpect(..., expectedStatus, result)` expects a specific status;
 `DoWithContentType(..., contentType, expectedStatus, result)` overrides

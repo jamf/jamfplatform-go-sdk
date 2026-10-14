@@ -1688,6 +1688,107 @@ silently not negotiated.
 
 ---
 
+## Apple schemas generator
+
+`appleschemas/` is the one place this repo carries data that does not come from
+an OpenAPI spec. `tools/appleschemas` builds two JSON tables from Apple's
+`apple/device-management` repository, and two handwritten packages embed and
+check against them: `appleschemas/declarations` (declarative device management
+declarations, plus the status-item vocabulary) and `appleschemas/profiles`
+(configuration profile payloads, for the legacy components). The packages sit
+outside `jamfplatform/` on purpose: that tree is generated from OpenAPI and
+pruned of anything the generator did not write, and the generator has no part in
+these. `make generate` neither writes nor prunes `appleschemas/`;
+`make apple-schemas` is a separate, explicit step because it needs the network.
+
+**The generator is in the `tools` module so `gopkg.in/yaml.v3` never reaches the
+root `go.mod`.** The runtime packages are standard library only.
+
+### Upstream, and why seed is in it
+
+Both tables are the **union of Apple's `release` branch and its newest
+`seed_OS_*` branch**. Jamf's generative-declarations service tracks seed: while
+`seed_OS_27_0` was open it carried 12 configuration declaration types, and keys
+such as `siri.settings.AllowSiriAI`, that release did not, all of them already
+offered in the Jamf UI. A table built from release alone reports those as
+unknown, and an unknown name is an error.
+
+The seed branch is discovered, not pinned, because its name moves with the OS.
+Finding none is a normal state: Apple promotes seed into release at GA and
+deletes it (`seed_OS_27_0` went this way on 2026-09-18), so for part of the year
+the table is release alone. `SEED_REF=` pins a branch discovery would miss.
+`TestTableCanaries` names keys whose provenance proved the seed dependency, so a
+table built from the wrong refs fails there.
+
+### One clone, two tables
+
+Both tables come from one sparse clone and one run. A legacy payload and the
+declaration wrapping it are then validated against the same snapshot, and each
+table records the commit it was built from. Splitting the generator would let
+the two drift to different upstream revisions with nothing to show it.
+
+### An unknown name is an error, and a stale table pays for it
+
+Wire probing on 2026-09-10 found the blueprints service accepts and stores every
+malformed declaration with a 201, and the device never receives the bad key. A
+warning would let a declaration through that cannot work, so every finding is an
+error. The cost is that a table older than the tenant rejects configurations
+that work. Two things bound it: the daily refresh, and the consumer's own escape
+hatch, which the package godoc says a consumer should offer. The window is the
+refresh PR plus the time to the next SDK release; cut a release when a refresh
+that adds names Jamf's UI already offers merges.
+
+The two packages **do not share case handling**. Declaration keys and types are
+matched case-sensitively and a wrong case is discarded; profile keys are
+case-restored by Jamf. Merging the code would make one of them wrong.
+
+### A scheduled PR, not a CI check
+
+`.github/workflows/apple-schemas.yml` runs daily and opens or updates one
+fixed-branch PR (`chore/apple-schemas-refresh`, force-pushed). A freshness check
+on every PR would turn the day Apple publishes into a failure on unrelated
+work, and a schema diff can fail a configuration that works, so a person has to
+read it. This is the pattern Dependabot already follows here. Daily is more
+often than upstream moves, deliberately: the cost is a sparse clone and a diff,
+and it shortens the stale-table window above to a day.
+
+The refresh PR runs `go test ./appleschemas/... ./jamfplatform/blueprints/...`.
+`TestTableCoversEverySDKDeclarationType` is the cross-check with the OpenAPI
+side: a blueprints ingest that adds a `ddm-strict` declaration type the table
+lacks fails in the same CI run. The spec's list is not the validation
+vocabulary and must not become it, since the service stores types the list
+omits.
+
+### Rebuilt from upstream, so removals are reported
+
+The tables are rebuilt from the checkouts alone and never merged into what is
+committed, so they carry what Apple declares today and a retired key leaves the
+SDK with it. Accumulating would keep validating against a vocabulary the device
+no longer honours. The cost is that **a withdrawal is the one refresh that turns
+a configuration that validates today into a failing one**, and it would sit among
+thousands of changed lines. The generator therefore reports every name a
+regeneration drops, and the workflow carries that report into the PR body.
+`maxReportedRemovals` caps it: hundreds means the generator read the wrong
+thing, and printing them all buries that.
+
+### Apple's licence
+
+The tables are derived from `apple/device-management`, which is MIT licensed,
+Copyright © Apple Inc. The licence requires its notice in copies or substantial
+portions, so the text is kept verbatim in `appleschemas/LICENSE-apple`, and each
+package's godoc and the generator's header point at it. A regeneration changes
+the data, not the obligation.
+
+### Moved code
+
+The packages were moved from `terraform-provider-jamfplatform`, where they were
+MPL-2.0; they are MIT here. Their wire facts and dates (2026-09-10 probing of
+the blueprints service) are the reason they exist and were kept verbatim.
+`appleschemas/internal/jsonvalue` is the provider's `jsonvalue` helper, internal
+here because only these packages use it.
+
+---
+
 ## Acceptance tests
 
 Every new generated method **must** get an acceptance test in
