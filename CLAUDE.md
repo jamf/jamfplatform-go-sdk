@@ -466,14 +466,14 @@ agree.** A held row is marked `(**held**)` in its last column.
 
 | `testing/` file | bundle source | at |
 |---|---|---|
-| `openapi-jpapi.yaml` | `external/jpapi` | **v2362** |
+| `openapi-jpapi.yaml` | `external/jpapi` | **v2414** |
 | `Classic-openapi.yaml` | `external/capi` | **v2362** |
 | `blueprints-api.yaml` | `external/blueprints` | **v2362** |
 | `device-groups-api.yaml` | `external/device-groups` | **v2362** |
 | `device-inventory-api.yaml` | `external/devices` | **v2362** |
 | `device-management-actions-api.yaml` | `external/device-management-action` | **v2362** |
 | `Declaration-reporting-openapi.yaml` | `external/declaration-reporting` | **v2362** |
-| `jamf-compliance-benchmark-engine-api.yaml` | `external/compliance-benchmarks` | **v2362** |
+| `jamf-compliance-benchmark-engine-api.yaml` | `external/compliance-benchmarks` | **v2414** |
 | `securitycloud-dns-api.yaml` | `external/jsc-dns` | **v2362** |
 | `securitycloud-ztna-api.yaml` | `external/jsc-ztna` | **v2362** |
 | `securitycloud-categories-api.yaml` | `external/jsc-categories` | **v2362** |
@@ -530,8 +530,12 @@ these), `Scopes` an alternatives set (a client carries exactly one scope).
 
 ### Current position and holds
 
-**At v2362 (2026-09-29): all nineteen specs, nothing held.** `_permissions` is
-recorded at v2267, byte-identical since. Build-by-build detail, and every
+**At v2414 (2026-10-02): all nineteen specs, nothing held.** jpapi and
+compliance-benchmarks are at v2414, the other seventeen byte-identical since
+v2362; `_permissions` is at v2414. jpapi's `11.33.0` is **live** — the EU
+environment answered `11.33.0-t1790886091046` on 2026-10-14 — so
+`JamfProAPIVersion` is accurate. v2417 was a pure re-run of v2414 and was not
+ingested. Build-by-build detail, and every
 lifted hold with the evidence it rested on:
 [docs/INGEST-HISTORY.md](docs/INGEST-HISTORY.md).
 
@@ -541,7 +545,7 @@ lifted hold with the evidence it rested on:
 |---|---|
 | `users` (User Inventory API) | Prod-published with real privileges, but every path 404s — `platform-users-directory` is flag-gated to dev. In `knownUnmapped`. |
 | `account-organization` (environments, tenants) | First published at v2362. `/organization` is not mounted on the prod gateway — the same plain-text `404 page not found` a nonsense namespace gets, unchanged after an environment-CRUD grant — and no privilege source exists anywhere. In `knownUnmapped`; ingest when the namespace answers. [Evidence](docs/WIRE-FACTS.md#organization-is-published-and-not-mounted-2026-09-30). |
-| `ai/governance/visibility` | No published spec in any environment. |
+| `ai-visibility` (AI Visibility API) | First published at v2414: 24 Preview GETs under `/ai/governance/visibility`. The namespace is mounted, but every path — real or bogus — answers a repeated `403 BAD_PERMISSIONS`, and `ai-visibility:read` is in `_permissions` but not in the published permissions map and cannot be granted to an API integration. In `knownUnmapped`; ingest as a second spec in `aigovernance` when the capability is grantable. [Evidence](docs/WIRE-FACTS.md#ai-visibility-is-published-and-ungrantable-2026-10-02). |
 | Jamf Inventory API | stage/dev only. |
 
 **Standing spec/wire disagreements.** Each is pinned by an acceptance test

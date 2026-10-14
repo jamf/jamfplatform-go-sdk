@@ -1667,7 +1667,7 @@ type ComputerExtensionAttributes struct {
 	// Enabled by default, but for inputType Script we can disable it as well. Possible values are: false
 	// true.
 	Enabled *bool `json:"enabled,omitempty"`
-	// Unique Id for Mobile Device Extension Attribute.
+	// Unique Id for Computer Extension Attribute.
 	ID *string `json:"id,omitempty"`
 	// Extension attributes collect inventory data by using an input type.The type of the Input used to
 	// populate the extension attribute.
@@ -3580,7 +3580,7 @@ type ExtensionAttributes struct {
 	DataType string `json:"dataType"`
 	// Description for the extension attribute.
 	Description *string `json:"description,omitempty"`
-	// Unique Id for Mobile Device Extension Attribute.
+	// Unique Id for Computer Extension Attribute.
 	ID *string `json:"id,omitempty"`
 	// Display name for the extension attribute.
 	Name string `json:"name"`
@@ -4060,9 +4060,9 @@ type InventoryListMobileDevice struct {
 	AvailableSpaceMb    int    `json:"availableSpaceMb"`
 	// Whether the device is awaiting configuration.
 	AwaitingConfiguration bool `json:"awaitingConfiguration"`
-	// - NON_GENUINE: The battery isn't a genuine Apple battery. - NORMAL: The battery is operating
+	// - NON_GENUINE: The battery isn’t a genuine Apple battery. - NORMAL: The battery is operating
 	// normally. - SERVICE_RECOMMENDED: The system recommends battery service. - UNKNOWN: The system
-	// couldn't determine battery health information. - UNSUPPORTED: The device doesn't support battery
+	// couldn’t determine battery health information. - UNSUPPORTED: The device doesn’t support battery
 	// health reporting.
 	// Allowed values: see the InventoryListMobileDeviceBatteryHealth constants.
 	BatteryHealth                               string                    `json:"batteryHealth"`
@@ -5146,7 +5146,7 @@ type MobileDeviceExtensionAttributes struct {
 	DataType string `json:"dataType"`
 	// Description for the extension attribute.
 	Description *string `json:"description,omitempty"`
-	// Unique Id for Mobile Device Extension Attribute.
+	// Unique Id for Computer Extension Attribute.
 	ID *string `json:"id,omitempty"`
 	// Extension attributes collect inventory data by using an input type.The type of the Input used to
 	// populate the extension attribute.
@@ -7722,7 +7722,8 @@ type User struct {
 
 // UserAccount represents a user account.
 type UserAccount struct {
-	// Access level for the account.
+	// Access level for the account. Omitting this field applies the default of FullAccess, which the
+	// requesting account may only grant if it has full access itself.
 	// Allowed values: see the UserAccountAccessLevel constants.
 	AccessLevel *string `json:"accessLevel,omitempty"`
 	// Status of the account.
@@ -7742,12 +7743,17 @@ type UserAccount struct {
 	// Write-only. Servers MUST NOT return this field in responses; the SDK preserves it only so the caller
 	// can supply a value on update.
 	PlainPassword *string `json:"plainPassword,omitempty"`
-	// Privilege level for the account.
+	// Privilege level for the account. Omitting this field applies the default of ADMINISTRATOR;
+	// ADMINISTRATOR, AUDITOR and ENROLLMENT expand to fixed privilege sets and may only be granted by an
+	// administrator.
 	// Allowed values: see the UserAccountPrivilegeLevel constants.
 	PrivilegeLevel *string `json:"privilegeLevel,omitempty"`
 	Realname       *string `json:"realname,omitempty"`
-	SiteID         *int    `json:"siteId,omitempty"`
-	Username       *string `json:"username,omitempty"`
+	// Site the account is scoped to, or -1 for no site. Omitting this field on an update applies the
+	// default of -1 and therefore clears any site already set, so send the current value to keep it.
+	// Changing it requires the requesting account to have full access.
+	SiteID   *int    `json:"siteId,omitempty"`
+	Username *string `json:"username,omitempty"`
 }
 
 // UserAccountSearchResults represents a user account search results.

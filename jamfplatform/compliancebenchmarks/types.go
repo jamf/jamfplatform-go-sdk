@@ -218,7 +218,9 @@ type RuleResult struct {
 	// Rule number in the benchmark, if applicable. E.g. CIS numbers like '2.5.1.1'.
 	RuleNumber string `json:"ruleNumber"`
 	RuleTitle  string `json:"ruleTitle"`
-	Unknown    int    `json:"unknown"`
+	// mSCP category the rule belongs to, e.g. 'Passcode' or 'Auditing'.
+	SectionName string `json:"sectionName"`
+	Unknown     int    `json:"unknown"`
 }
 
 // Source A Git source reference identifying a branch and revision of the compliance rules repository.

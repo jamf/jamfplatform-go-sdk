@@ -765,6 +765,11 @@
             "minLength": 1,
             "type": "string"
           },
+          "sectionName": {
+            "description": "mSCP category the rule belongs to, e.g. 'Passcode' or 'Auditing'.",
+            "example": "Passcode",
+            "type": "string"
+          },
           "unknown": {
             "example": 10,
             "minimum": 0,

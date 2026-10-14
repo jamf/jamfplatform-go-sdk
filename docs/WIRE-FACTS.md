@@ -1696,6 +1696,42 @@ resolves the resource before validating fields. Not done here: it is a write
 against a live connected connector, and the connector has a concurrent human
 operator.
 
+### `PUT /v1/accounts/{id}` without `siteId` clears the site (2026-10-02)
+
+v2414's jpapi (11.33.0) documents that omitting `siteId` on an update "applies
+the default of -1 and therefore clears any site already set". **It is already
+true on 11.32.0** (`11.32.0-t1787580540993`), the version the EU tenant runs.
+Probed with an account created at `siteId: 1`, `accessLevel: SiteAccess`,
+`privilegeLevel: AUDITOR`, then updated with the GET body minus `siteId` and a
+changed `realname`:
+
+```
+before {'accessLevel': 'SiteAccess', 'privilegeLevel': 'AUDITOR', 'siteId': 1}
+put-no-siteId 200
+after  {'accessLevel': 'SiteAccess', 'privilegeLevel': 'AUDITOR', 'siteId': -1}
+delete 204 / reget 404
+```
+
+`accessLevel` stays `SiteAccess` while the site is cleared, so the server
+accepts an account scoped to no site. In the SDK, `UserAccount.SiteID` is
+`*int` with `omitempty`, so an update built without the current value sends no
+`siteId` and descopes the account. Pinned by
+`TestAcceptance_Pro_AccountUpdateWithoutSiteIDClearsSite`.
+
+The same create without the `ldapServerId`/`distinguishedName`/`phone`/
+`accountStatus`/`changePasswordOnNextLogin` sentinels still answers
+`500` with `errors: []` and creates nothing, as recorded on
+`TestAcceptance_Pro_AccountsV1`.
+
+### v2414's `routes.yaml` dropped `/v1/inventory-preload`, which is still served (2026-10-02)
+
+`_permissions/routes.yaml` lost 20 `pro` routes: every unversioned and `/v1/`
+`inventory-preload` path. jpapi carried none of them (v1942 had already
+withdrawn them) and dropped five schemas no operation referenced. On the wire,
+`GET /pro/v1/inventory-preload` still answers 200 ×2 with the same record
+`/pro/v2/inventory-preload/records` serves, against `403 BAD_PERMISSIONS` for a
+bogus `/pro/v1/` path. Inert to the SDK, which does not carry v1.
+
 ### The gateway-bypass technique
 
 When a gateway 403 blocks verification, separate "Jamf Pro can't do this" from
@@ -4074,7 +4110,8 @@ settles that too:** `…/ai/governance/visibility/v1/policies` answers **403**
 (routed namespace, no policy rule) while the bare `…/ai/governance/v1/policies`
 answers **404 page not found**. Those two answers distinguish "routed but
 ungranted" from "no such namespace", and they are the basis for expecting
-Visibility to land as a second spec in this package. It still has no spec.
+Visibility to land as a second spec in this package. ~~It still has no spec.~~
+v2414 published one; see below.
 
 `X-Environment-Id` is `required: true`. **A malformed value is a 500, not a 400**:
 a well-formed unknown UUID correctly gives `404 ENVIRONMENT_NOT_FOUND`,
@@ -4162,6 +4199,32 @@ header win and the request fail `403 OWNERSHIP_FORBIDDEN`.
   `href` leaks an internal gateway service hostname.
 
 ---
+
+### AI Visibility is published and ungrantable (2026-10-02)
+
+v2414 published `external/ai-visibility` (`AI Visibility - Preview`, 0.1.0):
+24 `GET` operations under `/ai/governance/visibility/v1` (devices, tools,
+launchers, commands — each with list, count, stats and item reads — plus
+alerts), every one `x-preview` and `ai-visibility:read`, `x-scope-types:
+[environment]`. `_permissions` gained the `ai-visibility` capability and all 24
+routes. EU environment credential, one fresh token, one invocation:
+
+| request | answer |
+|---|---|
+| `GET /ai/governance/policies/v1/policies` (control) | 200, `totalCount: 2` |
+| `GET /ai/governance/visibility/v1/tools` | `403 BAD_PERMISSIONS`, ×2 |
+| `GET /ai/governance/visibility/v1/bogus` | `403 BAD_PERMISSIONS` |
+| `GET /ai/governance/nonsense/v1/x` | `404 page not found` (plain text) |
+
+So the namespace is mounted, and a real path and a bogus one get the same
+refusal. The published permissions map (re-fetched the same day,
+byte-identical to the committed snapshot) has no `ai-visibility` capability,
+and the API-integration UI offers no new permission to grant, so the
+credential cannot be given the privilege the spec requires. The token is
+opaque (`scope: ""`), so the grant is not observable from the client.
+Recorded in `knownUnmapped`. Ingest it when the capability is grantable, as a
+second spec in `aigovernance`, and add the capability to the permissions map
+check in the same change.
 
 ## Audit (`audit`) — environment scope, blocked on a grant
 
