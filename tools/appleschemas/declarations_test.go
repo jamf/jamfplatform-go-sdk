@@ -288,6 +288,43 @@ func TestUnionRecordsEveryBranchThatDeclaresAKey(t *testing.T) {
 	}
 }
 
+// TestACutRecursiveAnchorIsFreeForm covers a sequence that reaches itself through an alias, which is
+// how Apple declares Safari's nested bookmark folders. parseKeys cuts the cycle, and what it leaves
+// must be free-form: a dictionary emitted with neither named keys nor a wildcard reads as closed, and
+// the validators then report every key of a valid nested folder as unknown.
+func TestACutRecursiveAnchorIsFreeForm(t *testing.T) {
+	parsed, err := parseSpec([]byte(specWith(`- key: Bookmarks
+  type: <array>
+  subkeys:
+  - key: BookmarkItem
+    type: <dictionary>
+    subkeys: &entry
+    - key: Title
+      type: <string>
+    - key: Folder
+      type: <array>
+      subkeys:
+      - key: FolderItem
+        type: <dictionary>
+        subkeys: *entry
+`)))
+	if err != nil {
+		t.Fatalf("parseSpec: %v", err)
+	}
+	keys := dictionaryKeys(parsed.PayloadKeys, 0)
+	entry := keys["Bookmarks"].Item
+	if entry == nil || entry.Keys["Title"] == nil || entry.Keys["Folder"] == nil {
+		t.Fatalf("the bookmark entry lost its declared keys: %+v", entry)
+	}
+	cut := entry.Keys["Folder"].Item
+	if cut == nil || cut.Type != typeDictionary {
+		t.Fatalf("the folder item is %+v, want a dictionary", cut)
+	}
+	if cut.Keys == nil && cut.Any == nil {
+		t.Fatal("the cut folder item is a dictionary with neither keys nor a wildcard, which the validators read as closed")
+	}
+}
+
 // TestParseKeysBoundsAnAliasGraph covers the cost of upstream's anchors. visiting cuts a sequence
 // that reaches itself, but a sequence aliased twice from different points is a directed acyclic
 // graph, and expanding one doubles per level. Measured on the 25 levels below, 3.9 KB of YAML: 10 ms

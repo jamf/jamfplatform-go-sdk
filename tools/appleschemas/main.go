@@ -502,6 +502,13 @@ func reduce(key *specKey, depth int) *schema {
 		if named := dictionaryKeys(key.Subkeys, depth+1); len(named) > 0 {
 			result.Keys = named
 		}
+		// A dictionary that declares neither named keys nor a wildcard carries no vocabulary to
+		// check against: either upstream declared none, or parseKeys cut a recursive anchor here.
+		// Emitting it keyless would make the validators treat it as closed and report every key
+		// in a valid payload as unknown, so it is free-form instead.
+		if result.Keys == nil && result.Any == nil {
+			result.Any = &schema{Type: typeAny}
+		}
 	case typeArray:
 		for _, sub := range key.Subkeys {
 			if sub == nil {

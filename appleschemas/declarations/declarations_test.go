@@ -297,6 +297,28 @@ func TestValidateAcceptsSpecCompliantDeclarations(t *testing.T) {
 			payload:         map[string]any{"Name": "Example Corp"},
 		},
 		{
+			// Apple declares a folder's contents by aliasing the bookmark entry into itself. The
+			// generator cuts that cycle, and the cut must leave the folder free-form rather than
+			// closed, or every key of a nested entry reports as unknown.
+			name:            "safari bookmark nested inside a folder",
+			kind:            "CONFIGURATION",
+			declarationType: "com.apple.configuration.safari.bookmarks",
+			payload: map[string]any{"ManagedBookmarks": []any{
+				map[string]any{
+					"GroupIdentifier": "group",
+					"Title":           "Group",
+					"Bookmarks": []any{
+						map[string]any{
+							"Title": "Folder",
+							"Folder": []any{
+								map[string]any{"Title": "Nested", "URL": "https://example.com"},
+							},
+						},
+					},
+				},
+			}},
+		},
+		{
 			name:            "status subscription naming published items",
 			kind:            "CONFIGURATION",
 			declarationType: "com.apple.configuration.management.status-subscriptions",

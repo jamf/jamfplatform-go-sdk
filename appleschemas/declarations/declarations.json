@@ -6086,6 +6086,12 @@
            "type": "array",
            "item": {
             "type": "dictionary",
+            "any": {
+             "type": "any",
+             "refs": [
+              "release"
+             ]
+            },
             "refs": [
              "release"
             ]
