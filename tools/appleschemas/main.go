@@ -312,7 +312,7 @@ func main() {
 		os.Exit(1)
 	}
 	if len(dropped.Findings) > 0 {
-		fmt.Fprintf(os.Stderr, "appleschemas: this regeneration drops %d name(s) the committed tables carry:\n%s",
+		fmt.Fprintf(os.Stderr, "appleschemas: this regeneration withdraws or tightens %d thing(s) the committed tables accept:\n%s",
 			len(dropped.Findings), dropped.report())
 	}
 

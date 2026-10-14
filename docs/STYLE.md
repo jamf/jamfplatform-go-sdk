@@ -1767,7 +1767,15 @@ SDK with it. Accumulating would keep validating against a vocabulary the device
 no longer honours. The cost is that **a withdrawal is the one refresh that turns
 a configuration that validates today into a failing one**, and it would sit among
 thousands of changed lines. The generator therefore reports every name a
-regeneration drops, and the workflow carries that report into the PR body.
+regeneration drops, and the workflow carries that report into the PR body. A
+name can also survive and still reject what it accepted, so the report lists
+tightenings too: a changed type, a key newly required, a dictionary's lost
+wildcard and — for declarations only — an enum value withdrawn or newly
+declared and a bound narrowed or newly declared, at every depth including
+wildcard and array-element schemas. Only what a validator enforces counts, so a
+type moving to `any`, within string/data/date, or from integer to real is not a
+tightening, and neither is a payload's enum or bound, which `profiles` does not
+check because Jamf accepts values outside them. Loosenings are not reported.
 `maxReportedRemovals` caps it: hundreds means the generator read the wrong
 thing, and printing them all buries that.
 
