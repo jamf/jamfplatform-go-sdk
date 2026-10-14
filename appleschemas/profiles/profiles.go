@@ -145,7 +145,10 @@ var load = sync.OnceValue(func() *Table {
 
 // Provenance returns the upstream commit and release the embedded table was generated from, for
 // diagnostics that need to say how current the schemas are. The commit reported is the one for the
-// release branch, since that is the revision an operator can most readily compare against.
+// release branch, since that is the revision an operator can most readily compare against. The
+// release subject is the head commit's of the most forward-looking branch unioned, so while a seed
+// branch is open it is the seed's ("Seed8") rather than release's. ProvenanceSummary names each
+// branch with its own commit.
 func Provenance() (commit, release string) {
 	table := load()
 	return table.Commits[table.ReleaseRef()], table.Release

@@ -142,7 +142,10 @@ type Table struct {
 }
 
 // load decodes the embedded table once. A table that fails to decode yields an empty one rather
-// than a panic, and an empty table reports nothing: losing validation must never stop a plan.
+// than a panic, but the degradation is loud rather than quiet: with no declaration types in the
+// table every declaration reports as UnknownDeclarationType. Only the status-item check goes quiet,
+// since it has no vocabulary to compare against. The package's own tests fail on a table that
+// decodes to nothing.
 var load = sync.OnceValue(func() *Table {
 	table := &Table{}
 	if err := json.Unmarshal(embeddedTable, table); err != nil {
@@ -167,7 +170,10 @@ func ReleaseRef() string {
 func Refs() []string { return slices.Clone(load().Refs) }
 
 // Provenance returns the commit of the release branch and the upstream release subject, for
-// diagnostics that need to say how current the schemas are.
+// diagnostics that need to say how current the schemas are. The two can name different branches:
+// the subject is the head commit's of the most forward-looking branch unioned, so while a seed
+// branch is open it is the seed's ("Seed8") rather than release's. ProvenanceSummary names each
+// branch with its own commit.
 func Provenance() (commit, release string) {
 	table := load()
 	return table.Commits[ReleaseRef()], table.Release
