@@ -321,16 +321,28 @@ error. Mechanism, the one known race, and the OAuth refresh — the one call the
 context cannot reach — are in
 [docs/STYLE.md](docs/STYLE.md#timeouts-and-retries).
 
-**The gateway rate-limits, and the SDK handles it only after a 429.** Tyk's 429
-has no `Retry-After`, so `jamfBackoff` waits until `x-ratelimit-reset`,
-measured against the response's `Date`, plus jitter — **only when
-`x-ratelimit-remaining` is `0`**, because the gateway stamps the same headers
-on a service's own 429 (the blueprints report), whose reset is meaningless and
-which needs the exponential backoff instead. **Never encode the
-thresholds** — they are gateway configuration that changes without notice —
-and **never pace on `x-ratelimit-remaining`**, which reports one of several
-per-node counters, not the budget. Evidence:
-[WIRE-FACTS.md](docs/WIRE-FACTS.md#rate-limiting).
+**The gateway rate-limits per client ID, and the SDK slows down before the
+limit rather than after it.** `requestThrottle` spreads the requests
+`x-ratelimit-remaining` says are left across the time to `x-ratelimit-reset`
+— milliseconds apart with the budget nearly full, so concurrency is untouched,
+and waiting for the window at an estimate of 0. The estimate subtracts every
+request started after the one whose response carried it, which is what covers
+the client's own in-flight requests. **A gateway 429 holds every goroutine
+until the window ends**: the published guidance's first step is to stop
+sending, and a limiter that counts refused requests would keep refusing a
+client whose other goroutines kept going. A success reporting `remaining: 0`
+is ignored, so a limiter that reports 0 on every response cannot stall the
+client.
+
+Tyk's 429 has no `Retry-After`, so `jamfBackoff` retries the refused request
+after `x-ratelimit-reset`, measured against the response's `Date`, plus jitter
+— **only when `x-ratelimit-remaining` is `0`**, because the gateway stamps the
+same headers on a service's own 429 (the blueprints report), whose reset is
+meaningless and which needs the exponential backoff instead. **Never encode
+the limit or the window** — they are gateway configuration that changes
+without notice.
+
+Evidence: [WIRE-FACTS.md](docs/WIRE-FACTS.md#rate-limiting).
 
 ---
 

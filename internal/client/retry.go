@@ -193,12 +193,11 @@ func jamfBackoff(minWait, maxWait time.Duration, attemptNum int, resp *http.Resp
 //   - Up to one more second of random jitter is added. Requests that were
 //     refused together would otherwise all retry at the same instant at the
 //     start of the next window.
-//   - x-ratelimit-remaining is used only to tell whose 429 this is, and no
-//     request is held back before a 429. The gateway splits the limit across
-//     several counters and each response shows only one of them, and other
-//     processes using the same credential spend the same budget. So remaining
-//     does not show how much budget is left. A 429 costs one retry of about a
-//     second.
+//   - x-ratelimit-remaining is used here only to tell whose 429 this is.
+//     Holding requests back before the limit, and holding every other
+//     goroutine after a refusal, is requestThrottle's job; this decides only
+//     when the refused request itself is retried, and the retry then passes
+//     through that same gate.
 //
 // The reset applies only when remaining is 0, which is the gateway's own
 // refusal. A service behind the gateway can answer 429 too — the blueprints
@@ -209,29 +208,49 @@ func jamfBackoff(minWait, maxWait time.Duration, attemptNum int, resp *http.Resp
 // falls back to the exponential curve. So does a reset that cannot be parsed
 // or is not positive.
 //
-// The wait is clamped to maxWait here rather than by the caller, and the
-// seconds until reset are counted as integers. A reset centuries away, such as
-// one sent in epoch milliseconds, saturates time.Time.Sub at the largest
-// Duration, and adding the extra second to that wraps the wait negative, which
-// retryablehttp treats as no wait at all.
+// The wait is clamped to maxWait here rather than by the caller, and
+// parseRateLimitHeaders counts the seconds as integers, so a reset sent in
+// epoch milliseconds cannot wrap the wait negative, which retryablehttp would
+// treat as no wait at all.
 func rateLimitResetWait(resp *http.Response, maxWait time.Duration) (time.Duration, bool) {
 	if resp == nil || resp.StatusCode != http.StatusTooManyRequests || resp.Header.Get("Retry-After") != "" {
 		return 0, false
 	}
-	if resp.Header.Get("X-Ratelimit-Remaining") != "0" {
+	remaining, untilReset, ok := parseRateLimitHeaders(resp.Header, maxWait)
+	if !ok || remaining != 0 {
 		return 0, false
 	}
-	reset, err := strconv.ParseInt(resp.Header.Get("X-Ratelimit-Reset"), 10, 64)
+	wait := untilReset + time.Second + rand.N(time.Second)
+	return min(wait, maxWait), true
+}
+
+// parseRateLimitHeaders reads the gateway's x-ratelimit-remaining and
+// x-ratelimit-reset from h, and returns the remaining count and how long until
+// the reset, measured against h's Date (the local clock when Date is absent)
+// and clamped to [0, maxWait]. It reports false when either header is absent
+// or unusable: a remaining that is not a non-negative integer, or a reset
+// that is not a positive one.
+//
+// The seconds until reset are counted as integers before they become a
+// Duration. A reset centuries away, such as one sent in epoch milliseconds,
+// saturates time.Time.Sub at the largest Duration, and adding to that wraps
+// it negative. Shared by rateLimitResetWait and requestThrottle.observe, so
+// the retry wait and the pacing read the headers the same way.
+func parseRateLimitHeaders(h http.Header, maxWait time.Duration) (int64, time.Duration, bool) {
+	remaining, err := strconv.ParseInt(h.Get("X-Ratelimit-Remaining"), 10, 64)
+	if err != nil || remaining < 0 {
+		return 0, 0, false
+	}
+	reset, err := strconv.ParseInt(h.Get("X-Ratelimit-Reset"), 10, 64)
 	if err != nil || reset <= 0 {
-		return 0, false
+		return 0, 0, false
 	}
-	now, err := http.ParseTime(resp.Header.Get("Date"))
+	now, err := http.ParseTime(h.Get("Date"))
 	if err != nil {
 		now = time.Now()
 	}
 	secs := min(max(reset-now.Unix(), 0), int64(maxWait/time.Second))
-	wait := time.Duration(secs)*time.Second + time.Second + rand.N(time.Second)
-	return min(wait, maxWait), true
+	return remaining, time.Duration(secs) * time.Second, true
 }
 
 // logRetryAttempt is the RequestLogHook: retryablehttp calls it immediately

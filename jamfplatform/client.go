@@ -341,9 +341,15 @@ func WithEnvironmentID(id string) Option {
 
 // WithMinRequestInterval sets the minimum wall-clock time between the start of
 // consecutive outbound HTTP requests, paced across the shared transport that
-// the SDK fans out over parallel goroutines. It gives the server breathing room
-// and reduces 429s. A value <= 0 disables the gate. When this option is not
-// supplied, the SDK applies a 100ms default.
+// the SDK fans out over parallel goroutines. A value <= 0 disables the gate.
+// When this option is not supplied, the SDK applies a 100ms default.
+//
+// It is independent of the gateway rate-limit pacing, which is always on:
+// that reads x-ratelimit-remaining and x-ratelimit-reset from each response,
+// spreads the requests left across the rest of the window, and after a
+// gateway 429 holds every request until the window ends. It costs nothing
+// while the budget is far from spent, so disabling this interval does not
+// expose a client to the gateway's limit.
 func WithMinRequestInterval(d time.Duration) Option {
 	return func(cfg *clientConfig) {
 		cfg.minRequestInterval = d
