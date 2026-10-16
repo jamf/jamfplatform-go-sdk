@@ -173,6 +173,10 @@ func (a *App) ArtworkURL(width, height int, format string) (string, error) {
 // For the iPhone and iPad flavour this is the same art as ArtworkURL masked to Apple's rounded
 // square with transparent corners, as a device shows it. For the Mac flavour it matches
 // ArtworkURL. It returns ErrNoArtwork when the listing carries none, which some Mac listings do.
+//
+// The image behind it is less reliably served than ArtworkURL's: for some listings the template
+// names a layered source that Apple's image service refused with 403 from GitHub-hosted runners
+// while serving it from other networks (2026-10-16). Prefer ArtworkURL where either will do.
 func (a *App) IconArtworkURL(width, height int, format string) (string, error) {
 	if a == nil {
 		return "", ErrNoArtwork
