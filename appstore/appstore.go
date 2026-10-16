@@ -73,7 +73,9 @@ const DefaultCountry = "US"
 const maxResponseBytes = 4 << 20
 
 // Platform selects which flavour of a listing Lookup asks for. Its values are the wire values.
-type Platform string
+// It is a type alias, matching the generated enums in jamfplatform/ (see docs/STYLE.md §Enum
+// constants), so the constants assign to a plain string with no cast.
+type Platform = string
 
 const (
 	// PlatformMac asks for the Mac flavour. An app with no Mac version is not found.
