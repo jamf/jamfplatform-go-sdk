@@ -231,6 +231,28 @@ Each API family lives in its own sub-package under `jamfplatform/`. Construct a 
 
 All list methods handle pagination automatically. Pro's versioned endpoints emit version-suffixed Go methods (`ListBuildingsV1`, `GetCheckInSettingsV3`) so consumers pin to a specific API version. Exact method lists are generated from the OpenAPI specs under `testing/` — see the published specs in [`api/`](api/) for the current surface.
 
+### Standalone packages
+
+These sit outside `jamfplatform/`, are handwritten, use the standard library only, and need no Jamf credential.
+
+| Package | Purpose |
+|---|---|
+| `appleschemas/profiles` | Validates configuration profile payloads against Apple's declared payload keys |
+| `appleschemas/declarations` | Validates declarative device management declarations against Apple's declared types and keys |
+| `appstore` | Looks up an App Store app's public listing (name, version, bundle identifier, store URL, description, icon, price) by id, bundle identifier or store URL |
+
+```go
+client := appstore.New(appstore.WithUserAgent("my-tool/1.0"))
+app, err := client.Lookup(ctx, appstore.Query{ID: "497799835", Platform: appstore.PlatformMac})
+var notFound *appstore.NotFoundError
+if errors.As(err, &notFound) {
+    // Wrong id, not sold in that storefront, no Mac version, or a custom app.
+}
+icon, err := app.ArtworkURL(512, 512, "png")
+```
+
+A store URL resolves with `appstore.ParseStoreURL`, which returns the id and, when the URL names one, the storefront. An unrecognised country code is a `*appstore.StorefrontMismatchError`, because Apple answers it from the US storefront instead of refusing it. `WithLogger` takes any value with `jamfplatform.Logger`'s method set, and `WithHTTPClient` replaces the transport.
+
 ### Classic (XML) example
 
 ```go

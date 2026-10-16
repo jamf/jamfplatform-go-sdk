@@ -4887,3 +4887,52 @@ Two consequences:
 
 The token is opaque — 342 characters, not a JWT — so none of this is readable
 from the credential itself; it has to be probed.
+
+---
+
+## Apple App Store lookup (`appstore`) — not a Jamf service
+
+`GET https://uclient-api.itunes.apple.com/WebObjects/MZStorePlatform.woa/wa/lookup?version=2&p=mdm-lockup&caller=MDM`,
+unauthenticated. Probed 2026-10-16 from the US and GB storefronts; each miss
+below was paired with a known-good id (Pages `361309726`, Xcode `497799835`) in
+the same run. The captured bodies are `appstore/testdata/`.
+
+- **Every answer is `200`**, including a non-numeric id (`id=abc`), a retired id,
+  an iOS-only app asked for as `macappstore`, and an unknown bundle identifier.
+  A miss is `"results": {}` with the storefront still in `meta`.
+- **`bundleId=` is a lookup key, matched case-insensitively.** `COM.APPLE.PAGES`
+  finds Pages; `results` is keyed by the request's spelling and the listing's own
+  `bundleId` carries Apple's (`com.apple.Pages`).
+- **`id=` takes a comma list**, and a list with one miss returns only the hit,
+  with nothing marking the miss.
+- **`platform=macappstore` filters and switches flavour.** An iOS-only app
+  (Things 3 for iPhone, `904237743`) is empty; a universal app (Pages) returns a
+  different icon, description, `whatsNew`, offer `externalId` and
+  `requirementsString`. `bundleId` + `macappstore` behaves the same.
+  `enterprisestore`, `volumestore`, an absent value and a garbage value all
+  return the iPhone and iPad flavour. `minimumOSVersion` and `kind` do not
+  switch: Pages' Mac flavour still reports `kind: iosSoftware`; only a Mac-only
+  id reports `desktopApp`.
+- **An unrecognised `cc` silently falls back to the US storefront** (`cc=xx`
+  returns Pages from `meta.storefront.cc: "US"`), so the storefront has to be
+  compared with the request. `l` is negotiated: `cc=gb&l=fr` answers `en-gb`.
+  `url` carries the storefront path (`/gb/`), and Mac-only listings end `?mt=12`.
+- **Apple merged some Mac apps into their iOS listing.** The old Mac Pages id
+  `409201541` is empty everywhere; Pages is `361309726` on both platforms.
+- **`volumestore` adds a second offer with `quantity: 20`** (the education
+  tier), otherwise identical. Free is `price: 0` / `type: "get"`; paid is
+  `type: "buy"` (Things 3 for Mac, `$49.99`).
+- **`artwork` was an object in every listing probed**, its `url` a template
+  ending `{w}x{h}bb.{f}`. Filling it with `512x512bb.png` answers
+  `200 image/png` at exactly 512×512 for Pages in both flavours and for Xcode;
+  `1024x1024bb.png` and `512x512bb.jpg` work too, so the image service resizes
+  and transcodes on request. iPhone-flavour icons are opaque and Mac-flavour
+  icons carry alpha (shaped icons), one more thing the flavour switch changes.
+  `iconArtwork` uses a different token (`{w}x{h}{c}.{f}`, `Placeholder.mill`),
+  which is why `ArtworkURL` refuses any template lacking the exact
+  `{w}x{h}bb.{f}` token rather than returning it unfilled. Apple's
+  documentation also shows an array form for `artwork`; not seen.
+- **`cache-control: max-age=900, no-transform`.** Bursts of 200 requests at
+  20/s and 400 at 36/s and 44/s (25 concurrent) all answered `200`, p50 0.48s,
+  with no `429` and no latency growth. The limit is undocumented.
+- **Not probed:** the `itvt` sToken cookie that exposes custom (B2B) apps.
