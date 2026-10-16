@@ -15,15 +15,20 @@ import (
 )
 
 // gatewayResponse builds a response carrying the gateway's rate-limit headers
-// as observed on the wire: Date and x-ratelimit-reset both in whole seconds,
-// reset resetIn after Date.
+// as observed on the wire: a limit of 100, Date and x-ratelimit-reset both in
+// whole seconds, reset resetIn after Date.
 func gatewayResponse(status int, remaining int, date time.Time, resetIn time.Duration) *http.Response {
+	return gatewayResponseWithLimit(status, 100, remaining, date, resetIn)
+}
+
+// gatewayResponseWithLimit is gatewayResponse with the x-ratelimit-limit given.
+func gatewayResponseWithLimit(status int, limit, remaining int, date time.Time, resetIn time.Duration) *http.Response {
 	date = date.Truncate(time.Second)
 	return &http.Response{
 		StatusCode: status,
 		Header: http.Header{
 			"Date":                  []string{date.UTC().Format(http.TimeFormat)},
-			"X-Ratelimit-Limit":     []string{"200"},
+			"X-Ratelimit-Limit":     []string{strconv.Itoa(limit)},
 			"X-Ratelimit-Remaining": []string{strconv.Itoa(remaining)},
 			"X-Ratelimit-Reset":     []string{strconv.FormatInt(date.Add(resetIn).Unix(), 10)},
 		},
@@ -52,16 +57,96 @@ func TestBudget_NoHeadersNoPacing(t *testing.T) {
 	}
 }
 
-// TestBudget_PlentyLeftBarelySpaces pins the claim that the gate leaves
-// concurrency alone below the limit: with 199 of 200 left, ten requests
-// arriving together all start within a few tens of milliseconds.
+// TestBudget_PlentyLeftBarelySpaces pins the claim that the gates leave
+// concurrency alone below the limit: with 99 of 100 left, ten requests
+// arriving together all start within the ceiling's spacing of each other,
+// a little over a tenth of a second for all ten.
 func TestBudget_PlentyLeftBarelySpaces(t *testing.T) {
 	now := time.Now().Truncate(time.Second)
-	g := observed(now, gatewayResponse(http.StatusOK, 199, now, time.Second))
+	g := observed(now, gatewayResponse(http.StatusOK, 99, now, time.Second))
 	for i := range 10 {
-		if start, _ := g.reserve(now); start.Sub(now) > 60*time.Millisecond {
-			t.Fatalf("start %d delayed %v with 199 left; want <= 60ms", i, start.Sub(now))
+		want := time.Duration(i+1)*limitSpacing(100) + 5*time.Millisecond
+		if start, _ := g.reserve(now); start.Sub(now) > want {
+			t.Fatalf("start %d delayed %v with 99 left; want <= %v", i, start.Sub(now), want)
 		}
+	}
+}
+
+// TestCeiling_SpreadsBurstWhenResetReadsZero is the case the budget gate
+// alone misses. Reset and Date are whole seconds, so for most of the window
+// the time until reset reads 0 and there is nothing to spread the budget
+// across. The ceiling still spaces every start, so 100 requests arriving
+// together take at least 1.2s rather than landing in one second.
+func TestCeiling_SpreadsBurstWhenResetReadsZero(t *testing.T) {
+	now := time.Now().Truncate(time.Second)
+	g := observed(now, gatewayResponse(http.StatusOK, 19, now, 0))
+	var first, prev time.Time
+	for i := range 100 {
+		start, _ := g.reserve(now)
+		if i == 0 {
+			first = start
+		} else if gap := start.Sub(prev); gap < limitSpacing(100) {
+			t.Fatalf("starts %d and %d only %v apart; want >= %v", i-1, i, gap, limitSpacing(100))
+		}
+		prev = start
+	}
+	if spread := prev.Sub(first); spread < 1200*time.Millisecond {
+		t.Errorf("100 starts spread over %v; want >= 1.2s", spread)
+	}
+}
+
+// TestCeiling_ZeroLimitSetsNone pins Tyk's x-ratelimit-limit: 0, which means
+// limiting is disabled. It must not become a ceiling, nor a division by zero.
+func TestCeiling_ZeroLimitSetsNone(t *testing.T) {
+	now := time.Now()
+	g := observed(now, &http.Response{StatusCode: http.StatusOK, Header: http.Header{"X-Ratelimit-Limit": []string{"0"}}})
+	for i := range 50 {
+		if start, _ := g.reserve(now); !start.Equal(now) {
+			t.Fatalf("start %d delayed by %v with a limit of 0", i, start.Sub(now))
+		}
+	}
+}
+
+// TestCeiling_LimitReadWithoutBudgetHeaders pins that the limit is read on its
+// own: a response whose remaining or reset does not parse still sets it.
+func TestCeiling_LimitReadWithoutBudgetHeaders(t *testing.T) {
+	now := time.Now()
+	g := observed(now, &http.Response{StatusCode: http.StatusOK, Header: http.Header{"X-Ratelimit-Limit": []string{"100"}}})
+	if start, _ := g.reserve(now); start.Sub(now) < limitSpacing(100) {
+		t.Errorf("start at +%v; want the ceiling's %v from the limit alone", start.Sub(now), limitSpacing(100))
+	}
+}
+
+// TestGates_CeilingAndBudgetDoNotAdd pins that the ceiling and the budget
+// combine as the stricter of the two, not their sum. With 99 left in a second
+// the budget's gap (about 10ms) is under the ceiling's 12.5ms, so each start
+// is the ceiling's spacing out; added, they would be about 22ms.
+func TestGates_CeilingAndBudgetDoNotAdd(t *testing.T) {
+	now := time.Now().Truncate(time.Second)
+	g := observed(now, gatewayResponse(http.StatusOK, 99, now, time.Second))
+	for i := range 10 {
+		want := time.Duration(i+1)*limitSpacing(100) + time.Millisecond
+		if start, _ := g.reserve(now); start.Sub(now) > want {
+			t.Fatalf("start %d at +%v; want <= %v, the ceiling's spacing alone", i, start.Sub(now), want)
+		}
+	}
+}
+
+// TestGates_IntervalAndBudgetDoNotAdd pins the same for the interval: 100ms
+// beside a budget of 9 left in a second (about 111ms apart) spaces starts
+// about 111ms, not 211ms.
+func TestGates_IntervalAndBudgetDoNotAdd(t *testing.T) {
+	now := time.Now().Truncate(time.Second)
+	g := newRequestThrottle(100 * time.Millisecond)
+	_, seq := g.reserve(now)
+	g.observe(gatewayResponse(http.StatusOK, 9, now, time.Second), seq, now)
+	prev := now
+	for i := range 5 {
+		start, _ := g.reserve(now)
+		if gap := start.Sub(prev); gap < 100*time.Millisecond || gap > 125*time.Millisecond {
+			t.Fatalf("start %d %v after the previous; want about 111ms, the stricter gate alone", i, gap)
+		}
+		prev = start
 	}
 }
 
@@ -140,7 +225,8 @@ func TestBudget_GatewayRefusalHoldsEveryone(t *testing.T) {
 		if start.Before(now.Add(time.Second)) {
 			t.Fatalf("start %d at +%v after a gateway 429; want held to the window end, padded a second", i, start.Sub(now))
 		}
-		if start.After(now.Add(2 * time.Second)) {
+		// The ceiling still spaces the released starts.
+		if want := now.Add(2*time.Second + time.Duration(i)*limitSpacing(100)); start.After(want) {
 			t.Fatalf("start %d at +%v; want released within a second of jitter after the hold", i, start.Sub(now))
 		}
 	}
@@ -176,13 +262,15 @@ func TestBudget_ServiceRefusalSetsNoHold(t *testing.T) {
 
 // TestBudget_SuccessReportingZeroIgnored pins the guard against a limiter that
 // reports remaining 0 on every response. Read as an exhausted budget, that
-// would hold every request for a whole window.
+// would hold every request for a whole window. The response's limit still
+// sets the ceiling, so starts are that far apart and no further.
 func TestBudget_SuccessReportingZeroIgnored(t *testing.T) {
 	now := time.Now().Truncate(time.Second)
 	g := observed(now, gatewayResponse(http.StatusOK, 0, now, time.Second))
 	for i := range 10 {
-		if start, _ := g.reserve(now); !start.Equal(now) {
-			t.Fatalf("start %d delayed %v by a success reporting 0", i, start.Sub(now))
+		want := time.Duration(i+1) * limitSpacing(100)
+		if start, _ := g.reserve(now); start.Sub(now) > want {
+			t.Fatalf("start %d delayed %v by a success reporting 0; want <= %v, the ceiling alone", i, start.Sub(now), want)
 		}
 	}
 }
@@ -195,8 +283,9 @@ func TestBudget_ExpiredWindowIgnored(t *testing.T) {
 	_, seq := g.reserve(now.Add(-5 * time.Second))
 	g.observe(gatewayResponse(http.StatusOK, 1, now.Add(-5*time.Second), time.Second), seq, now.Add(-5*time.Second))
 	for i := range 10 {
-		if start, _ := g.reserve(now); !start.Equal(now) {
-			t.Fatalf("start %d delayed %v by a window that ended seconds ago", i, start.Sub(now))
+		want := time.Duration(i) * limitSpacing(100)
+		if start, _ := g.reserve(now); start.Sub(now) > want {
+			t.Fatalf("start %d delayed %v by a window that ended seconds ago; want <= %v, the ceiling alone", i, start.Sub(now), want)
 		}
 	}
 }
@@ -258,7 +347,8 @@ func TestThrottle_GatewayRefusalHoldsOtherRequests(t *testing.T) {
 // TestThrottle_BudgetLeavesConcurrencyAlone is the consumer-facing guarantee:
 // fifteen goroutines against a gateway reporting plenty left all run at once.
 // Fifteen is Terraform's default parallelism plus the provider's five-worker
-// impact sweep.
+// impact sweep. The ceiling spaces their starts about 190ms across, inside
+// each request's 300ms.
 func TestThrottle_BudgetLeavesConcurrencyAlone(t *testing.T) {
 	c, _, mux := newTestClient(t)
 	c.throttle.setInterval(0)
@@ -272,7 +362,7 @@ func TestThrottle_BudgetLeavesConcurrencyAlone(t *testing.T) {
 				break
 			}
 		}
-		time.Sleep(200 * time.Millisecond)
+		time.Sleep(300 * time.Millisecond)
 		inFlight.Add(-1)
 		resp := gatewayResponse(http.StatusOK, 150, time.Now(), time.Second)
 		maps.Copy(w.Header(), resp.Header)
@@ -300,6 +390,6 @@ func TestThrottle_BudgetLeavesConcurrencyAlone(t *testing.T) {
 		t.Errorf("peak concurrency %d of %d with 150 left; want the requests to overlap", got, n)
 	}
 	if elapsed := time.Since(start); elapsed > time.Second {
-		t.Errorf("%d concurrent 200ms requests took %v with 150 left; want well under 1s", n, elapsed)
+		t.Errorf("%d concurrent 300ms requests took %v with 150 left; want well under 1s", n, elapsed)
 	}
 }

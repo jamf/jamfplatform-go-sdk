@@ -334,13 +334,24 @@ client whose other goroutines kept going. A success reporting `remaining: 0`
 is ignored, so a limiter that reports 0 on every response cannot stall the
 client.
 
+**The budget gate alone does not hold an interval-0 client under the limit**,
+so a ceiling sits beside it: once `x-ratelimit-limit` is known, starts are
+`(1s + 1s/4) / limit` apart — 80 a second at today's 100. Reset and `Date` are
+whole seconds, so for most of the window the time to reset reads 0 and there
+is nothing to spread across; and `remaining` is not the global budget. **The
+gates combine as the stricter gap, never the sum** — each is measured from the
+same base. The 100ms `WithMinRequestInterval` default is not a rate-limit
+control: it came in with the removal of the eventual-consistency retry, as a
+write-to-read cushion, and the ceiling works without it.
+
 Tyk's 429 has no `Retry-After`, so `jamfBackoff` retries the refused request
 after `x-ratelimit-reset`, measured against the response's `Date`, plus jitter
 — **only when `x-ratelimit-remaining` is `0`**, because the gateway stamps the
 same headers on a service's own 429 (the blueprints report), whose reset is
 meaningless and which needs the exponential backoff instead. **Never encode
-the limit or the window** — they are gateway configuration that changes
-without notice.
+the limit** — it is gateway configuration that changes without notice and is
+read off `x-ratelimit-limit`. The one-second window is the single assumption,
+and only because the platform documentation publishes it.
 
 Evidence: [WIRE-FACTS.md](docs/WIRE-FACTS.md#rate-limiting).
 
