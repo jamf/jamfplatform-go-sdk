@@ -4446,11 +4446,11 @@ every family.
 
 ## Rate limiting
 
-**The gateway rate-limits as of 2026-10-14: 100 requests per window, enforced
-by Tyk, answered with a `429` that carries no `Retry-After`.** This supersedes
-the 2026-08-31 snapshot, when every response carried `x-ratelimit-limit: 0`
-(Tyk's value for "disabled") and the 30-request burst that recorded it never
-saw a 429.
+**The gateway rate-limits as of 2026-10-14: 100 requests per second per
+client ID, enforced by Tyk, answered with a `429` that carries no
+`Retry-After`.** This supersedes the 2026-08-31 snapshot, when every response
+carried `x-ratelimit-limit: 0` (Tyk's value for "disabled") and the 30-request
+burst that recorded it never saw a 429.
 
 **The thresholds are gateway configuration and can change without a spec or
 SDK release, so nothing in the SDK may encode them** — only the header shape.
@@ -4515,27 +4515,40 @@ What is established, and what is not:
   timing signal the server gives. It is in epoch seconds, and on the 429 it was
   the same second as `Date`. Both are whole seconds, so the window ends
   somewhere in the second after `reset`.
-- **Inferred: the window is about one second.** The evidence is `reset` sitting
-  about a second ahead of each request and the immediate refill. Two timed
-  bursts would prove it, and none has been run.
-- **Inferred: the 100 is split into five counters of 20.** The "each value five
-  times" distribution fits Tyk's distributed rate limiter dividing a key's rate
-  across gateway nodes, and each response reports only the counter of the node
-  that served it. The node count has not been confirmed.
-- **Unknown: what the limit is keyed on** — token, credential, environment or
-  client IP. Only one credential and one IP were used.
+- **Established: the window is one second and the limit is per client ID.**
+  The published platform documentation says so. Both are configuration: the
+  SDK reads them off the headers and never encodes them.
 
-Consequences for the transport:
+Consequences for the transport — `requestThrottle` in
+`internal/client/throttle.go`:
 
-- **`remaining` cannot drive client-side pacing.** It reports one node's share,
-  not the budget, and that budget is shared with every other process using the
-  same key.
-- **One SDK client cannot reach today's limit with default settings.** The
+- **Starts are paced on `remaining` and `reset`, by spreading what is left
+  across what is left of the window.** Each start comes at least
+  (time until reset) / (estimated remaining) after the previous one: a few
+  milliseconds with the budget nearly full, which leaves concurrency alone, and
+  growing as it drains. At an estimate of 0, starts wait for the window to end.
+  The estimate is the `remaining` from the most recently *started* request that
+  has answered, minus every request started after it, which covers the
+  client's own in-flight requests; responses from older requests are ignored.
+  Nothing encodes the limit or the window.
+- **A gateway 429 holds every goroutine until the window ends**, and no later
+  response lifts the hold. The published guidance's first step on a 429 is to
+  stop sending from that client, and a limiter that counts refused requests in
+  its window would otherwise keep refusing a concurrent client for as long as
+  its other goroutines kept sending.
+- **A success reporting `remaining: 0` is ignored.** A limiter that reports 0 on
+  every response would otherwise stall the client completely. The cost of
+  ignoring a genuine 0 is one 429, which sets the hold.
+- **With no `Retry-After`, `x-ratelimit-reset` is also what the refused request
+  itself waits on.** See `jamfBackoff`.
+- **What it cannot prevent:** the first burst before any response has carried
+  the headers, and a small overshoot when several processes share one client
+  ID, since each sees the others' spending one round trip late. Both end in the
+  hold, not a lockout.
+- **Default settings of one SDK client stay under today's limit anyway.** The
   default `WithMinRequestInterval` of 100ms caps it at 10 request starts a
-  second. The 429 comes from several processes sharing one credential, or from
-  a caller that turns off pacing.
-- **With no `Retry-After`, `x-ratelimit-reset` is the signal to wait on.** See
-  `jamfBackoff`.
+  second; the budget gate matters for a caller that turns that off, as the
+  Terraform provider does, and for several processes sharing one credential.
 
 **First spec declaration of a 429, at GitOps v2209 (2026-09-17), and it is not
 the gateway's.** `GET /v1/blueprints/{blueprintId}/report` gained a declared

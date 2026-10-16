@@ -281,8 +281,8 @@ func WithCookieJar(jar http.CookieJar) Option {
 // WithMinRequestInterval sets a client-level minimum elapsed wall-clock time
 // between the start of consecutive outbound HTTP requests. It paces all traffic
 // through the shared transport (which Terraform fans out across parallel
-// goroutines), giving the server breathing room and reducing 429s. A value
-// <= 0 disables the gate. The default is 100ms.
+// goroutines). A value <= 0 disables the gate. The default is 100ms. The
+// gateway rate-limit pacing in requestThrottle is separate and always on.
 func WithMinRequestInterval(d time.Duration) Option {
 	return func(c *Transport) {
 		c.throttle.setInterval(d)

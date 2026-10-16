@@ -178,7 +178,7 @@ func TestThrottle_WaitReservesSlot(t *testing.T) {
 	start := time.Now()
 	for range n {
 		wg.Go(func() {
-			if err := g.wait(context.Background()); err != nil {
+			if _, err := g.wait(context.Background()); err != nil {
 				t.Errorf("wait: %v", err)
 				return
 			}

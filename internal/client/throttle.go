@@ -5,6 +5,7 @@ package client
 
 import (
 	"context"
+	"math/rand/v2"
 	"net/http"
 	"sync"
 	"time"
@@ -17,14 +18,55 @@ import (
 // workload.
 const defaultMinRequestInterval = 100 * time.Millisecond
 
-// requestThrottle enforces a minimum elapsed time between the start of
-// consecutive outbound requests across the whole Transport. It is shared by
-// every goroutine dispatching through the client, so it must be goroutine-safe;
-// it serialises request starts through a single reserved-slot timestamp.
+// requestThrottle decides when each outbound request may start. It is shared by
+// every goroutine dispatching through the Transport, so it must be
+// goroutine-safe; every caller reserves its start time under one lock, in
+// arrival order, then sleeps outside it.
+//
+// Two independent gates feed the reservation, and a start must satisfy both:
+//
+//   - The minimum interval (WithMinRequestInterval): a fixed spacing between
+//     consecutive starts, whatever the server says.
+//   - The gateway's rate-limit budget, read from the x-ratelimit-remaining and
+//     x-ratelimit-reset headers of earlier responses. Always on, and
+//     unaffected by the interval. It does nothing until a response has carried
+//     those headers, so a server that sends none (an httptest stub, or a
+//     gateway with limiting off) sees no change.
+//
+// The budget gate spreads the requests the gateway says are left across the
+// time left in its window: each start comes at least
+// (time until reset) / (estimated remaining) after the previous one. With
+// plenty left that is a few milliseconds, which leaves concurrency alone;
+// as the budget drains the spacing grows, and when the estimate reaches zero
+// starts wait for the window to end. That is the published guidance — slow
+// down before the limit rather than waiting for a 429 — and nothing in it
+// encodes the limit or the window length, which are gateway configuration.
+// See docs/WIRE-FACTS.md#rate-limiting.
+//
+// The estimate is the remaining count from the response to the most recently
+// *started* request that has answered, minus every request started after it.
+// Counting from the start rather than from the response's arrival is what
+// covers the caller's own in-flight requests: those were counted by the
+// gateway after that remaining was taken, and arrive later than it. Responses
+// from older requests, which arrive out of order under concurrency, are
+// ignored for the same reason.
+//
+// A gateway 429 — remaining 0 on the refusal itself — also sets a hold that no
+// later response lifts, so every goroutine stops until the window ends. The
+// published guidance's first step on a 429 is to stop sending from that
+// client, and a limiter that counts refused requests in its window would keep
+// refusing a client whose other goroutines kept sending after a refusal.
 type requestThrottle struct {
 	mu       sync.Mutex
-	interval time.Duration // <= 0 disables the gate
+	interval time.Duration // <= 0 disables the interval gate
 	last     time.Time     // start time reserved for the most recent caller
+	seq      uint64        // number of starts reserved so far
+
+	budgetKnown bool      // a response has carried the headers
+	budgetSeq   uint64    // seq of the request that response answered
+	budgetLeft  int64     // its x-ratelimit-remaining
+	windowEnd   time.Time // local time its x-ratelimit-reset falls at
+	hold        time.Time // set by a gateway 429; no start before it
 }
 
 // newRequestThrottle returns a throttle with the given minimum interval.
@@ -40,45 +82,107 @@ func (t *requestThrottle) setInterval(d time.Duration) {
 }
 
 // wait blocks until the caller's reserved request-start slot is reached, then
-// returns. Concurrent callers queue in arrival order: each reserves the next
-// slot under the lock, then sleeps (outside the lock) until it elapses. A
-// cancelled ctx aborts the wait and returns ctx.Err(); the reserved slot is
-// not rolled back, which at worst spaces the next caller slightly further out.
-func (t *requestThrottle) wait(ctx context.Context) error {
-	if t.interval <= 0 {
-		return nil
-	}
-
-	t.mu.Lock()
+// returns the sequence number of the start, which the caller hands back to
+// observe with the response. A cancelled ctx aborts the wait and returns
+// ctx.Err(); the reserved slot is not rolled back, which at worst spaces the
+// next caller slightly further out.
+func (t *requestThrottle) wait(ctx context.Context) (uint64, error) {
 	now := time.Now()
-	wait := t.interval - now.Sub(t.last)
-	// Reserve this slot regardless of wait so concurrent callers queue in order.
-	if wait > 0 {
-		t.last = now.Add(wait)
-	} else {
-		t.last = now
-		wait = 0
-	}
-	t.mu.Unlock()
-
+	start, seq := t.reserve(now)
+	wait := start.Sub(now)
 	if wait <= 0 {
-		return nil
+		return seq, nil
 	}
 
 	timer := time.NewTimer(wait)
 	defer timer.Stop()
 	select {
 	case <-timer.C:
-		return nil
+		return seq, nil
 	case <-ctx.Done():
-		return ctx.Err()
+		return seq, ctx.Err()
 	}
 }
 
+// reserve returns the earliest time a request arriving at now may start, and
+// records it as reserved. See requestThrottle for the two gates.
+//
+// The budget's window end is padded by a second wherever it decides that a
+// start must wait for the window, because x-ratelimit-reset and Date are both
+// whole seconds and the window ends somewhere in the second after reset (the
+// same pad rateLimitResetWait applies). Starts released at the end of a wait
+// are jittered across a further second, so goroutines held together do not
+// all start at the same instant. The spacing uses the unpadded end, so a
+// client with budget left is not slowed by the rounding.
+func (t *requestThrottle) reserve(now time.Time) (time.Time, uint64) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	t.seq++
+	seq := t.seq
+	start := now
+	if start.Before(t.hold) {
+		start = t.hold.Add(rand.N(time.Second))
+	}
+	if t.interval > 0 {
+		start = later(start, t.last.Add(t.interval))
+	}
+	if paddedEnd := t.windowEnd.Add(time.Second); t.budgetKnown && start.Before(paddedEnd) {
+		left := t.budgetLeft - int64(seq-t.budgetSeq-1)
+		if left <= 0 {
+			start = paddedEnd.Add(rand.N(time.Second))
+		} else if from := later(start, t.last); from.Before(t.windowEnd) {
+			// The time left after the previous start, shared between the
+			// requests left, so the budget is spread evenly to the window
+			// end rather than front-loaded.
+			start = later(start, from.Add(t.windowEnd.Sub(from)/time.Duration(left)))
+		}
+	}
+	t.last = start
+	return start, seq
+}
+
+// observe records the rate-limit headers of the response to the request that
+// started as seq, received at recv. A response without them changes nothing.
+//
+// A success reporting remaining 0 is ignored rather than read as an exhausted
+// budget. A limiter that reports 0 on every response would otherwise hold
+// every request for a whole window. The cost of ignoring a genuine 0 is that
+// the next request draws the 429 that sets the hold.
+func (t *requestThrottle) observe(resp *http.Response, seq uint64, recv time.Time) {
+	remaining, untilReset, ok := parseRateLimitHeaders(resp.Header, retryWaitMax)
+	if !ok {
+		return
+	}
+	refused := resp.StatusCode == http.StatusTooManyRequests && remaining == 0
+	if remaining == 0 && !refused {
+		return
+	}
+	end := recv.Add(untilReset)
+
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if refused {
+		t.hold = later(t.hold, end.Add(time.Second))
+	}
+	if !t.budgetKnown || seq > t.budgetSeq {
+		t.budgetKnown, t.budgetSeq, t.budgetLeft, t.windowEnd = true, seq, remaining, end
+	}
+}
+
+// later returns whichever of a and b is later.
+func later(a, b time.Time) time.Time {
+	if b.After(a) {
+		return b
+	}
+	return a
+}
+
 // throttleTransport is an http.RoundTripper that paces every outbound request
-// through a shared requestThrottle before delegating to the base transport.
-// Installed at the base of the transport chain so it covers API calls,
-// multipart uploads, and OAuth2 token fetches alike.
+// through a shared requestThrottle before delegating to the base transport,
+// and reports each response back to it. Installed at the base of the
+// transport chain so it covers API calls, multipart uploads, OAuth2 token
+// fetches and every retry attempt alike.
 type throttleTransport struct {
 	base     http.RoundTripper
 	throttle *requestThrottle
@@ -87,8 +191,13 @@ type throttleTransport struct {
 // RoundTrip waits for the throttle, then delegates. A ctx cancelled during the
 // wait surfaces as ctx.Err() without a network round-trip.
 func (t *throttleTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	if err := t.throttle.wait(req.Context()); err != nil {
+	seq, err := t.throttle.wait(req.Context())
+	if err != nil {
 		return nil, err
 	}
-	return t.base.RoundTrip(req)
+	resp, err := t.base.RoundTrip(req)
+	if err == nil {
+		t.throttle.observe(resp, seq, time.Now())
+	}
+	return resp, err
 }
