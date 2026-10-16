@@ -38,9 +38,13 @@
 //     empty everywhere and Pages is 361309726 on both platforms.
 //   - The version is the first offer's version.display. volumestore adds a second education offer
 //     carrying a quantity; offers with a quantity are skipped. Free means a price of zero.
-//   - artwork was an object in every listing probed. Apple's documentation also shows an array
-//     form, unprobed, so both decode. Its url is a template ending {w}x{h}bb.{f}; see ArtworkURL.
-//     iconArtwork uses a different token, {w}x{h}{c}.{f}, and is deliberately not read.
+//   - A listing carries two icon images. artwork (template token {w}x{h}bb.{f}) is, for the
+//     iPhone and iPad flavour, the raw full-bleed square, opaque and unmasked; for the Mac flavour
+//     it is already shaped with transparency. iconArtwork (token {w}x{h}{c}.{f}) is the same art
+//     masked to Apple's rounded square with transparent corners on iPhone and iPad, matches
+//     artwork on Mac, and is absent from some Mac listings (Slack for Desktop 803453959, Spark
+//     Classic 1176895641). Both were objects in every listing probed; Apple's documentation also
+//     shows an array form, unprobed, so both decode. Inspected across 13 apps, 2026-10-16.
 //   - Responses carry cache-control: max-age=900. Bursts of 400 requests at 44 per second drew no
 //     429 and no latency growth, but the limit is undocumented, so callers should cap their own
 //     concurrency.
@@ -107,13 +111,16 @@ type App struct {
 	// URL is the listing's store URL for the storefront and language that answered.
 	URL         string
 	Description string
-	// ArtworkURLTemplate is the icon URL with Apple's {w}, {h}, {f} placeholders left in. Empty
-	// when the listing carries no artwork.
+	// ArtworkURLTemplate is the artwork URL with Apple's {w}x{h}bb.{f} placeholder left in. Empty
+	// when the listing carries no artwork. Fill it with ArtworkURL.
 	ArtworkURLTemplate string
-	Free               bool
-	Price              float64
-	PriceFormatted     string
-	Genres             []string
+	// IconArtworkURLTemplate is the icon artwork URL with Apple's {w}x{h}{c}.{f} placeholder left
+	// in. Empty when the listing carries none. Fill it with IconArtworkURL.
+	IconArtworkURLTemplate string
+	Free                   bool
+	Price                  float64
+	PriceFormatted         string
+	Genres                 []string
 	// DeviceBasedLicensing reports whether licences for the app can be assigned to devices
 	// rather than to users.
 	DeviceBasedLicensing bool
@@ -130,32 +137,60 @@ type App struct {
 	Language string
 }
 
-// artworkToken is the size-and-format placeholder at the end of an artwork URL template.
-const artworkToken = "{w}x{h}bb.{f}"
+// artworkToken and iconArtworkToken are the size-and-format placeholders at the end of the two
+// image URL templates a listing carries. They differ, so each is matched exactly.
+const (
+	artworkToken     = "{w}x{h}bb.{f}"
+	iconArtworkToken = "{w}x{h}{c}.{f}"
+)
 
-// ErrNoArtwork is returned by ArtworkURL when the listing carries no artwork.
-var ErrNoArtwork = errors.New("appstore: listing has no artwork")
+// ErrNoArtwork is returned by ArtworkURL and IconArtworkURL when the listing carries no image of
+// that kind. For IconArtworkURL that is an ordinary answer: some Mac listings (Slack for Desktop,
+// 803453959) carry no iconArtwork at all.
+var ErrNoArtwork = errors.New("appstore: listing has no artwork of that kind")
 
-// ErrArtworkTemplate is wrapped by ArtworkURL when the template lacks the {w}x{h}bb.{f} token,
-// so a changed template fails instead of yielding a URL with the placeholders left in.
-var ErrArtworkTemplate = errors.New("appstore: artwork URL template has no {w}x{h}bb.{f} token")
+// ErrArtworkTemplate is wrapped when a template lacks its expected token, so a changed template
+// fails instead of yielding a URL with the placeholders left in.
+var ErrArtworkTemplate = errors.New("appstore: artwork URL template has an unexpected shape")
 
-// ArtworkURL fills the icon template at the given pixel size and image format ("png", "jpg").
+// ArtworkURL fills the artwork template at the given pixel size and image format ("png", "jpg").
+//
 // Apple's image service resizes and transcodes on request: 512x512 and 1024x1024 PNG and 512x512
-// JPEG were each served at exactly the size asked for (2026-10-16). Mac-flavour icons carry an
-// alpha channel and iPhone-flavour icons are opaque, so the Platform a listing was looked up with
-// decides the icon's shape.
+// JPEG were each served at exactly the size asked for (2026-10-16). For the iPhone and iPad
+// flavour this is the raw full-bleed square, opaque and unmasked; for the Mac flavour it is the
+// shaped icon with transparency. See IconArtworkURL for the masked iPhone and iPad icon.
 func (a *App) ArtworkURL(width, height int, format string) (string, error) {
-	if a == nil || a.ArtworkURLTemplate == "" {
+	if a == nil {
+		return "", ErrNoArtwork
+	}
+	return fillTemplate(a.ArtworkURLTemplate, artworkToken, width, height, format)
+}
+
+// IconArtworkURL fills the icon artwork template at the given pixel size and image format.
+//
+// For the iPhone and iPad flavour this is the same art as ArtworkURL masked to Apple's rounded
+// square with transparent corners, as a device shows it. For the Mac flavour it matches
+// ArtworkURL. It returns ErrNoArtwork when the listing carries none, which some Mac listings do.
+func (a *App) IconArtworkURL(width, height int, format string) (string, error) {
+	if a == nil {
+		return "", ErrNoArtwork
+	}
+	return fillTemplate(a.IconArtworkURLTemplate, iconArtworkToken, width, height, format)
+}
+
+// fillTemplate replaces the single token in tmpl with a WxH size and format. The crop code is
+// always "bb", the value both templates were verified with.
+func fillTemplate(tmpl, token string, width, height int, format string) (string, error) {
+	if tmpl == "" {
 		return "", ErrNoArtwork
 	}
 	if width <= 0 || height <= 0 || format == "" {
 		return "", fmt.Errorf("appstore: artwork size %dx%d and format %q must be positive and non-empty", width, height, format)
 	}
-	if strings.Count(a.ArtworkURLTemplate, artworkToken) != 1 {
-		return "", fmt.Errorf("%w: %s", ErrArtworkTemplate, a.ArtworkURLTemplate)
+	if strings.Count(tmpl, token) != 1 {
+		return "", fmt.Errorf("%w: %s does not end in %s", ErrArtworkTemplate, tmpl, token)
 	}
-	return strings.Replace(a.ArtworkURLTemplate, artworkToken, fmt.Sprintf("%dx%dbb.%s", width, height, format), 1), nil
+	return strings.Replace(tmpl, token, fmt.Sprintf("%dx%dbb.%s", width, height, format), 1), nil
 }
 
 // Logger receives each request and response. Its method set matches jamfplatform.Logger, so one

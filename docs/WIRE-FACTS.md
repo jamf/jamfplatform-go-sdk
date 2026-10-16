@@ -4926,11 +4926,16 @@ the same run. The captured bodies are `appstore/testdata/`.
   ending `{w}x{h}bb.{f}`. Filling it with `512x512bb.png` answers
   `200 image/png` at exactly 512×512 for Pages in both flavours and for Xcode;
   `1024x1024bb.png` and `512x512bb.jpg` work too, so the image service resizes
-  and transcodes on request. iPhone-flavour icons are opaque and Mac-flavour
-  icons carry alpha (shaped icons), one more thing the flavour switch changes.
-  `iconArtwork` uses a different token (`{w}x{h}{c}.{f}`, `Placeholder.mill`),
-  which is why `ArtworkURL` refuses any template lacking the exact
-  `{w}x{h}bb.{f}` token rather than returning it unfilled. Apple's
+  and transcodes on request.
+- **A listing carries two icon images, and they differ on iPhone and iPad.**
+  Inspected across 13 apps: iOS `artwork` is the raw full-bleed square, opaque,
+  no corner mask; iOS `iconArtwork` is the same art masked to Apple's rounded
+  square with transparent corners, as a device shows it. On Mac, `artwork` is
+  already shaped with alpha and `iconArtwork` matches it, but `iconArtwork` is
+  **absent** from some Mac listings (Slack for Desktop `803453959`, Spark
+  Classic `1176895641`). `iconArtwork`'s token is `{w}x{h}{c}.{f}`, and filling
+  it as `512x512bb.png` works. Each helper matches its own token exactly and
+  refuses a template without it rather than returning it unfilled. Apple's
   documentation also shows an array form for `artwork`; not seen.
 - **`cache-control: max-age=900, no-transform`.** Bursts of 200 requests at
   20/s and 400 at 36/s and 44/s (25 concurrent) all answered `200`, p50 0.48s,

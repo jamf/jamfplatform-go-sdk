@@ -30,6 +30,7 @@ type wireApp struct {
 	URL         string          `json:"url"`
 	ArtistName  string          `json:"artistName"`
 	Artwork     json.RawMessage `json:"artwork"`
+	IconArtwork json.RawMessage `json:"iconArtwork"`
 	Description struct {
 		Standard string `json:"standard"`
 	} `json:"description"`
@@ -76,22 +77,27 @@ func decode(q Query, body []byte) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
+	iconArtwork, err := artworkTemplate(w.IconArtwork)
+	if err != nil {
+		return nil, err
+	}
 	app := &App{
-		ID:                   w.ID,
-		BundleID:             w.BundleID,
-		Name:                 w.Name,
-		URL:                  w.URL,
-		Description:          w.Description.Standard,
-		ArtworkURLTemplate:   artwork,
-		Genres:               w.GenreNames,
-		DeviceBasedLicensing: w.IsVppDeviceBasedLicensingEnabled,
-		Developer:            w.ArtistName,
-		ReleaseNotes:         w.WhatsNew,
-		MinimumOSVersion:     w.MinimumOSVersion,
-		DeviceFamilies:       w.DeviceFamilies,
-		Kind:                 w.Kind,
-		Country:              answered,
-		Language:             resp.Meta.Language.Tag,
+		ID:                     w.ID,
+		BundleID:               w.BundleID,
+		Name:                   w.Name,
+		URL:                    w.URL,
+		Description:            w.Description.Standard,
+		ArtworkURLTemplate:     artwork,
+		IconArtworkURLTemplate: iconArtwork,
+		Genres:                 w.GenreNames,
+		DeviceBasedLicensing:   w.IsVppDeviceBasedLicensingEnabled,
+		Developer:              w.ArtistName,
+		ReleaseNotes:           w.WhatsNew,
+		MinimumOSVersion:       w.MinimumOSVersion,
+		DeviceFamilies:         w.DeviceFamilies,
+		Kind:                   w.Kind,
+		Country:                answered,
+		Language:               resp.Meta.Language.Tag,
 	}
 	if offer, ok := primaryOffer(w.Offers); ok {
 		app.Version = offer.Version.Display

@@ -248,7 +248,8 @@ var notFound *appstore.NotFoundError
 if errors.As(err, &notFound) {
     // Wrong id, not sold in that storefront, no Mac version, or a custom app.
 }
-icon, err := app.ArtworkURL(512, 512, "png")
+icon, err := app.ArtworkURL(512, 512, "png")      // raw square on iPhone/iPad, shaped on Mac
+masked, err := app.IconArtworkURL(512, 512, "png") // rounded-square mask; ErrNoArtwork on some Mac apps
 ```
 
 A store URL resolves with `appstore.ParseStoreURL`, which returns the id and, when the URL names one, the storefront. An unrecognised country code is a `*appstore.StorefrontMismatchError`, because Apple answers it from the US storefront instead of refusing it. `WithLogger` takes any value with `jamfplatform.Logger`'s method set, and `WithHTTPClient` replaces the transport.
