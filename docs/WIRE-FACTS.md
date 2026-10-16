@@ -4517,7 +4517,9 @@ What is established, and what is not:
   somewhere in the second after `reset`.
 - **Established: the window is one second and the limit is per client ID.**
   The published platform documentation says so. Both are configuration: the
-  SDK reads them off the headers and never encodes them.
+  SDK reads the limit off the headers and never encodes it. The window is
+  the one assumption the ceiling makes (below), and only because it is
+  published.
 
 Consequences for the transport — `requestThrottle` in
 `internal/client/throttle.go`:
@@ -4530,7 +4532,18 @@ Consequences for the transport — `requestThrottle` in
   The estimate is the `remaining` from the most recently *started* request that
   has answered, minus every request started after it, which covers the
   client's own in-flight requests; responses from older requests are ignored.
-  Nothing encodes the limit or the window.
+- **A ceiling read from `x-ratelimit-limit` spaces every start by
+  `(1s + 1s/4) / limit`** — 12.5ms, or 80 a second, at today's 100 — once any
+  response has reported the limit. The last positive value wins; Tyk's 0
+  (disabled) sets nothing. The budget gate alone is not enough against a
+  one-second window, for two reasons on this page: reset and `Date` are whole
+  seconds, so the time until reset reads 0 for most of the window and there is
+  nothing to spread across; and `remaining` is not the global budget (each
+  value from 19 to 0 appears five times in a window of 100).
+- **The interval, the ceiling and the budget combine as the stricter gap,
+  never the sum.** Each is measured from the same base, the start after any
+  hold. Before v1.6.1 the interval moved the start and the budget then
+  measured from it, so the two gaps added.
 - **A gateway 429 holds every goroutine until the window ends**, and no later
   response lifts the hold. The published guidance's first step on a 429 is to
   stop sending from that client, and a limiter that counts refused requests in
@@ -4545,10 +4558,26 @@ Consequences for the transport — `requestThrottle` in
   the headers, and a small overshoot when several processes share one client
   ID, since each sees the others' spending one round trip late. Both end in the
   hold, not a lockout.
-- **Default settings of one SDK client stay under today's limit anyway.** The
-  default `WithMinRequestInterval` of 100ms caps it at 10 request starts a
-  second; the budget gate matters for a caller that turns that off, as the
-  Terraform provider does, and for several processes sharing one credential.
+- **The ceiling, not the interval, is what keeps an interval-0 caller under
+  the limit** — the Terraform provider sets it to 0. The default
+  `WithMinRequestInterval` of 100ms (10 starts a second) is unchanged. It was
+  never a rate-limit control: it came in with the removal of the transport's
+  eventual-consistency retry, as a cushion between a write and what follows.
+  Whether it earns its cost there is a separate question from rate limiting.
+
+**Live evidence for the ceiling, EU prod, one environment credential,
+2026-10-16.** 300 × `GET /pro/v1/jamf-pro-version` from 60 concurrent workers
+through one client, a control request first in the same invocation:
+
+| client | interval | retries | result |
+|---|---|---|---|
+| jamf-cli, a port of v1.6.0's throttle with no interval | — | on | 309 requests sent, 9 × 429, 149 starts in one wall second |
+| jamf-cli, same, with the ceiling | — | on | 300 sent, 0 × 429 |
+| SDK v1.6.0 | 0 | off | 281 × 200, **19 × 429** |
+| SDK v1.6.1 (this change) | 0 | off | 300 × 200, **0 × 429**, 3.7s |
+
+With retries off every 429 surfaces, so the SDK rows count refusals directly.
+The v1.6.0 run had up to 199 completions in one wall second.
 
 **First spec declaration of a 429, at GitOps v2209 (2026-09-17), and it is not
 the gateway's.** `GET /v1/blueprints/{blueprintId}/report` gained a declared

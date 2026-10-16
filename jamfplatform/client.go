@@ -344,12 +344,20 @@ func WithEnvironmentID(id string) Option {
 // the SDK fans out over parallel goroutines. A value <= 0 disables the gate.
 // When this option is not supplied, the SDK applies a 100ms default.
 //
-// It is independent of the gateway rate-limit pacing, which is always on:
-// that reads x-ratelimit-remaining and x-ratelimit-reset from each response,
-// spreads the requests left across the rest of the window, and after a
-// gateway 429 holds every request until the window ends. It costs nothing
-// while the budget is far from spent, so disabling this interval does not
-// expose a client to the gateway's limit.
+// It is independent of the gateway rate-limit pacing, which is always on.
+// That pacing spaces starts at least (1s + 1s/4) / x-ratelimit-limit apart
+// once a response has reported the limit, which holds a client running flat
+// out a fifth under it (80 a second at a limit of 100); spreads the requests
+// x-ratelimit-remaining says are left across the rest of the window; and
+// after a gateway 429 holds every request until the window ends. The
+// stricter of these gaps and this interval applies, never their sum.
+//
+// The rate-limit pacing, not this interval, is what keeps a client under the
+// gateway's limit, so disabling the interval does not expose a client to it.
+// The interval is a cushion between consecutive requests, such as a write and
+// the read that follows it. It spaces request starts, so it gives no extra
+// time after a write that took longer than the interval; a caller that needs
+// read-after-write consistency should poll for it.
 func WithMinRequestInterval(d time.Duration) Option {
 	return func(cfg *clientConfig) {
 		cfg.minRequestInterval = d
