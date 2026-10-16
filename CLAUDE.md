@@ -154,6 +154,12 @@ of `make generate`). It is outside `jamfplatform/` on purpose: that tree is
 generated and pruned. See
 [docs/STYLE.md](docs/STYLE.md#apple-schemas-generator).
 
+**`appstore/` is handwritten too, and its upstream is not a Jamf service** (Apple's
+unauthenticated content-metadata lookup). It shares nothing with the transport —
+no credentials, no scope header, no retries — and is standard library only. Its
+wire law is in the package godoc and
+[WIRE-FACTS.md](docs/WIRE-FACTS.md#apple-app-store-lookup-appstore--not-a-jamf-service).
+
 Transport entry points: `Do(ctx, method, path, body, result)` expects 200;
 `DoExpect(..., expectedStatus, result)` expects a specific status;
 `DoWithContentType(..., contentType, expectedStatus, result)` overrides

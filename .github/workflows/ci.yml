@@ -168,7 +168,7 @@ jobs:
           - module: "tools"
             path: "./acctargets/... ./acclanes/... ./appleschemas/..."
           - module: "."
-            path: "./jamfplatform/..."
+            path: "./jamfplatform/... ./appstore/..."
             extra: "--build-tags=acceptance --enable-only=errcheck,ineffassign"
     steps:
       - uses: actions/checkout@v7
