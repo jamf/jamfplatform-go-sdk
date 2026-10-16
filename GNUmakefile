@@ -121,6 +121,6 @@ lint:
 	# make one pass" the suite's own policy bans. This row drifted out of the
 	# makefile once and the omission was found by CI rather than before the
 	# push, which is the whole reason the lists are meant to match.
-	golangci-lint run --build-tags=acceptance --enable-only=errcheck,ineffassign ./jamfplatform/...
+	golangci-lint run --build-tags=acceptance --enable-only=errcheck,ineffassign ./jamfplatform/... ./appstore/...
 
 .PHONY: default ingest permmap generate apple-schemas test testacc lint

@@ -1,0 +1,68 @@
+name: App Store Live Check
+
+# Runs the appstore package's live acceptance suite against Apple's content-metadata lookup.
+#
+# The lookup publishes no contract, rate limit or deprecation notice, and the unit tests replay
+# responses captured on one day, so they cannot see Apple change the response shape. This job is
+# what does. It needs no credentials and touches no Jamf tenant, which is why it is a workflow of
+# its own rather than a lane in acceptance.yml: the lanes exist to share Jamf credentials and
+# serialise fixtures on a shared estate, and this suite has neither.
+#
+# Daily, plus on any pull request touching the package. A scheduled failure opens (or comments on)
+# one tracking issue, because a red scheduled run on its own notifies nobody reliably.
+
+on:
+  schedule:
+    # 05:00 UTC daily, an hour after apple-schemas.yml.
+    - cron: "0 5 * * *"
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "appstore/**"
+      - ".github/workflows/appstore-live.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: appstore-live-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  live:
+    name: Live lookup
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - name: Run live suite
+        run: go test -v -count=1 -tags acceptance -run '^TestAcceptance_AppStore_' ./appstore/
+
+  report:
+    name: Report scheduled failure
+    needs: live
+    if: failure() && github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Open or update tracking issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title="App Store live check failing"
+          number="$(gh issue list --state open --search "in:title \"$title\"" --json number,title \
+            --jq "map(select(.title == \"$title\")) | .[0].number // empty")"
+          body="$(printf '%s\n\n%s' \
+            "The scheduled live check of \`appstore\` against Apple's lookup failed: $RUN_URL" \
+            "Apple may have changed the response shape the package decodes. Read the failing assertion before changing any fixture.")"
+          if [ -n "$number" ]; then
+            gh issue comment "$number" --body "Still failing: $RUN_URL"
+          else
+            gh issue create --title "$title" --body "$body"
+          fi
