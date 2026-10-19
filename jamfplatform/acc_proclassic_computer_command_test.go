@@ -33,8 +33,26 @@ const computerCommandsWriteOptIn = "JAMFPLATFORM_ACC_CLASSIC_COMPUTER_COMMANDS_W
 const computerIDsEnv = "JAMFPLATFORM_ACC_CLASSIC_COMPUTER_IDS"
 
 // bogusComputerID is a computer that does not exist. Resolved before a known
-// command is queued, so a known command naming it queues nothing.
-const bogusComputerID = 999999
+// command is queued, so a known command naming it queues nothing. The largest
+// Classic ID, as the mobile command tests use, and requireComputerAbsent checks
+// it before anything is sent: the refusal tests name destructive commands with
+// no opt-in, and an ID that existed would queue them.
+const bogusComputerID = 2147483647
+
+// requireComputerAbsent fails the test unless id is absent from the tenant.
+func requireComputerAbsent(t *testing.T, cl *proclassic.Client, id int) {
+	t.Helper()
+	list, err := cl.MatchComputers(context.Background(), "*")
+	if err != nil {
+		skipOnServerError(t, err)
+		t.Fatalf("MatchComputers(*): %v", err)
+	}
+	for _, c := range list.Computers {
+		if c.ID != nil && *c.ID == id {
+			t.Fatalf("computer %d exists on this tenant; refusing to send commands to it", id)
+		}
+	}
+}
 
 // namedComputerIDs returns the first n computers named in computerIDsEnv,
 // skipping when fewer are named and failing when one is not on the tenant.
@@ -265,6 +283,7 @@ func TestAcceptance_Classic_ComputerCommandUnlockUserAccountNeedsUserName(t *tes
 func TestAcceptance_Classic_ComputerCommandRefusals(t *testing.T) {
 	cl := proclassic.New(accClient(t))
 	ctx := context.Background()
+	requireComputerAbsent(t, cl, bogusComputerID)
 	missing := strconv.Itoa(bogusComputerID)
 
 	// control: the routed, recognised form answers from the service layer
@@ -316,6 +335,7 @@ func TestAcceptance_Classic_ComputerCommandAllOrNothing(t *testing.T) {
 		"A real computer ID is named beside the missing one, and the test checks that no command was queued for it.")
 	cl := proclassic.New(accClient(t))
 	id := namedComputerIDs(t, cl, 1)[0]
+	requireComputerAbsent(t, cl, bogusComputerID)
 	ctx := context.Background()
 
 	_, err := cl.IssueComputerCommandByID(ctx, "DisableRemoteDesktop", joinIDs([]int{id, bogusComputerID}), nil)

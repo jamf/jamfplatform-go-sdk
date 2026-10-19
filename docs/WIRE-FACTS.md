@@ -1925,10 +1925,12 @@ queued for the others.
 refuses `…/id/{computer-b}%2C{computer-a}` with `400 Unable to match computer`.
 Generated methods apply `url.PathEscape`, which encodes the comma, so
 `IssueComputerCommandByID` with a list always fails. Several computers go
-through the body. The same template serves every `id_list` parameter, so the
-mobile `…/id/{id_list}` forms are almost certainly affected too (not probed
-against a real device). `TestAcceptance_Classic_ComputerCommandCreateVariants`
-pins it. Fixing it is a generator mechanism (leave a named path parameter's
+through the body. The same template serves every `id_list` parameter, and the
+mobile form is affected the same way: `POST …/mobiledevicecommands/command/UpdateInventory/id/{device-a},{device-b}`
+answers `201` for both devices, the `%2C` form answers
+`400 Unable to match mobile_device`, and `…/id/{device-a}` alone (the control,
+same invocation) answers `201`. `TestAcceptance_Classic_ComputerCommandCreateVariants`
+and `TestAcceptance_Classic_MobileDeviceCommandMultipleDevices` pin it. Fixing it is a generator mechanism (leave a named path parameter's
 commas literal), not done here.
 
 **The vocabulary is not the spec's.** The spec's enum carries prose

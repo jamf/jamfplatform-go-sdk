@@ -117,12 +117,9 @@ func (c *Client) ListComputerCommands(ctx context.Context) (*ComputerCommandsLis
 // ProfileList, DeviceInformation, UpdateInventory and ClearPasscode, answers 500 INTERNAL_SERVER_ERROR
 // before the ID is looked at. The response lists one `Command` per computer, each with its own UUID
 // (`CommandUUID`), which is the handle for GetComputerCommandByUUID and GetComputerCommandsByStatus;
-// an identical pending command for one computer is deduplicated and returns the earlier UUID. A
-// request body naming computers wins over the IDs in the URL, and is the way to reach several
-// computers: the server also takes a comma-separated list in the URL, but this method percent-encodes
-// the commas (`216%2C215`), which the server does not decode and answers 400 `Unable to match
-// computer`. One unknown ID fails the whole request (400 `Unable to match computer`) and queues
-// nothing.
+// an identical pending command for one computer is deduplicated and returns the earlier UUID. Name the
+// computers in the request body; several are allowed. One unknown ID fails the whole request (400
+// `Unable to match computer`) and queues nothing.
 func (c *Client) CreateComputerCommandByCommand(ctx context.Context, command string, request *ComputerCommandPost) (*ComputerCommandIssued, error) {
 	prefix := c.transport.APIPrefix("proclassic", "")
 	var result ComputerCommandIssued

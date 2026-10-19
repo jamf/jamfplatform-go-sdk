@@ -604,7 +604,8 @@ func supervisedMobileDeviceIDs(t *testing.T, cl *proclassic.Client, n int) []int
 // several devices in one request. The spec declares a single <mobile_device>;
 // the server takes any number in the body, applies the command to all of them
 // or none, and — when a body is present — ignores the IDs in the URL, so the
-// ID-list path cannot carry Wallpaper's parameters.
+// ID-list path cannot carry Wallpaper's parameters. Through the SDK it cannot
+// carry several IDs either: the comma is percent-encoded.
 func TestAcceptance_Classic_MobileDeviceCommandMultipleDevices(t *testing.T) {
 	requireWriteOptIn(t, wallpaperWriteOptIn,
 		"Wallpaper is queued against several real mobile devices and cannot be deleted.")
@@ -660,5 +661,14 @@ func TestAcceptance_Classic_MobileDeviceCommandMultipleDevices(t *testing.T) {
 			t.Fatalf("CreateMobileDeviceCommandByCommandID: %v", err)
 		}
 		assertIssuedCommand(t, got, "Wallpaper", ids[0])
+	})
+	// The server takes a comma-separated id_list (curl with a literal comma
+	// queues for every device), but the generated method applies
+	// url.PathEscape, which sends %2C, and the server does not decode it. So
+	// several devices go through the body. Fails the day the SDK sends the
+	// comma literally.
+	t.Run("ByIDList_comma_is_percent_encoded_and_refused", func(t *testing.T) {
+		_, err := cl.CreateMobileDeviceCommandByCommandID(ctx, "UpdateInventory", joinIDs(ids[:2]), nil)
+		wantAPIStatus(t, err, 400, "Unable to match mobile_device")
 	})
 }

@@ -115,8 +115,9 @@ func (c *Client) GetMobileDeviceCommandByCommand(ctx context.Context, command st
 // PasscodeLockGracePeriod on anything but a Shared iPad (400). The response is flat: `UUID` is the
 // handle for GetMobileDeviceCommandByUUID, and identical pending commands for one device are
 // deduplicated and share it. When the request body names devices, the server targets those and ignores
-// any IDs in the URL, so a command that carries parameters (Wallpaper, EnableLostMode) must list its
-// devices in the body to reach more than one.
+// any IDs in the URL. To reach several devices, list them in the body whatever the command: the server
+// also takes a comma-separated `id_list`, but this method percent-encodes the commas (`152%2C153`),
+// which the server does not decode and answers 400 `Unable to match mobile_device`.
 func (c *Client) CreateMobileDeviceCommandByCommandID(ctx context.Context, command string, id_list string, request *MobileDeviceCommandPost) (*MobileDeviceCommandIssued, error) {
 	prefix := c.transport.APIPrefix("proclassic", "")
 	var result MobileDeviceCommandIssued
