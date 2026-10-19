@@ -1507,6 +1507,9 @@
                     "example": 1,
                     "type": "integer"
                   },
+                  "management_id": {
+                    "type": "string"
+                  },
                   "serial_number": {
                     "example": "C02Q7KHTGFWF",
                     "type": "string"
@@ -1573,26 +1576,141 @@
         },
         "type": "object"
       },
+      "computer_command_issued": {
+        "description": "The 201 body of POST /computercommands/command/{command} and its /id/{id} form. The spec declares no body and config pointed it at computer_command, which decodes to nothing; the server answers one flat command element per computer, each with its own UUID (wire-verified 2026-10-19). Mobile device commands answer one UUID for all devices; computer commands do not.",
+        "properties": {
+          "command": {
+            "items": {
+              "properties": {
+                "command_uuid": {
+                  "description": "UUID of the queued command for this computer; the handle for GetComputerCommandByUUID and GetComputerCommandsByStatus.",
+                  "type": "string"
+                },
+                "computer_id": {
+                  "type": "integer"
+                },
+                "name": {
+                  "description": "Command name as the server normalised it.",
+                  "type": "string"
+                }
+              },
+              "type": "object",
+              "xml": {
+                "name": "command"
+              }
+            },
+            "type": "array"
+          }
+        },
+        "type": "object",
+        "xml": {
+          "name": "computer_command"
+        }
+      },
       "computer_command_post": {
         "properties": {
           "computers": {
+            "description": "The computers to send the command to. The spec declares one computer; the server takes several (wire-verified 2026-10-19) and queues one command per computer, answering 400 Unable to match computer for an unknown ID and queueing nothing. When a body names computers the server targets those and ignores any IDs in the URL.",
             "properties": {
               "computer": {
-                "properties": {
-                  "id": {
-                    "example": 1,
-                    "type": "integer"
+                "items": {
+                  "properties": {
+                    "id": {
+                      "type": "integer"
+                    }
                   },
-                  "serial_number": {
-                    "example": "C02Q7KHTGFWF",
-                    "type": "string"
-                  },
-                  "udid": {
-                    "example": "55900BDC-347C-58B1-D249-F32244B11D30",
-                    "type": "string"
+                  "required": [
+                    "id"
+                  ],
+                  "type": "object",
+                  "xml": {
+                    "name": "computer"
                   }
                 },
-                "type": "object"
+                "type": "array"
+              }
+            },
+            "type": "object"
+          },
+          "general": {
+            "properties": {
+              "command": {
+                "description": "Command to queue, by its plain name, for example EnableRemoteDesktop or UnlockUserAccount. The spec's enum members carry prose annotations that the server refuses, so the field is a plain string.",
+                "type": "string"
+              },
+              "user_name": {
+                "description": "Username for UnlockUserAccount (deprecated on 2025-07-07) command",
+                "example": "administrator",
+                "type": "string"
+              }
+            },
+            "required": [
+              "command"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "object",
+        "xml": {
+          "name": "computer_command"
+        }
+      },
+      "computer_command_status": {
+        "description": "The body of GET /computercommands/status/{uuid}. No schema in the spec declares status, so the typed result dropped the one field that says whether a command has run. An unknown UUID answers 200 with status Canceled.",
+        "properties": {
+          "command": {
+            "type": "string"
+          },
+          "status": {
+            "description": "Pending for a queued command; Canceled for an unknown UUID.",
+            "type": "string"
+          },
+          "uuid": {
+            "type": "string"
+          }
+        },
+        "type": "object",
+        "xml": {
+          "name": "computer_command"
+        }
+      },
+      "computer_command_summary": {
+        "description": "One element of the computer command list. The server answers flat (wire-verified 2026-10-19): command, uuid and the send timestamps sit directly on the element, beside computers. The spec nests a trimmed computer_command inside each item and omits management_id.",
+        "properties": {
+          "apns_result_status": {
+            "type": "string"
+          },
+          "command": {
+            "description": "Command name as the server records it.",
+            "type": "string"
+          },
+          "computers": {
+            "properties": {
+              "computer": {
+                "items": {
+                  "properties": {
+                    "id": {
+                      "type": "integer"
+                    },
+                    "ip_address": {
+                      "type": "string"
+                    },
+                    "management_id": {
+                      "type": "string"
+                    },
+                    "udid": {
+                      "type": "string"
+                    },
+                    "users": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object",
+                  "xml": {
+                    "name": "computer"
+                  }
+                },
+                "type": "array"
               },
               "size": {
                 "$ref": "#/components/schemas/size"
@@ -1600,51 +1718,24 @@
             },
             "type": "object"
           },
-          "general": {
-            "properties": {
-              "apns_result_status": {
-                "example": "Acknowledged",
-                "type": "string"
-              },
-              "command": {
-                "description": "Command type",
-                "example": "InstallProfile",
-                "type": "string"
-              },
-              "date_sent": {
-                "example": "2017-07-07T18:37:04.000Z",
-                "type": "string"
-              },
-              "date_sent_epoch": {
-                "example": 1499470624555,
-                "type": "string"
-              },
-              "date_sent_utc": {
-                "example": "2017-07-07T18:37:04.555-0500",
-                "type": "string"
-              },
-              "id": {
-                "example": 1002,
-                "type": "integer"
-              },
-              "profile_id": {
-                "example": 121,
-                "type": "integer"
-              },
-              "profile_udid": {
-                "example": "A083D99E-5FD0-4A80-A9F4-0CF8BC790C74",
-                "type": "string"
-              },
-              "udid": {
-                "example": "002d47b9-ad68-4d58-9fc7-0c4a50950020",
-                "type": "string"
-              },
-              "uuid": {
-                "example": "002d47b9-ad68-4d58-9fc7-0c4a50950020",
-                "type": "string"
-              }
-            },
-            "type": "object"
+          "date_sent": {
+            "type": "string"
+          },
+          "date_sent_epoch": {
+            "type": "string"
+          },
+          "date_sent_utc": {
+            "type": "string"
+          },
+          "profile_id": {
+            "type": "integer"
+          },
+          "profile_udid": {
+            "type": "string"
+          },
+          "uuid": {
+            "description": "UUID of the command; the handle for GetComputerCommandByUUID.",
+            "type": "string"
           }
         },
         "type": "object",
@@ -1720,6 +1811,24 @@
           "type": "object"
         },
         "type": "array"
+      },
+      "computer_commands_listed": {
+        "description": "The list body for GET /computercommands and GET /computercommands/name/{name}. The spec declares computer_commands as a bare array of items rather than a wrapper object, so only the first element decodes, and declares the name filter as a single computer_command, which decodes to a zero struct with a nil error (601 elements on the EU test environment).",
+        "properties": {
+          "computer_command": {
+            "items": {
+              "$ref": "#/components/schemas/computer_command_summary"
+            },
+            "type": "array"
+          },
+          "size": {
+            "$ref": "#/components/schemas/size"
+          }
+        },
+        "type": "object",
+        "xml": {
+          "name": "computer_commands"
+        }
       },
       "computer_extension_attribute": {
         "properties": {

@@ -1866,6 +1866,105 @@ named in `JAMFPLATFORM_ACC_CLASSIC_MOBILE_DEVICE_IDS`. Report upstream: the
 response shapes, the `wallpaper_settings` prose, the prose-annotated `command`
 enum, `RefreshCellularPlans` missing from it, and the unrouted parameter forms.
 
+### Computer commands: a third flat shape, a vocabulary the spec misstates, and a list form the SDK cannot send (2026-10-19)
+
+Probed on the EU test environment against two simulated computers
+(`{computer-a}`, `{computer-b}`), with curl for raw bodies and the SDK for what
+they decode to. The same defect class as the mobile device commands above, with
+different shapes, and one finding the mobile fix did not have.
+
+**The create response is flat and per-computer.** Both creates answer `201`
+with `<computer_command><command><name/><command_uuid/><computer_id/></command>
+…</computer_command>`, **one `<command>` per computer, each with its own UUID**.
+Mobile answers one UUID for N devices; computers answer N. The spec declares no
+body and config pointed both operations at `computer_command` (`general` +
+`computers`), which decodes to an empty struct, so a caller got no UUID.
+`computer_command_issued` is a `schemaCreations` entry carrying the wire shape.
+An identical pending command for one computer is deduplicated: the repeat
+returns the earlier UUID.
+
+**Four read shapes against one declared type.**
+
+| Read | Wire | Spec |
+|---|---|---|
+| `…/uuid/{uuid}` | nested `<general>` + `<computers><size/><computer>` with `id`, `management_id`, `udid`, `serial_number` | matches, except `management_id` (added by `schemaPatches`, guarded by `schemaPatchesRequireAbsent`) |
+| `…/name/{name}`, `GET …` | `<computer_commands><size/>` + one flat `<computer_command>` per command (`command`, `uuid`, `profile_id`, `date_sent*`, `apns_result_status`, `profile_udid`, `computers` → `size` + `computer{id,management_id,udid,ip_address,users}`) | list: bare array of nested items; name: a single command |
+| `…/status/{uuid}` | `<computer_command><uuid/><command/><status>Pending</status></computer_command>` | no schema declares `status` |
+| `…/command/{command}` | **`200` with only `<?xml version="1.0" encoding="UTF-8"?>`** | `computer_command` |
+
+The name filter decoded to a zero struct and a **nil error**, and the list to 1
+element of 601. `computer_commands_listed` wraps `computer_command_summary`;
+`computer_command_status` carries the poll. An unknown name is `404`; an unknown
+UUID is **`500`** on the by-UUID read and **`200` with `Canceled`** on the status
+read, so a mistyped UUID polls as cancelled. `Pending` is what a queued command
+reads while no device acknowledges.
+
+**`GET …/command/{command}` is a server fault, not a typing one.** It answered
+the 38-byte declaration for `EnableRemoteDesktop`, `DeviceInformation` (hundreds
+on the tenant) and a nonsense name alike, on repeated probes. The by-name read
+carries the same commands and answers them. The type is left alone and
+`methodNotes` points at `GetComputerCommandByName`.
+
+**The request lost `user_name` and could not name several computers.**
+`computer_command_post.general` was replaced by the response's `general`
+(post-symmetry, as with mobile), dropping `user_name`; `UnlockUserAccount`
+without it is `400 user_name required for UnlockUserAccount`, with it in the
+**body** `201`. A `user_name` body with no `<computers>` on the path-id form is
+`400 Invalid command or device list`. The spec's single `<computer>` also
+could not express the several the server takes: two `<computer>` elements
+queued two commands. `postSymmetryExcludes` keeps `general`, and `schemaPatches`
+makes `computers.computer` a slice (and `general.command` a plain string).
+
+**Targeting.** A body naming computers **overrides** the IDs in the URL
+(`/id/{computer-b}` with a body naming `{computer-a}` queued for `{computer-a}`
+only). One unknown ID in a list is `400 Unable to match computer` and nothing is
+queued for the others.
+
+**The URL ID list is unreachable through the SDK.** The server takes
+`…/id/{computer-b},{computer-a}` (literal comma: two commands, `201`) and
+refuses `…/id/{computer-b}%2C{computer-a}` with `400 Unable to match computer`.
+Generated methods apply `url.PathEscape`, which encodes the comma, so
+`IssueComputerCommandByID` with a list always fails. Several computers go
+through the body. The same template serves every `id_list` parameter, so the
+mobile `…/id/{id_list}` forms are almost certainly affected too (not probed
+against a real device). `TestAcceptance_Classic_ComputerCommandCreateVariants`
+pins it. Fixing it is a generator mechanism (leave a named path parameter's
+commas literal), not done here.
+
+**The vocabulary is not the spec's.** The spec's enum carries prose
+(`EnableRemoteDesktop (macOS 10.14.4 and later)`,
+`UnlockUserAccount(deprecated on 2025-07-07)`); the server refuses it (`500`)
+and takes the bare name, case-insensitively. The ID is **not** always resolved
+before the command: an **unknown name is `500` before the ID is looked at**,
+while a **recognised name with a missing ID is `400 Unable to match computer`**.
+A missing ID is therefore a safe vocabulary probe — nothing is queued either way.
+
+| Result via `…/command/{name}/id/{id}` | Names |
+|---|---|
+| `201` | `EnableRemoteDesktop`, `DisableRemoteDesktop`, `UnlockUserAccount` (with `user_name`) |
+| `400 No command was queued for computer N` | `BlankPush`, `RestartDevice`, `DeviceLock`, `SettingsEnableBluetooth`, `SettingsDisableBluetooth`, `ScheduleOSUpdate` |
+| recognised (`400 Unable to match computer` for a missing ID), **not sent to a real computer** | `ShutDownDevice`, `EraseDevice`, `DeleteUser`, `UnmanageDevice` |
+| `500 INTERNAL_SERVER_ERROR`, deterministic | everything else tried: `ProfileList`, `CertificateList`, `DeviceInformation`, `InstalledApplicationList`, `SecurityInfo`, `UpdateInventory`, `ClearPasscode`, `InstallProfile`, `RemoveProfile`, `EnableLostMode`, a nonsense name |
+
+The tenant's 601-command list holds `DeviceInformation`, `DeclarativeManagement`,
+`ProfileList`, `InstalledApplicationList`, `CertificateList`,
+`ContentCachingInformation`, `SecurityInfo`, `Settings`, `InstallProfile` and the
+three queueable commands: the server issues those itself and refuses them here.
+Whether `No command was queued` is the simulated computer's capability or the
+command's name cannot be separated from here; only the three `201` names are
+claimed valid.
+
+**`computer_post.general` carries five spurious fields.** `managed`, `username`,
+`model`, `department` and `building` are declared on the post schema and absent
+from the wire's computer `general`. A create naming all five (record created,
+read back, deleted) kept none of them: `username` of a sibling `<location>`
+survived, the `general` ones did not, and `general.managed` stayed `false`
+(`managed` lives under `remote_management`, and a `PUT` there sets it). Left
+alone. The same diff flags `ldap_server_post.connection.connection_is_used_for`
+and `mobile_device_invitation_post.{require_login,allow_multiple_uses}`; the
+last survives on the generated type through a merge, the LDAP one is not
+emitted. Neither probed.
+
 ### LDAP `certificate_used` is sent, order-sensitive, and read back as a nested element (2026-10-19)
 
 `ldap_server_post.connection.certificate_used` is declared on the post schema

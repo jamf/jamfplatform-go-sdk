@@ -2245,6 +2245,7 @@ func (t ComputerCommandComputers) MarshalXML(e *xml.Encoder, start xml.StartElem
 type ComputerCommandComputersComputer struct {
 	XMLName      xml.Name
 	ID           *int    `xml:"id,omitempty"`
+	ManagementID *string `xml:"management_id,omitempty"`
 	SerialNumber *string `xml:"serial_number,omitempty"`
 	UDID         *string `xml:"udid,omitempty"`
 }
@@ -2291,10 +2292,57 @@ func (t ComputerCommandGeneral) MarshalXML(e *xml.Encoder, start xml.StartElemen
 	return e.EncodeElement(shadow(t), start)
 }
 
+// ComputerCommandIssued The 201 body of POST /computercommands/command/{command} and its /id/{id} form. The spec declares no body and config pointed it at computer_command, which decodes to nothing; the server answers one flat command element per computer, each with its own UUID (wire-verified 2026-10-19). Mobile device commands answer one UUID for all devices; computer commands do not.
+type ComputerCommandIssued struct {
+	XMLName xml.Name
+	Command *[]ComputerCommandIssuedCommandItem `xml:"command,omitempty"`
+}
+
+// MarshalXML forces the ComputerCommandIssued root element name to the wire value
+// declared by the spec (<computer_command>) regardless of what XMLName.Local
+// holds. Classic resources are frequently decoded from polymorphic wire
+// roots (<static_user_group>, <smart_user_group>, <user_group>, etc.) —
+// stashing the incoming root name in XMLName is useful context but must
+// not leak back into writes. The shadow type suppresses re-entry into
+// this method during encoding.
+func (t ComputerCommandIssued) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
+	start.Name = xml.Name{Local: "computer_command"}
+	type shadow ComputerCommandIssued
+	return e.EncodeElement(shadow(t), start)
+}
+
+// ComputerCommandIssuedCommandItem represents a computer command issued command item.
+type ComputerCommandIssuedCommandItem struct {
+	XMLName xml.Name
+	// UUID of the queued command for this computer; the handle for GetComputerCommandByUUID and
+	// GetComputerCommandsByStatus.
+	CommandUUID *string `xml:"command_uuid,omitempty"`
+	ComputerID  *int    `xml:"computer_id,omitempty"`
+	// Command name as the server normalised it.
+	Name *string `xml:"name,omitempty"`
+}
+
+// MarshalXML forces the ComputerCommandIssuedCommandItem root element name to the wire value
+// declared by the spec (<command>) regardless of what XMLName.Local
+// holds. Classic resources are frequently decoded from polymorphic wire
+// roots (<static_user_group>, <smart_user_group>, <user_group>, etc.) —
+// stashing the incoming root name in XMLName is useful context but must
+// not leak back into writes. The shadow type suppresses re-entry into
+// this method during encoding.
+func (t ComputerCommandIssuedCommandItem) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
+	start.Name = xml.Name{Local: "command"}
+	type shadow ComputerCommandIssuedCommandItem
+	return e.EncodeElement(shadow(t), start)
+}
+
 // ComputerCommandPost represents a computer command post.
 type ComputerCommandPost struct {
-	XMLName   xml.Name
-	ID        *int                          `xml:"id,omitempty"`
+	XMLName xml.Name
+	ID      *int `xml:"id,omitempty"`
+	// The computers to send the command to. The spec declares one computer; the server takes several
+	// (wire-verified 2026-10-19) and queues one command per computer, answering 400 Unable to match
+	// computer for an unknown ID and queueing nothing. When a body names computers the server targets
+	// those and ignores any IDs in the URL.
 	Computers *ComputerCommandPostComputers `xml:"computers,omitempty"`
 	General   *ComputerCommandPostGeneral   `xml:"general,omitempty"`
 }
@@ -2312,12 +2360,10 @@ func (t ComputerCommandPost) MarshalXML(e *xml.Encoder, start xml.StartElement) 
 	return e.EncodeElement(shadow(t), start)
 }
 
-// ComputerCommandPostComputers represents a computer command post computers.
+// ComputerCommandPostComputers The computers to send the command to. The spec declares one computer; the server takes several (wire-verified 2026-10-19) and queues one command per computer, answering 400 Unable to match computer for an unknown ID and queueing nothing. When a body names computers the server targets those and ignores any IDs in the URL.
 type ComputerCommandPostComputers struct {
 	XMLName  xml.Name
-	ID       *int                              `xml:"id,omitempty"`
-	Computer *ComputerCommandComputersComputer `xml:"computer,omitempty"`
-	Size     *Size                             `xml:"size,omitempty"`
+	Computer *[]ComputerCommandPostComputersComputerItem `xml:"computer,omitempty"`
 }
 
 // MarshalXML forces the ComputerCommandPostComputers root element name to the wire value
@@ -2333,20 +2379,33 @@ func (t ComputerCommandPostComputers) MarshalXML(e *xml.Encoder, start xml.Start
 	return e.EncodeElement(shadow(t), start)
 }
 
+// ComputerCommandPostComputersComputerItem represents a computer command post computers computer item.
+type ComputerCommandPostComputersComputerItem struct {
+	XMLName xml.Name
+	ID      *int `xml:"id,omitempty"`
+}
+
+// MarshalXML forces the ComputerCommandPostComputersComputerItem root element name to the wire value
+// declared by the spec (<computer>) regardless of what XMLName.Local
+// holds. Classic resources are frequently decoded from polymorphic wire
+// roots (<static_user_group>, <smart_user_group>, <user_group>, etc.) —
+// stashing the incoming root name in XMLName is useful context but must
+// not leak back into writes. The shadow type suppresses re-entry into
+// this method during encoding.
+func (t ComputerCommandPostComputersComputerItem) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
+	start.Name = xml.Name{Local: "computer"}
+	type shadow ComputerCommandPostComputersComputerItem
+	return e.EncodeElement(shadow(t), start)
+}
+
 // ComputerCommandPostGeneral represents a computer command post general.
 type ComputerCommandPostGeneral struct {
-	XMLName          xml.Name
-	ApnsResultStatus *string `xml:"apns_result_status,omitempty"`
-	// Command type.
-	Command       *string `xml:"command,omitempty"`
-	DateSent      *string `xml:"date_sent,omitempty"`
-	DateSentEpoch *BigInt `xml:"date_sent_epoch"`
-	DateSentUtc   *string `xml:"date_sent_utc,omitempty"`
-	ID            *int    `xml:"id,omitempty"`
-	ProfileID     *int    `xml:"profile_id,omitempty"`
-	ProfileUDID   *string `xml:"profile_udid,omitempty"`
-	UDID          *string `xml:"udid,omitempty"`
-	UUID          *string `xml:"uuid,omitempty"`
+	XMLName xml.Name
+	// Command to queue, by its plain name, for example EnableRemoteDesktop or UnlockUserAccount. The
+	// spec's enum members carry prose annotations that the server refuses, so the field is a plain string.
+	Command *string `xml:"command,omitempty"`
+	// Username for UnlockUserAccount (deprecated on 2025-07-07) command.
+	UserName *string `xml:"user_name,omitempty"`
 }
 
 // MarshalXML forces the ComputerCommandPostGeneral root element name to the wire value
@@ -2359,6 +2418,101 @@ type ComputerCommandPostGeneral struct {
 func (t ComputerCommandPostGeneral) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
 	start.Name = xml.Name{Local: "general"}
 	type shadow ComputerCommandPostGeneral
+	return e.EncodeElement(shadow(t), start)
+}
+
+// ComputerCommandStatus The body of GET /computercommands/status/{uuid}. No schema in the spec declares status, so the typed result dropped the one field that says whether a command has run. An unknown UUID answers 200 with status Canceled.
+type ComputerCommandStatus struct {
+	XMLName xml.Name
+	Command *string `xml:"command,omitempty"`
+	// Pending for a queued command; Canceled for an unknown UUID.
+	Status *string `xml:"status,omitempty"`
+	UUID   *string `xml:"uuid,omitempty"`
+}
+
+// MarshalXML forces the ComputerCommandStatus root element name to the wire value
+// declared by the spec (<computer_command>) regardless of what XMLName.Local
+// holds. Classic resources are frequently decoded from polymorphic wire
+// roots (<static_user_group>, <smart_user_group>, <user_group>, etc.) —
+// stashing the incoming root name in XMLName is useful context but must
+// not leak back into writes. The shadow type suppresses re-entry into
+// this method during encoding.
+func (t ComputerCommandStatus) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
+	start.Name = xml.Name{Local: "computer_command"}
+	type shadow ComputerCommandStatus
+	return e.EncodeElement(shadow(t), start)
+}
+
+// ComputerCommandSummary One element of the computer command list. The server answers flat (wire-verified 2026-10-19): command, uuid and the send timestamps sit directly on the element, beside computers. The spec nests a trimmed computer_command inside each item and omits management_id.
+type ComputerCommandSummary struct {
+	XMLName          xml.Name
+	ID               *int    `xml:"id,omitempty"`
+	ApnsResultStatus *string `xml:"apns_result_status,omitempty"`
+	// Command name as the server records it.
+	Command       *string                          `xml:"command,omitempty"`
+	Computers     *ComputerCommandSummaryComputers `xml:"computers,omitempty"`
+	DateSent      *string                          `xml:"date_sent,omitempty"`
+	DateSentEpoch *BigInt                          `xml:"date_sent_epoch"`
+	DateSentUtc   *string                          `xml:"date_sent_utc,omitempty"`
+	ProfileID     *int                             `xml:"profile_id,omitempty"`
+	ProfileUDID   *string                          `xml:"profile_udid,omitempty"`
+	// UUID of the command; the handle for GetComputerCommandByUUID.
+	UUID *string `xml:"uuid,omitempty"`
+}
+
+// MarshalXML forces the ComputerCommandSummary root element name to the wire value
+// declared by the spec (<computer_command>) regardless of what XMLName.Local
+// holds. Classic resources are frequently decoded from polymorphic wire
+// roots (<static_user_group>, <smart_user_group>, <user_group>, etc.) —
+// stashing the incoming root name in XMLName is useful context but must
+// not leak back into writes. The shadow type suppresses re-entry into
+// this method during encoding.
+func (t ComputerCommandSummary) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
+	start.Name = xml.Name{Local: "computer_command"}
+	type shadow ComputerCommandSummary
+	return e.EncodeElement(shadow(t), start)
+}
+
+// ComputerCommandSummaryComputers represents a computer command summary computers.
+type ComputerCommandSummaryComputers struct {
+	XMLName  xml.Name
+	Computer *[]ComputerCommandSummaryComputersComputerItem `xml:"computer,omitempty"`
+	Size     *Size                                          `xml:"size,omitempty"`
+}
+
+// MarshalXML forces the ComputerCommandSummaryComputers root element name to the wire value
+// declared by the spec (<computers>) regardless of what XMLName.Local
+// holds. Classic resources are frequently decoded from polymorphic wire
+// roots (<static_user_group>, <smart_user_group>, <user_group>, etc.) —
+// stashing the incoming root name in XMLName is useful context but must
+// not leak back into writes. The shadow type suppresses re-entry into
+// this method during encoding.
+func (t ComputerCommandSummaryComputers) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
+	start.Name = xml.Name{Local: "computers"}
+	type shadow ComputerCommandSummaryComputers
+	return e.EncodeElement(shadow(t), start)
+}
+
+// ComputerCommandSummaryComputersComputerItem represents a computer command summary computers computer item.
+type ComputerCommandSummaryComputersComputerItem struct {
+	XMLName      xml.Name
+	ID           *int    `xml:"id,omitempty"`
+	IPAddress    *string `xml:"ip_address,omitempty"`
+	ManagementID *string `xml:"management_id,omitempty"`
+	UDID         *string `xml:"udid,omitempty"`
+	Users        *string `xml:"users,omitempty"`
+}
+
+// MarshalXML forces the ComputerCommandSummaryComputersComputerItem root element name to the wire value
+// declared by the spec (<computer>) regardless of what XMLName.Local
+// holds. Classic resources are frequently decoded from polymorphic wire
+// roots (<static_user_group>, <smart_user_group>, <user_group>, etc.) —
+// stashing the incoming root name in XMLName is useful context but must
+// not leak back into writes. The shadow type suppresses re-entry into
+// this method during encoding.
+func (t ComputerCommandSummaryComputersComputerItem) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
+	start.Name = xml.Name{Local: "computer"}
+	type shadow ComputerCommandSummaryComputersComputerItem
 	return e.EncodeElement(shadow(t), start)
 }
 
@@ -2383,6 +2537,10 @@ func (t ComputerCommands) MarshalXML(e *xml.Encoder, start xml.StartElement) err
 }
 
 // ComputerCommandsItem represents a computer commands item.
+// No method returns this type. The spec declares `GET /computercommands` as a bare array of these,
+// which decodes only the first element of the real list; ListComputerCommands returns
+// ComputerCommandsListed. It stays emitted because `api/` keeps the spec's declaration and the
+// `responseType` override is generator-only.
 type ComputerCommandsItem struct {
 	XMLName         xml.Name
 	ID              *int                                 `xml:"id,omitempty"`
@@ -2467,6 +2625,26 @@ type ComputerCommandsItemComputerCommandComputersComputerItem struct {
 func (t ComputerCommandsItemComputerCommandComputersComputerItem) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
 	start.Name = xml.Name{Local: "computer"}
 	type shadow ComputerCommandsItemComputerCommandComputersComputerItem
+	return e.EncodeElement(shadow(t), start)
+}
+
+// ComputerCommandsListed The list body for GET /computercommands and GET /computercommands/name/{name}. The spec declares computer_commands as a bare array of items rather than a wrapper object, so only the first element decodes, and declares the name filter as a single computer_command, which decodes to a zero struct with a nil error (601 elements on the EU test environment).
+type ComputerCommandsListed struct {
+	XMLName         xml.Name
+	ComputerCommand *[]ComputerCommandSummary `xml:"computer_command,omitempty"`
+	Size            *Size                     `xml:"size,omitempty"`
+}
+
+// MarshalXML forces the ComputerCommandsListed root element name to the wire value
+// declared by the spec (<computer_commands>) regardless of what XMLName.Local
+// holds. Classic resources are frequently decoded from polymorphic wire
+// roots (<static_user_group>, <smart_user_group>, <user_group>, etc.) —
+// stashing the incoming root name in XMLName is useful context but must
+// not leak back into writes. The shadow type suppresses re-entry into
+// this method during encoding.
+func (t ComputerCommandsListed) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
+	start.Name = xml.Name{Local: "computer_commands"}
+	type shadow ComputerCommandsListed
 	return e.EncodeElement(shadow(t), start)
 }
 
