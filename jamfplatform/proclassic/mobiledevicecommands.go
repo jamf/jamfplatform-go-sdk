@@ -18,6 +18,9 @@ import (
 //
 // Parameters:
 //   - uuid: UUID value to filter by.
+//
+// Unlike the create and list responses, which are flat, this one nests the command under `General`:
+// the UUID is `General.UUID` (wire-verified 2026-10-19).
 func (c *Client) GetMobileDeviceCommandByUUID(ctx context.Context, uuid string) (*MobileDeviceCommand, error) {
 	prefix := c.transport.APIPrefix("proclassic", "")
 	var result MobileDeviceCommand
@@ -32,6 +35,11 @@ func (c *Client) GetMobileDeviceCommandByUUID(ctx context.Context, uuid string) 
 //
 // Required privileges: destructive-device-actions:execute, devices:create.
 // All of them are required, not alternatives.
+//
+// The response is flat: `UUID` is the handle for GetMobileDeviceCommandByUUID, and identical pending
+// commands for one device are deduplicated and share it. When the request body names devices, the
+// server targets those and ignores any IDs in the URL, so a command that carries parameters
+// (Wallpaper, EnableLostMode) must list its devices in the body to reach more than one.
 func (c *Client) IssueMobileDeviceCommand(ctx context.Context, request *MobileDeviceCommandPost) (*MobileDeviceCommandIssued, error) {
 	prefix := c.transport.APIPrefix("proclassic", "")
 	var result MobileDeviceCommandIssued
@@ -99,18 +107,16 @@ func (c *Client) GetMobileDeviceCommandByCommand(ctx context.Context, command st
 //     2026-03-13)".
 //   - id_list: Mobile device ID values, multiple IDs may be separated by commas (e.g. /id/13,14,15).
 //
-// The allowed-values list above is the spec's, and its entries carry prose annotations such as
-// "(Deprecated on ...)" that the server does not accept: pass the plain command name. Wire-verified
-// 2026-10-19 against the EU test environment: UpdateInventory, Wallpaper, EnableLostMode,
-// PlayLostModeSound, DeviceLocation and RefreshCellularPlans (absent from the spec's list) are
-// accepted. RestartDevice, ShutDownDevice, ClearPasscode and DisableLostMode answer 400 `Invalid
-// command`, EnableDataRoaming answers 409 `Unsupported command`, and PasscodeLockGracePeriod answers
-// 400 `Device does not support PasscodeLockGracePeriod` on a device that is not a Shared iPad. The
-// server records some commands under another name: PlayLostModeSound reads back as
-// PLAY_LOST_MODE_SOUND. Identical pending commands for one device are deduplicated and share a UUID. A
-// request body naming devices wins over the IDs in the URL, which is why a command that carries
-// parameters (Wallpaper, EnableLostMode) must list its devices in the body to reach more than one; the
-// URL ID list serves parameter-less commands.
+// Pass the plain command name: the allowed-values list above is the spec's, and the server refuses its
+// prose annotations such as "(Deprecated on ...)". Accepted on the wire (2026-10-19): UpdateInventory,
+// Wallpaper, EnableLostMode, PlayLostModeSound (recorded as PLAY_LOST_MODE_SOUND), DeviceLocation and
+// RefreshCellularPlans, which the list omits. Refused: RestartDevice, ShutDownDevice, ClearPasscode
+// and DisableLostMode (400 `Invalid command`), EnableDataRoaming (409 `Unsupported command`), and
+// PasscodeLockGracePeriod on anything but a Shared iPad (400). The response is flat: `UUID` is the
+// handle for GetMobileDeviceCommandByUUID, and identical pending commands for one device are
+// deduplicated and share it. When the request body names devices, the server targets those and ignores
+// any IDs in the URL, so a command that carries parameters (Wallpaper, EnableLostMode) must list its
+// devices in the body to reach more than one.
 func (c *Client) CreateMobileDeviceCommandByCommandID(ctx context.Context, command string, id_list string, request *MobileDeviceCommandPost) (*MobileDeviceCommandIssued, error) {
 	prefix := c.transport.APIPrefix("proclassic", "")
 	var result MobileDeviceCommandIssued
@@ -132,18 +138,16 @@ func (c *Client) CreateMobileDeviceCommandByCommandID(ctx context.Context, comma
 //     (PlayLostModeSound Deprecated on 2025-06-12)", "Settings", "UpdateInventory (Deprecated on
 //     2026-03-13)".
 //
-// The allowed-values list above is the spec's, and its entries carry prose annotations such as
-// "(Deprecated on ...)" that the server does not accept: pass the plain command name. Wire-verified
-// 2026-10-19 against the EU test environment: UpdateInventory, Wallpaper, EnableLostMode,
-// PlayLostModeSound, DeviceLocation and RefreshCellularPlans (absent from the spec's list) are
-// accepted. RestartDevice, ShutDownDevice, ClearPasscode and DisableLostMode answer 400 `Invalid
-// command`, EnableDataRoaming answers 409 `Unsupported command`, and PasscodeLockGracePeriod answers
-// 400 `Device does not support PasscodeLockGracePeriod` on a device that is not a Shared iPad. The
-// server records some commands under another name: PlayLostModeSound reads back as
-// PLAY_LOST_MODE_SOUND. Identical pending commands for one device are deduplicated and share a UUID. A
-// request body naming devices wins over the IDs in the URL, which is why a command that carries
-// parameters (Wallpaper, EnableLostMode) must list its devices in the body to reach more than one; the
-// URL ID list serves parameter-less commands.
+// Pass the plain command name: the allowed-values list above is the spec's, and the server refuses its
+// prose annotations such as "(Deprecated on ...)". Accepted on the wire (2026-10-19): UpdateInventory,
+// Wallpaper, EnableLostMode, PlayLostModeSound (recorded as PLAY_LOST_MODE_SOUND), DeviceLocation and
+// RefreshCellularPlans, which the list omits. Refused: RestartDevice, ShutDownDevice, ClearPasscode
+// and DisableLostMode (400 `Invalid command`), EnableDataRoaming (409 `Unsupported command`), and
+// PasscodeLockGracePeriod on anything but a Shared iPad (400). The response is flat: `UUID` is the
+// handle for GetMobileDeviceCommandByUUID, and identical pending commands for one device are
+// deduplicated and share it. When the request body names devices, the server targets those and ignores
+// any IDs in the URL, so a command that carries parameters (Wallpaper, EnableLostMode) must list its
+// devices in the body to reach more than one.
 func (c *Client) CreateMobileDeviceCommandByCommand(ctx context.Context, command string, request *MobileDeviceCommandPost) (*MobileDeviceCommandIssued, error) {
 	prefix := c.transport.APIPrefix("proclassic", "")
 	var result MobileDeviceCommandIssued
@@ -166,6 +170,11 @@ func (c *Client) CreateMobileDeviceCommandByCommand(ctx context.Context, command
 //     2026-03-13)".
 //   - parameter: Path parameter parameter.
 //   - idList: Mobile device ID values, multiple IDs may be separated by commas (e.g. /id/13,14,15).
+//
+// Unrouted at the gateway: every call answers `403 BAD_PERMISSIONS`, identically to a nonsense path in
+// the namespace, for every command tried (2026-10-19). Use CreateMobileDeviceCommandByCommandID or
+// IssueMobileDeviceCommand. `TestAcceptance_Classic_MobileDeviceCommandParameterFormsUnrouted` fails
+// the day the route appears, which is the notification to delete this note.
 func (c *Client) CreateMobileDeviceCommandWithParameterByIDList(ctx context.Context, command string, parameter string, idList string, request *MobileDeviceCommandPost) (*MobileDeviceCommandIssued, error) {
 	prefix := c.transport.APIPrefix("proclassic", "")
 	var result MobileDeviceCommandIssued
@@ -189,6 +198,11 @@ func (c *Client) CreateMobileDeviceCommandWithParameterByIDList(ctx context.Cont
 //   - parameter: Path parameter parameter.
 //   - version: Path parameter version.
 //   - idList: Mobile device ID values, multiple IDs may be separated by commas (e.g. /id/13,14,15).
+//
+// Unrouted at the gateway: every call answers `403 BAD_PERMISSIONS`, identically to a nonsense path in
+// the namespace, for every command tried (2026-10-19). Use CreateMobileDeviceCommandByCommandID or
+// IssueMobileDeviceCommand. `TestAcceptance_Classic_MobileDeviceCommandParameterFormsUnrouted` fails
+// the day the route appears, which is the notification to delete this note.
 func (c *Client) CreateMobileDeviceCommandWithParameterVersionByIDList(ctx context.Context, command string, parameter string, version string, idList string, request *MobileDeviceCommandPost) (*MobileDeviceCommandIssued, error) {
 	prefix := c.transport.APIPrefix("proclassic", "")
 	var result MobileDeviceCommandIssued
@@ -205,6 +219,11 @@ func (c *Client) CreateMobileDeviceCommandWithParameterVersionByIDList(ctx conte
 //
 // Parameters:
 //   - name: Path parameter name.
+//
+// The response is flat: `UUID` is the handle for GetMobileDeviceCommandByUUID, and identical pending
+// commands for one device are deduplicated and share it. When the request body names devices, the
+// server targets those and ignores any IDs in the URL, so a command that carries parameters
+// (Wallpaper, EnableLostMode) must list its devices in the body to reach more than one.
 func (c *Client) CreateMobileDeviceCommandByName(ctx context.Context, name string, request *MobileDeviceCommandPost) (*MobileDeviceCommandIssued, error) {
 	prefix := c.transport.APIPrefix("proclassic", "")
 	var result MobileDeviceCommandIssued

@@ -10684,6 +10684,10 @@ func (t MobileDeviceCommandSummaryMobileDevicesMobileDeviceItem) MarshalXML(e *x
 type MobileDeviceCommands = []MobileDeviceCommandsItem
 
 // MobileDeviceCommandsItem represents a mobile device commands item.
+// No method returns this type. The spec declares `GET /mobiledevicecommands` as a bare array of these,
+// which decodes only the first element of the real list and drops every UUID; ListMobileDeviceCommands
+// returns MobileDeviceCommandsListed. It stays emitted because `api/` keeps the spec's declaration and
+// the `responseType` override is generator-only.
 type MobileDeviceCommandsItem struct {
 	XMLName             xml.Name
 	ID                  *int                                         `xml:"id,omitempty"`

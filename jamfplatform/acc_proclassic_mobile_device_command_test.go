@@ -5,10 +5,11 @@
 
 package jamfplatform_test
 
-// The Wallpaper mobile device command. Both tests need a supervised device and
-// queue a real MDM command against it, so they sit behind a write opt-in. The
-// wire facts they pin are not in the spec's schema: the failure messages name
-// wallpaper_setting singular, and the server accepts any integer there.
+// Classic mobile device commands. Every test queues a real MDM command, which
+// cannot be deleted, so all sit behind a write opt-in and act only on the
+// supervised devices named in JAMFPLATFORM_ACC_CLASSIC_MOBILE_DEVICE_IDS.
+// EnableLostMode has a second opt-in of its own, because nothing in the API
+// turns Lost Mode off.
 
 import (
 	"bytes"
@@ -18,10 +19,12 @@ import (
 	"image/color"
 	"image/png"
 	"net/http"
+	"os"
 	"slices"
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/jamf/jamfplatform-go-sdk/jamfplatform"
 	"github.com/jamf/jamfplatform-go-sdk/jamfplatform/pro"
@@ -33,22 +36,20 @@ const wallpaperPNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42m
 
 const wallpaperWriteOptIn = "JAMFPLATFORM_ACC_CLASSIC_MOBILE_COMMANDS_WRITE_OK"
 
-// firstSupervisedMobileDeviceID returns the ID of a device the Wallpaper command
-// accepts, skipping when the tenant has none.
+// lostModeWriteOptIn gates EnableLostMode on its own: nothing in the API turns
+// Lost Mode off, so opting in to the queue-only commands must not imply it.
+const lostModeWriteOptIn = "JAMFPLATFORM_ACC_CLASSIC_LOST_MODE_OK"
+
+// mobileDeviceIDsEnv names the supervised devices the command tests may act
+// on. The tests never pick a device themselves: the first supervised device a
+// tenant lists can be anyone's.
+const mobileDeviceIDsEnv = "JAMFPLATFORM_ACC_CLASSIC_MOBILE_DEVICE_IDS"
+
+// firstSupervisedMobileDeviceID returns the first device named in
+// mobileDeviceIDsEnv.
 func firstSupervisedMobileDeviceID(t *testing.T, cl *proclassic.Client) int {
 	t.Helper()
-	devices, err := cl.ListMobileDevices(context.Background())
-	if err != nil {
-		skipOnServerError(t, err)
-		t.Fatalf("ListMobileDevices: %v", err)
-	}
-	for _, d := range devices.MobileDevices {
-		if d.ID != nil && d.Supervised != nil && *d.Supervised {
-			return *d.ID
-		}
-	}
-	t.Skip("no supervised mobile device on this tenant")
-	return 0
+	return supervisedMobileDeviceIDs(t, cl, 1)[0]
 }
 
 // assertIssuedCommand checks the flat create response every mobile device
@@ -377,7 +378,7 @@ func TestAcceptance_Classic_MobileDeviceCommandReads(t *testing.T) {
 // one alone is a 201. Everything else here asserts the command name the
 // server records.
 func TestAcceptance_Classic_MobileDeviceCommandLostModeFields(t *testing.T) {
-	requireWriteOptIn(t, wallpaperWriteOptIn,
+	requireWriteOptIn(t, lostModeWriteOptIn,
 		"EnableLostMode puts a real mobile device into Lost Mode, and nothing in the API turns it off.")
 	c := accClient(t)
 	cl := proclassic.New(c)
@@ -440,7 +441,7 @@ func TestAcceptance_Classic_MobileDeviceCommandLostModeFields(t *testing.T) {
 			Command: new("PasscodeLockGracePeriod"), PasscodeLockGracePeriod: new(60),
 		})
 		if err == nil {
-			t.Skip("the device accepted PasscodeLockGracePeriod; it is now a Shared iPad, assert the field")
+			t.Fatal("the device accepted PasscodeLockGracePeriod: either it is now a Shared iPad or the refusal is gone; assert the field and update the methodNotes")
 		}
 		skipOnServerError(t, err)
 		if !strings.Contains(err.Error(), "does not support PasscodeLockGracePeriod") {
@@ -500,7 +501,13 @@ func TestAcceptance_Classic_MobileDeviceCommandWallpaperIcon(t *testing.T) {
 	}
 
 	t.Run("upload_is_downscaled_to_512", func(t *testing.T) {
-		resp, err := http.Get(icon.URL)
+		fetchCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+		defer cancel()
+		req, err := http.NewRequestWithContext(fetchCtx, http.MethodGet, icon.URL, nil)
+		if err != nil {
+			t.Fatalf("icon URL %q: %v", icon.URL, err)
+		}
+		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
 			t.Fatalf("GET %s: %v", icon.URL, err)
 		}
@@ -553,26 +560,44 @@ func TestAcceptance_Classic_MobileDeviceCommandWallpaperIcon(t *testing.T) {
 	})
 }
 
-// supervisedMobileDeviceIDs returns up to n supervised devices, skipping when
-// the tenant has fewer.
+// supervisedMobileDeviceIDs returns the first n devices named in
+// mobileDeviceIDsEnv, skipping when fewer are named and failing when a named
+// device is not a supervised device on the tenant.
 func supervisedMobileDeviceIDs(t *testing.T, cl *proclassic.Client, n int) []int {
 	t.Helper()
+	var ids []int
+	for f := range strings.SplitSeq(os.Getenv(mobileDeviceIDsEnv), ",") {
+		if f = strings.TrimSpace(f); f == "" {
+			continue
+		}
+		id, err := strconv.Atoi(f)
+		if err != nil {
+			t.Fatalf("%s: %q is not a device ID", mobileDeviceIDsEnv, f)
+		}
+		ids = append(ids, id)
+	}
+	if len(ids) < n {
+		t.Skipf("needs %d supervised mobile device IDs in %s, found %d", n, mobileDeviceIDsEnv, len(ids))
+	}
+	ids = ids[:n]
+
 	devices, err := cl.ListMobileDevices(context.Background())
 	if err != nil {
 		skipOnServerError(t, err)
 		t.Fatalf("ListMobileDevices: %v", err)
 	}
-	var ids []int
+	supervised := map[int]bool{}
 	for _, d := range devices.MobileDevices {
 		if d.ID != nil && d.Supervised != nil && *d.Supervised {
-			ids = append(ids, *d.ID)
-			if len(ids) == n {
-				return ids
-			}
+			supervised[*d.ID] = true
 		}
 	}
-	t.Skipf("needs %d supervised mobile devices, found %d", n, len(ids))
-	return nil
+	for _, id := range ids {
+		if !supervised[id] {
+			t.Fatalf("%s names device %d, which is not a supervised mobile device on this tenant", mobileDeviceIDsEnv, id)
+		}
+	}
+	return ids
 }
 
 // TestAcceptance_Classic_MobileDeviceCommandMultipleDevices sends Wallpaper to

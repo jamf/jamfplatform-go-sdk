@@ -1860,7 +1860,9 @@ return the same type as the rest and their tests pin the refusal.
 
 Pinned by `TestAcceptance_Classic_MobileDeviceCommand*` (create variants, reads,
 wallpaper, lost-mode fields, unrouted parameter forms), all behind
-`JAMFPLATFORM_ACC_CLASSIC_MOBILE_COMMANDS_WRITE_OK`. Report upstream: the
+`JAMFPLATFORM_ACC_CLASSIC_MOBILE_COMMANDS_WRITE_OK` — lost mode additionally
+behind `JAMFPLATFORM_ACC_CLASSIC_LOST_MODE_OK` — and acting only on the devices
+named in `JAMFPLATFORM_ACC_CLASSIC_MOBILE_DEVICE_IDS`. Report upstream: the
 response shapes, the `wallpaper_settings` prose, the prose-annotated `command`
 enum, `RefreshCellularPlans` missing from it, and the unrouted parameter forms.
 

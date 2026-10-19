@@ -649,8 +649,11 @@ items are listed at the end of each build in the history file.
   tool for this case is a hold, and a hold is cheap exactly when the offending
   flag is the build's only change.
 - **Local spec repairs are self-expiring.** `schemaCreations` panics if the name
-  reappears (except where it holds a *wire shape* under a new name, which cannot
-  expire — its acceptance test retires it); a `schemaPatches` entry that *supplies* a missing property needs a
+  reappears — except where it holds a *wire shape* under a new name, which never
+  reappears: there a `schemaPatchesRequireAbsent` path on the *declared* schema,
+  one that resolves only once the spec declares the wire shape, is the expiry,
+  and where the spec declares no body at all nothing can be (the post-ingest
+  `responseType` diff is the check); a `schemaPatches` entry that *supplies* a missing property needs a
   `schemaPatchesRequireAbsent` line or it shadows the real one forever;
   `enumAdditions` panics on a value the spec now declares; `requiredPrivileges`
   fails generation once the operation declares `x-required-privileges`;
