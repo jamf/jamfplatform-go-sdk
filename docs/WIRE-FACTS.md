@@ -1834,6 +1834,32 @@ wallpaper, lost-mode fields, unrouted parameter forms), all behind
 response shapes, the `wallpaper_settings` prose, the prose-annotated `command`
 enum, `RefreshCellularPlans` missing from it, and the unrouted parameter forms.
 
+### LDAP `certificate_used` is sent, order-sensitive, and read back as a nested element (2026-10-19)
+
+`ldap_server_post.connection.certificate_used` is declared on the post schema
+only, so post-symmetry replaced the whole `connection` block with the read
+sibling's and the field could not be sent. It is a real write field: a server
+created with it lists the certificate in `certificates_used` as
+`<certificate><configuration_name>{server name}</configuration_name><issuer>CN=…</issuer></certificate>`,
+accepted as base64 DER or PEM. The spec types `certificates_used` as a string, so
+the generated field decoded the nested element to nothing.
+
+**The server applies the certificate only if `certificate_used` comes after the
+connection's other fields, and ignores it silently otherwise** — `201`, an empty
+`<certificates_used/>`, no error. Same body, same certificate, three element
+orders: name first then the certificate, and the SDK's alphabetical order
+(certificate before hostname and name), stored nothing; the certificate last
+stored it. The configuration is named after the server, which suggests the cause.
+`config.fieldOrder` pins `ldap_server_post_connection` with the certificate last.
+`connection_is_used_for` (also post-only in the spec) was accepted without effect
+visible in the read and is left unmodelled.
+
+The `computer_post.general` fields the audit flagged (`managed`, `username`,
+`model`, `department`, `building`) do not exist on the wire's computer
+`general`: `managed` lives under `remote_management`, and the others are not in
+`general` at all, so replacing the post block with the read sibling's is not
+losing a write field there. Not probed on a write.
+
 ### The gateway-bypass technique
 
 When a gateway 403 blocks verification, separate "Jamf Pro can't do this" from

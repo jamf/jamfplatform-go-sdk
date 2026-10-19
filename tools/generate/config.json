@@ -4839,6 +4839,7 @@
         }
       },
       "schemaPatchesRequireAbsent": [
+        "ldap_server.connection.certificate_used",
         "mobile_device_command.mobile_devices.mobile_device.management_id"
       ],
       "postSymmetryExcludes": {
@@ -5579,7 +5580,31 @@
             "type": "integer"
           },
           "connection.certificates_used": {
-            "type": "string"
+            "type": "object",
+            "description": "Certificates the server trusts, each as its configuration name and issuer. The spec declares a string; the server nests a certificate element per entry (wire-verified 2026-10-19).",
+            "properties": {
+              "certificate": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "xml": {
+                    "name": "certificate"
+                  },
+                  "properties": {
+                    "configuration_name": {
+                      "type": "string"
+                    },
+                    "issuer": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "connection.certificate_used": {
+            "type": "string",
+            "description": "Certificate to trust for LDAPS, as PEM or base64-encoded DER. Write-only: the server stores it as a certificate named after the server and returns it in certificates_used. The spec declares this field on ldap_server_post only, where post-symmetry replaces it away."
           },
           "connection.account.password_sha256": {
             "type": "string"
@@ -5882,6 +5907,24 @@
         }
       },
       "fieldOrder": {
+        "ldap_server_post_connection": [
+          "id",
+          "name",
+          "hostname",
+          "port",
+          "server_type",
+          "use_ssl",
+          "authentication_type",
+          "account",
+          "is_enabled",
+          "migrated_to_id",
+          "open_close_timeout",
+          "search_timeout",
+          "referral_response",
+          "use_wildcards",
+          "certificates_used",
+          "certificate_used"
+        ],
         "vpp_invitation_general": [
           "id",
           "name",

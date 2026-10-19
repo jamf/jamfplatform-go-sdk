@@ -7648,7 +7648,13 @@ type LdapServerConnection struct {
 	Account *LdapServerConnectionAccount `xml:"account,omitempty"`
 	// Allowed values: see the LdapServerConnectionAuthenticationType constants.
 	AuthenticationType *string `xml:"authentication_type,omitempty"`
-	CertificatesUsed   *string `xml:"certificates_used,omitempty"`
+	// Certificate to trust for LDAPS, as PEM or base64-encoded DER. Write-only: the server stores it as a
+	// certificate named after the server and returns it in certificates_used. The spec declares this field
+	// on ldap_server_post only, where post-symmetry replaces it away.
+	CertificateUsed *string `xml:"certificate_used,omitempty"`
+	// Certificates the server trusts, each as its configuration name and issuer. The spec declares a
+	// string; the server nests a certificate element per entry (wire-verified 2026-10-19).
+	CertificatesUsed *LdapServerConnectionCertificatesUsed `xml:"certificates_used,omitempty"`
 	// Hostname or IP address of the server.
 	Hostname     *string `xml:"hostname,omitempty"`
 	ID           *int    `xml:"id,omitempty"`
@@ -7700,6 +7706,45 @@ type LdapServerConnectionAccount struct {
 func (t LdapServerConnectionAccount) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
 	start.Name = xml.Name{Local: "account"}
 	type shadow LdapServerConnectionAccount
+	return e.EncodeElement(shadow(t), start)
+}
+
+// LdapServerConnectionCertificatesUsed Certificates the server trusts, each as its configuration name and issuer. The spec declares a string; the server nests a certificate element per entry (wire-verified 2026-10-19).
+type LdapServerConnectionCertificatesUsed struct {
+	XMLName     xml.Name
+	Certificate *[]LdapServerConnectionCertificatesUsedCertificateItem `xml:"certificate,omitempty"`
+}
+
+// MarshalXML forces the LdapServerConnectionCertificatesUsed root element name to the wire value
+// declared by the spec (<certificates_used>) regardless of what XMLName.Local
+// holds. Classic resources are frequently decoded from polymorphic wire
+// roots (<static_user_group>, <smart_user_group>, <user_group>, etc.) —
+// stashing the incoming root name in XMLName is useful context but must
+// not leak back into writes. The shadow type suppresses re-entry into
+// this method during encoding.
+func (t LdapServerConnectionCertificatesUsed) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
+	start.Name = xml.Name{Local: "certificates_used"}
+	type shadow LdapServerConnectionCertificatesUsed
+	return e.EncodeElement(shadow(t), start)
+}
+
+// LdapServerConnectionCertificatesUsedCertificateItem represents a ldap server connection certificates used certificate item.
+type LdapServerConnectionCertificatesUsedCertificateItem struct {
+	XMLName           xml.Name
+	ConfigurationName *string `xml:"configuration_name,omitempty"`
+	Issuer            *string `xml:"issuer,omitempty"`
+}
+
+// MarshalXML forces the LdapServerConnectionCertificatesUsedCertificateItem root element name to the wire value
+// declared by the spec (<certificate>) regardless of what XMLName.Local
+// holds. Classic resources are frequently decoded from polymorphic wire
+// roots (<static_user_group>, <smart_user_group>, <user_group>, etc.) —
+// stashing the incoming root name in XMLName is useful context but must
+// not leak back into writes. The shadow type suppresses re-entry into
+// this method during encoding.
+func (t LdapServerConnectionCertificatesUsedCertificateItem) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
+	start.Name = xml.Name{Local: "certificate"}
+	type shadow LdapServerConnectionCertificatesUsedCertificateItem
 	return e.EncodeElement(shadow(t), start)
 }
 
@@ -7851,28 +7896,34 @@ func (t LdapServerPost) MarshalXML(e *xml.Encoder, start xml.StartElement) error
 // LdapServerPostConnection represents a ldap server post connection.
 type LdapServerPostConnection struct {
 	XMLName xml.Name
-	Account *LdapServerConnectionAccount `xml:"account,omitempty"`
-	// Allowed values: see the LdapServerPostConnectionAuthenticationType constants.
-	AuthenticationType *string `xml:"authentication_type,omitempty"`
-	CertificatesUsed   *string `xml:"certificates_used,omitempty"`
-	// Hostname or IP address of the server.
-	Hostname     *string `xml:"hostname,omitempty"`
-	ID           *int    `xml:"id,omitempty"`
-	IsEnabled    *bool   `xml:"is_enabled,omitempty"`
-	MigratedToID *int    `xml:"migrated_to_id,omitempty"`
+	ID      *int `xml:"id,omitempty"`
 	// Name of the LDAP server.
 	Name *string `xml:"name,omitempty"`
+	// Hostname or IP address of the server.
+	Hostname *string `xml:"hostname,omitempty"`
+	Port     *int    `xml:"port,omitempty"`
+	// Allowed values: see the LdapServerPostConnectionServerType constants.
+	ServerType *string `xml:"server_type,omitempty"`
+	UseSsl     *bool   `xml:"use_ssl,omitempty"`
+	// Allowed values: see the LdapServerPostConnectionAuthenticationType constants.
+	AuthenticationType *string                      `xml:"authentication_type,omitempty"`
+	Account            *LdapServerConnectionAccount `xml:"account,omitempty"`
+	IsEnabled          *bool                        `xml:"is_enabled,omitempty"`
+	MigratedToID       *int                         `xml:"migrated_to_id,omitempty"`
 	// Timeout in seconds.
 	OpenCloseTimeout *int `xml:"open_close_timeout,omitempty"`
-	Port             *int `xml:"port,omitempty"`
-	// Allowed values: see the LdapServerPostConnectionReferralResponse constants.
-	ReferralResponse *string `xml:"referral_response,omitempty"`
 	// Timeout in seconds.
 	SearchTimeout *int `xml:"search_timeout,omitempty"`
-	// Allowed values: see the LdapServerPostConnectionServerType constants.
-	ServerType   *string `xml:"server_type,omitempty"`
-	UseSsl       *bool   `xml:"use_ssl,omitempty"`
-	UseWildcards *bool   `xml:"use_wildcards,omitempty"`
+	// Allowed values: see the LdapServerPostConnectionReferralResponse constants.
+	ReferralResponse *string `xml:"referral_response,omitempty"`
+	UseWildcards     *bool   `xml:"use_wildcards,omitempty"`
+	// Certificates the server trusts, each as its configuration name and issuer. The spec declares a
+	// string; the server nests a certificate element per entry (wire-verified 2026-10-19).
+	CertificatesUsed *LdapServerConnectionCertificatesUsed `xml:"certificates_used,omitempty"`
+	// Certificate to trust for LDAPS, as PEM or base64-encoded DER. Write-only: the server stores it as a
+	// certificate named after the server and returns it in certificates_used. The spec declares this field
+	// on ldap_server_post only, where post-symmetry replaces it away.
+	CertificateUsed *string `xml:"certificate_used,omitempty"`
 }
 
 // MarshalXML forces the LdapServerPostConnection root element name to the wire value

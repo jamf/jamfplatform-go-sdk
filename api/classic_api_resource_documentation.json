@@ -6370,8 +6370,32 @@
                 ],
                 "type": "string"
               },
-              "certificates_used": {
+              "certificate_used": {
+                "description": "Certificate to trust for LDAPS, as PEM or base64-encoded DER. Write-only: the server stores it as a certificate named after the server and returns it in certificates_used. The spec declares this field on ldap_server_post only, where post-symmetry replaces it away.",
                 "type": "string"
+              },
+              "certificates_used": {
+                "description": "Certificates the server trusts, each as its configuration name and issuer. The spec declares a string; the server nests a certificate element per entry (wire-verified 2026-10-19).",
+                "properties": {
+                  "certificate": {
+                    "items": {
+                      "properties": {
+                        "configuration_name": {
+                          "type": "string"
+                        },
+                        "issuer": {
+                          "type": "string"
+                        }
+                      },
+                      "type": "object",
+                      "xml": {
+                        "name": "certificate"
+                      }
+                    },
+                    "type": "array"
+                  }
+                },
+                "type": "object"
               },
               "hostname": {
                 "description": "Hostname or IP address of the server",
@@ -6654,8 +6678,32 @@
                 ],
                 "type": "string"
               },
-              "certificates_used": {
+              "certificate_used": {
+                "description": "Certificate to trust for LDAPS, as PEM or base64-encoded DER. Write-only: the server stores it as a certificate named after the server and returns it in certificates_used. The spec declares this field on ldap_server_post only, where post-symmetry replaces it away.",
                 "type": "string"
+              },
+              "certificates_used": {
+                "description": "Certificates the server trusts, each as its configuration name and issuer. The spec declares a string; the server nests a certificate element per entry (wire-verified 2026-10-19).",
+                "properties": {
+                  "certificate": {
+                    "items": {
+                      "properties": {
+                        "configuration_name": {
+                          "type": "string"
+                        },
+                        "issuer": {
+                          "type": "string"
+                        }
+                      },
+                      "type": "object",
+                      "xml": {
+                        "name": "certificate"
+                      }
+                    },
+                    "type": "array"
+                  }
+                },
+                "type": "object"
               },
               "hostname": {
                 "description": "Hostname or IP address of the server",
