@@ -18,6 +18,7 @@ import (
 	"image/color"
 	"image/png"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -75,13 +76,20 @@ func assertIssuedCommand(t *testing.T, got *proclassic.MobileDeviceCommandIssued
 	}
 }
 
+// postDevices builds the request's device list: one <mobile_device> per ID.
+func postDevices(ids ...int) *proclassic.MobileDeviceCommandPostMobileDevices {
+	devices := make([]proclassic.MobileDeviceCommandPostMobileDevicesMobileDeviceItem, len(ids))
+	for i, id := range ids {
+		devices[i].ID = new(id)
+	}
+	return &proclassic.MobileDeviceCommandPostMobileDevices{MobileDevice: &devices}
+}
+
 func wallpaperCommand(deviceID int, general proclassic.MobileDeviceCommandPostGeneral) *proclassic.MobileDeviceCommandPost {
 	general.Command = new("Wallpaper")
 	return &proclassic.MobileDeviceCommandPost{
-		General: &general,
-		MobileDevices: &proclassic.MobileDeviceCommandPostMobileDevices{
-			MobileDevice: &proclassic.MobileDeviceCommandMobileDevicesMobileDevice{ID: new(deviceID)},
-		},
+		General:       &general,
+		MobileDevices: postDevices(deviceID),
 	}
 }
 
@@ -157,10 +165,8 @@ func TestAcceptance_Classic_MobileDeviceCommandWallpaperValidation(t *testing.T)
 // device is the only thing the server reads from it beyond the command.
 func updateInventoryCommand(deviceID int) *proclassic.MobileDeviceCommandPost {
 	return &proclassic.MobileDeviceCommandPost{
-		General: &proclassic.MobileDeviceCommandPostGeneral{Command: new("UpdateInventory")},
-		MobileDevices: &proclassic.MobileDeviceCommandPostMobileDevices{
-			MobileDevice: &proclassic.MobileDeviceCommandMobileDevicesMobileDevice{ID: new(deviceID)},
-		},
+		General:       &proclassic.MobileDeviceCommandPostGeneral{Command: new("UpdateInventory")},
+		MobileDevices: postDevices(deviceID),
 	}
 }
 
@@ -380,10 +386,8 @@ func TestAcceptance_Classic_MobileDeviceCommandLostModeFields(t *testing.T) {
 
 	issue := func(g proclassic.MobileDeviceCommandPostGeneral) (*proclassic.MobileDeviceCommandIssued, error) {
 		return cl.IssueMobileDeviceCommand(ctx, &proclassic.MobileDeviceCommandPost{
-			General: &g,
-			MobileDevices: &proclassic.MobileDeviceCommandPostMobileDevices{
-				MobileDevice: &proclassic.MobileDeviceCommandMobileDevicesMobileDevice{ID: new(id)},
-			},
+			General:       &g,
+			MobileDevices: postDevices(id),
 		})
 	}
 
@@ -546,5 +550,90 @@ func TestAcceptance_Classic_MobileDeviceCommandWallpaperIcon(t *testing.T) {
 			t.Fatalf("the server now validates wallpaper_content (%v); assert the refusal", err)
 		}
 		assertIssuedCommand(t, got, "Wallpaper", id)
+	})
+}
+
+// supervisedMobileDeviceIDs returns up to n supervised devices, skipping when
+// the tenant has fewer.
+func supervisedMobileDeviceIDs(t *testing.T, cl *proclassic.Client, n int) []int {
+	t.Helper()
+	devices, err := cl.ListMobileDevices(context.Background())
+	if err != nil {
+		skipOnServerError(t, err)
+		t.Fatalf("ListMobileDevices: %v", err)
+	}
+	var ids []int
+	for _, d := range devices.MobileDevices {
+		if d.ID != nil && d.Supervised != nil && *d.Supervised {
+			ids = append(ids, *d.ID)
+			if len(ids) == n {
+				return ids
+			}
+		}
+	}
+	t.Skipf("needs %d supervised mobile devices, found %d", n, len(ids))
+	return nil
+}
+
+// TestAcceptance_Classic_MobileDeviceCommandMultipleDevices sends Wallpaper to
+// several devices in one request. The spec declares a single <mobile_device>;
+// the server takes any number in the body, applies the command to all of them
+// or none, and — when a body is present — ignores the IDs in the URL, so the
+// ID-list path cannot carry Wallpaper's parameters.
+func TestAcceptance_Classic_MobileDeviceCommandMultipleDevices(t *testing.T) {
+	requireWriteOptIn(t, wallpaperWriteOptIn,
+		"Wallpaper is queued against several real mobile devices and cannot be deleted.")
+	c := accClient(t)
+	cl := proclassic.New(c)
+	ids := supervisedMobileDeviceIDs(t, cl, 3)
+	ctx := context.Background()
+	general := proclassic.MobileDeviceCommandPostGeneral{
+		Command:          new("Wallpaper"),
+		WallpaperSetting: new(proclassic.MobileDeviceCommandPostGeneralWallpaperSetting2),
+		WallpaperContent: new(wallpaperPNG),
+	}
+
+	t.Run("all_devices_are_targeted", func(t *testing.T) {
+		got, err := cl.IssueMobileDeviceCommand(ctx, &proclassic.MobileDeviceCommandPost{
+			General: &general, MobileDevices: postDevices(ids...),
+		})
+		if err != nil {
+			skipOnServerError(t, err)
+			t.Fatalf("IssueMobileDeviceCommand: %v", err)
+		}
+		if got.UUID == nil || got.MobileDevices == nil || got.MobileDevices.MobileDevice == nil {
+			t.Fatalf("response = %+v", got)
+		}
+		var echoed []int
+		for _, d := range *got.MobileDevices.MobileDevice {
+			if d.ID != nil {
+				echoed = append(echoed, *d.ID)
+			}
+		}
+		if !slices.Equal(echoed, ids) {
+			t.Errorf("echoed devices = %v, want %v", echoed, ids)
+		}
+	})
+	t.Run("one_unknown_device_fails_the_request", func(t *testing.T) {
+		_, err := cl.IssueMobileDeviceCommand(ctx, &proclassic.MobileDeviceCommandPost{
+			General: &general, MobileDevices: postDevices(ids[0], 2147483647),
+		})
+		if err == nil {
+			t.Fatal("expected a 400, got success")
+		}
+		skipOnServerError(t, err)
+		if !strings.Contains(err.Error(), "Unable to match mobile_device") {
+			t.Errorf("err = %v", err)
+		}
+	})
+	t.Run("body_devices_win_over_the_url", func(t *testing.T) {
+		got, err := cl.CreateMobileDeviceCommandByCommandID(ctx, "Wallpaper", strconv.Itoa(ids[2]), &proclassic.MobileDeviceCommandPost{
+			General: &general, MobileDevices: postDevices(ids[0]),
+		})
+		if err != nil {
+			skipOnServerError(t, err)
+			t.Fatalf("CreateMobileDeviceCommandByCommandID: %v", err)
+		}
+		assertIssuedCommand(t, got, "Wallpaper", ids[0])
 	})
 }

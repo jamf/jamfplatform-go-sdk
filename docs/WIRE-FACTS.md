@@ -1826,6 +1826,18 @@ the path-parameter enum godoc (which no key reaches) is corrected by
   one file), and there is no way to delete one. Whether a Wallpaper command
   sent with `wallpaper_content` is resized the same way is not observable
   through the API.
+- **Several devices in one command.** The body form takes any number of
+  `<mobile_device>` elements (two and three tried): `201`, one UUID, every device
+  echoed. It is all-or-nothing — one unknown ID among valid ones is
+  `400 Unable to match mobile_device` and nothing is queued. **A body that names
+  devices overrides the IDs in the URL** (devices `152` in the body sent to
+  `/id/154` targeted `152` alone), and a body *without* devices on
+  `…/command/Wallpaper/id/{a},{b}` is `400 Command may be pending, or device may
+  not be capable` even for one device that works through the body, so the URL ID
+  list reaches several devices only for a command with no parameters
+  (`UpdateInventory` to two devices: `201`). The spec declares a single
+  `<mobile_device>`; `mobile_device_command_post.mobile_devices` is therefore
+  replaced by `schemaPatches` (excluded from post-symmetry) with a slice.
 - **Lost mode.** `EnableLostMode` with neither message nor phone is
   `400 Either phone number or Lost Mode message must be entered`; either alone is
   `201`. The server does not echo the fields, and it **deduplicates identical

@@ -4614,8 +4614,8 @@
       "namespace": "proclassic",
       "package": "proclassic",
       "methodNotes": {
-        "CreateMobileDeviceCommandByCommandID": "The allowed-values list above is the spec's, and its entries carry prose annotations such as \"(Deprecated on ...)\" that the server does not accept: pass the plain command name. Wire-verified 2026-10-19 against the EU test environment: UpdateInventory, Wallpaper, EnableLostMode, PlayLostModeSound, DeviceLocation and RefreshCellularPlans (absent from the spec's list) are accepted. RestartDevice, ShutDownDevice, ClearPasscode and DisableLostMode answer 400 `Invalid command`, EnableDataRoaming answers 409 `Unsupported command`, and PasscodeLockGracePeriod answers 400 `Device does not support PasscodeLockGracePeriod` on a device that is not a Shared iPad. The server records some commands under another name: PlayLostModeSound reads back as PLAY_LOST_MODE_SOUND. Identical pending commands for one device are deduplicated and share a UUID.",
-        "CreateMobileDeviceCommandByCommand": "The allowed-values list above is the spec's, and its entries carry prose annotations such as \"(Deprecated on ...)\" that the server does not accept: pass the plain command name. Wire-verified 2026-10-19 against the EU test environment: UpdateInventory, Wallpaper, EnableLostMode, PlayLostModeSound, DeviceLocation and RefreshCellularPlans (absent from the spec's list) are accepted. RestartDevice, ShutDownDevice, ClearPasscode and DisableLostMode answer 400 `Invalid command`, EnableDataRoaming answers 409 `Unsupported command`, and PasscodeLockGracePeriod answers 400 `Device does not support PasscodeLockGracePeriod` on a device that is not a Shared iPad. The server records some commands under another name: PlayLostModeSound reads back as PLAY_LOST_MODE_SOUND. Identical pending commands for one device are deduplicated and share a UUID.",
+        "CreateMobileDeviceCommandByCommandID": "The allowed-values list above is the spec's, and its entries carry prose annotations such as \"(Deprecated on ...)\" that the server does not accept: pass the plain command name. Wire-verified 2026-10-19 against the EU test environment: UpdateInventory, Wallpaper, EnableLostMode, PlayLostModeSound, DeviceLocation and RefreshCellularPlans (absent from the spec's list) are accepted. RestartDevice, ShutDownDevice, ClearPasscode and DisableLostMode answer 400 `Invalid command`, EnableDataRoaming answers 409 `Unsupported command`, and PasscodeLockGracePeriod answers 400 `Device does not support PasscodeLockGracePeriod` on a device that is not a Shared iPad. The server records some commands under another name: PlayLostModeSound reads back as PLAY_LOST_MODE_SOUND. Identical pending commands for one device are deduplicated and share a UUID. A request body naming devices wins over the IDs in the URL, which is why a command that carries parameters (Wallpaper, EnableLostMode) must list its devices in the body to reach more than one; the URL ID list serves parameter-less commands.",
+        "CreateMobileDeviceCommandByCommand": "The allowed-values list above is the spec's, and its entries carry prose annotations such as \"(Deprecated on ...)\" that the server does not accept: pass the plain command name. Wire-verified 2026-10-19 against the EU test environment: UpdateInventory, Wallpaper, EnableLostMode, PlayLostModeSound, DeviceLocation and RefreshCellularPlans (absent from the spec's list) are accepted. RestartDevice, ShutDownDevice, ClearPasscode and DisableLostMode answer 400 `Invalid command`, EnableDataRoaming answers 409 `Unsupported command`, and PasscodeLockGracePeriod answers 400 `Device does not support PasscodeLockGracePeriod` on a device that is not a Shared iPad. The server records some commands under another name: PlayLostModeSound reads back as PLAY_LOST_MODE_SOUND. Identical pending commands for one device are deduplicated and share a UUID. A request body naming devices wins over the IDs in the URL, which is why a command that carries parameters (Wallpaper, EnableLostMode) must list its devices in the body to reach more than one; the URL ID list serves parameter-less commands.",
         "GetActivationCode": "No successor exists. The deprecation above says the endpoint may be removed, but the Jamf Pro API publishes no `GET /v1/activation-code` in any environment — only `PUT /v1/activation-code` and `PATCH /v1/activation-code/organization-name` — and no other Classic operation returns the activation code. So this remains the only way to read it, it answers 200 with real data, and there is nothing to migrate to. Reported upstream.",
         "UpdateActivationCode": "Use `pro.UpdateActivationCodeV1` instead. The deprecation above names no successor; that is the one, and unlike the read half it is published and routed today."
       },
@@ -4844,7 +4844,8 @@
       ],
       "postSymmetryExcludes": {
         "mobile_device_command_post": [
-          "general"
+          "general",
+          "mobile_devices"
         ]
       },
       "propertyRemovals": {
@@ -4885,6 +4886,41 @@
           }
         },
         "mobile_device_command_post": {
+          "mobile_devices": {
+            "type": "object",
+            "description": "The devices to send the command to. The spec declares one device; the server takes several (wire-verified 2026-10-19) and applies the command to all of them or none, answering 400 Unable to match mobile_device for an unknown ID. When a body is present the server targets these devices and ignores any IDs in the URL.",
+            "properties": {
+              "mobile_device": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "xml": {
+                    "name": "mobile_device"
+                  },
+                  "properties": {
+                    "id": {
+                      "type": "integer"
+                    },
+                    "management_id": {
+                      "type": "string"
+                    },
+                    "udid": {
+                      "type": "string"
+                    },
+                    "serial_number": {
+                      "type": "string"
+                    },
+                    "phone_number": {
+                      "type": "string"
+                    },
+                    "wifi_mac_address": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
           "general.command": {
             "type": "string",
             "description": "Command to send the device, by its plain name, for example Wallpaper or EnableLostMode. The spec's enum members carry prose annotations such as \"(supervised only)\" and \"(Deprecated on ...)\" that the server does not accept, so the field is a plain string."

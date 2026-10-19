@@ -9023,37 +9023,36 @@
             "type": "object"
           },
           "mobile_devices": {
+            "description": "The devices to send the command to. The spec declares one device; the server takes several (wire-verified 2026-10-19) and applies the command to all of them or none, answering 400 Unable to match mobile_device for an unknown ID. When a body is present the server targets these devices and ignores any IDs in the URL.",
             "properties": {
               "mobile_device": {
-                "properties": {
-                  "id": {
-                    "example": 1,
-                    "type": "integer"
+                "items": {
+                  "properties": {
+                    "id": {
+                      "type": "integer"
+                    },
+                    "management_id": {
+                      "type": "string"
+                    },
+                    "phone_number": {
+                      "type": "string"
+                    },
+                    "serial_number": {
+                      "type": "string"
+                    },
+                    "udid": {
+                      "type": "string"
+                    },
+                    "wifi_mac_address": {
+                      "type": "string"
+                    }
                   },
-                  "management_id": {
-                    "type": "string"
-                  },
-                  "phone_number": {
-                    "example": "123-555-6789",
-                    "type": "string"
-                  },
-                  "serial_number": {
-                    "example": "F19QMFBYFRY7",
-                    "type": "string"
-                  },
-                  "udid": {
-                    "example": "270aae10800b6e61a2ee2bbc285eb967050b5984",
-                    "type": "string"
-                  },
-                  "wifi_mac_address": {
-                    "example": "E0:AC:CB:97:36:G4",
-                    "type": "string"
+                  "type": "object",
+                  "xml": {
+                    "name": "mobile_device"
                   }
                 },
-                "type": "object"
-              },
-              "size": {
-                "$ref": "#/components/schemas/size"
+                "type": "array"
               }
             },
             "type": "object"

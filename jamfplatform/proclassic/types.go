@@ -10486,9 +10486,13 @@ func (t MobileDeviceCommandIssuedMobileDevicesMobileDeviceItem) MarshalXML(e *xm
 
 // MobileDeviceCommandPost represents a mobile device command post.
 type MobileDeviceCommandPost struct {
-	XMLName       xml.Name
-	ID            *int                                  `xml:"id,omitempty"`
-	General       *MobileDeviceCommandPostGeneral       `xml:"general,omitempty"`
+	XMLName xml.Name
+	ID      *int                            `xml:"id,omitempty"`
+	General *MobileDeviceCommandPostGeneral `xml:"general,omitempty"`
+	// The devices to send the command to. The spec declares one device; the server takes several
+	// (wire-verified 2026-10-19) and applies the command to all of them or none, answering 400 Unable to
+	// match mobile_device for an unknown ID. When a body is present the server targets these devices and
+	// ignores any IDs in the URL.
 	MobileDevices *MobileDeviceCommandPostMobileDevices `xml:"mobile_devices,omitempty"`
 }
 
@@ -10558,12 +10562,10 @@ func (t MobileDeviceCommandPostGeneral) MarshalXML(e *xml.Encoder, start xml.Sta
 	return e.EncodeElement(shadow(t), start)
 }
 
-// MobileDeviceCommandPostMobileDevices represents a mobile device command post mobile devices.
+// MobileDeviceCommandPostMobileDevices The devices to send the command to. The spec declares one device; the server takes several (wire-verified 2026-10-19) and applies the command to all of them or none, answering 400 Unable to match mobile_device for an unknown ID. When a body is present the server targets these devices and ignores any IDs in the URL.
 type MobileDeviceCommandPostMobileDevices struct {
 	XMLName      xml.Name
-	ID           *int                                          `xml:"id,omitempty"`
-	MobileDevice *MobileDeviceCommandMobileDevicesMobileDevice `xml:"mobile_device,omitempty"`
-	Size         *Size                                         `xml:"size,omitempty"`
+	MobileDevice *[]MobileDeviceCommandPostMobileDevicesMobileDeviceItem `xml:"mobile_device,omitempty"`
 }
 
 // MarshalXML forces the MobileDeviceCommandPostMobileDevices root element name to the wire value
@@ -10576,6 +10578,30 @@ type MobileDeviceCommandPostMobileDevices struct {
 func (t MobileDeviceCommandPostMobileDevices) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
 	start.Name = xml.Name{Local: "mobile_devices"}
 	type shadow MobileDeviceCommandPostMobileDevices
+	return e.EncodeElement(shadow(t), start)
+}
+
+// MobileDeviceCommandPostMobileDevicesMobileDeviceItem represents a mobile device command post mobile devices mobile device item.
+type MobileDeviceCommandPostMobileDevicesMobileDeviceItem struct {
+	XMLName        xml.Name
+	ID             *int    `xml:"id,omitempty"`
+	ManagementID   *string `xml:"management_id,omitempty"`
+	PhoneNumber    *string `xml:"phone_number,omitempty"`
+	SerialNumber   *string `xml:"serial_number,omitempty"`
+	UDID           *string `xml:"udid,omitempty"`
+	WifiMacAddress *string `xml:"wifi_mac_address,omitempty"`
+}
+
+// MarshalXML forces the MobileDeviceCommandPostMobileDevicesMobileDeviceItem root element name to the wire value
+// declared by the spec (<mobile_device>) regardless of what XMLName.Local
+// holds. Classic resources are frequently decoded from polymorphic wire
+// roots (<static_user_group>, <smart_user_group>, <user_group>, etc.) —
+// stashing the incoming root name in XMLName is useful context but must
+// not leak back into writes. The shadow type suppresses re-entry into
+// this method during encoding.
+func (t MobileDeviceCommandPostMobileDevicesMobileDeviceItem) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
+	start.Name = xml.Name{Local: "mobile_device"}
+	type shadow MobileDeviceCommandPostMobileDevicesMobileDeviceItem
 	return e.EncodeElement(shadow(t), start)
 }
 

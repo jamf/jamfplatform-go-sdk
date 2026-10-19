@@ -107,7 +107,10 @@ func (c *Client) GetMobileDeviceCommandByCommand(ctx context.Context, command st
 // command`, EnableDataRoaming answers 409 `Unsupported command`, and PasscodeLockGracePeriod answers
 // 400 `Device does not support PasscodeLockGracePeriod` on a device that is not a Shared iPad. The
 // server records some commands under another name: PlayLostModeSound reads back as
-// PLAY_LOST_MODE_SOUND. Identical pending commands for one device are deduplicated and share a UUID.
+// PLAY_LOST_MODE_SOUND. Identical pending commands for one device are deduplicated and share a UUID. A
+// request body naming devices wins over the IDs in the URL, which is why a command that carries
+// parameters (Wallpaper, EnableLostMode) must list its devices in the body to reach more than one; the
+// URL ID list serves parameter-less commands.
 func (c *Client) CreateMobileDeviceCommandByCommandID(ctx context.Context, command string, id_list string, request *MobileDeviceCommandPost) (*MobileDeviceCommandIssued, error) {
 	prefix := c.transport.APIPrefix("proclassic", "")
 	var result MobileDeviceCommandIssued
@@ -137,7 +140,10 @@ func (c *Client) CreateMobileDeviceCommandByCommandID(ctx context.Context, comma
 // command`, EnableDataRoaming answers 409 `Unsupported command`, and PasscodeLockGracePeriod answers
 // 400 `Device does not support PasscodeLockGracePeriod` on a device that is not a Shared iPad. The
 // server records some commands under another name: PlayLostModeSound reads back as
-// PLAY_LOST_MODE_SOUND. Identical pending commands for one device are deduplicated and share a UUID.
+// PLAY_LOST_MODE_SOUND. Identical pending commands for one device are deduplicated and share a UUID. A
+// request body naming devices wins over the IDs in the URL, which is why a command that carries
+// parameters (Wallpaper, EnableLostMode) must list its devices in the body to reach more than one; the
+// URL ID list serves parameter-less commands.
 func (c *Client) CreateMobileDeviceCommandByCommand(ctx context.Context, command string, request *MobileDeviceCommandPost) (*MobileDeviceCommandIssued, error) {
 	prefix := c.transport.APIPrefix("proclassic", "")
 	var result MobileDeviceCommandIssued
