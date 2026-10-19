@@ -11,13 +11,19 @@ package jamfplatform_test
 // wallpaper_setting singular, and the server accepts any integer there.
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"image"
+	"image/color"
+	"image/png"
+	"net/http"
 	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/jamf/jamfplatform-go-sdk/jamfplatform"
+	"github.com/jamf/jamfplatform-go-sdk/jamfplatform/pro"
 	"github.com/jamf/jamfplatform-go-sdk/jamfplatform/proclassic"
 )
 
@@ -449,5 +455,96 @@ func TestAcceptance_Classic_MobileDeviceCommandLostModeFields(t *testing.T) {
 				t.Errorf("%s: err = %v", cmd, err)
 			}
 		}
+	})
+}
+
+// pngBytes returns a size x size RGBA PNG gradient, small enough to upload
+// cheaply and large enough for the server's downscale to show.
+func pngBytes(t *testing.T, size int) []byte {
+	t.Helper()
+	img := image.NewRGBA(image.Rect(0, 0, size, size))
+	for y := range size {
+		for x := range size {
+			img.Set(x, y, color.RGBA{R: uint8(x * 255 / size), G: uint8(y * 255 / size), B: 128, A: 255})
+		}
+	}
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, img); err != nil {
+		t.Fatal(err)
+	}
+	return buf.Bytes()
+}
+
+// TestAcceptance_Classic_MobileDeviceCommandWallpaperIcon sends Wallpaper by
+// wallpaper_id, which names a Jamf Pro icon. Unlike wallpaper_content the ID is
+// validated, and the icon upload resizes what it is given.
+//
+// An uploaded icon cannot be deleted and every upload mints a new ID, so the
+// test uploads once per run at most.
+func TestAcceptance_Classic_MobileDeviceCommandWallpaperIcon(t *testing.T) {
+	requireWriteOptIn(t, wallpaperWriteOptIn,
+		"Wallpaper is queued against a real mobile device, and an uploaded icon cannot be deleted.")
+	c := accClient(t)
+	cl := proclassic.New(c)
+	id := firstSupervisedMobileDeviceID(t, cl)
+	ctx := context.Background()
+
+	icon, err := pro.New(c).UploadIconV1(ctx, "sdk-acc-wallpaper.png", bytes.NewReader(pngBytes(t, 1024)))
+	if err != nil {
+		skipOnServerError(t, err)
+		t.Fatalf("UploadIconV1: %v", err)
+	}
+
+	t.Run("upload_is_downscaled_to_512", func(t *testing.T) {
+		resp, err := http.Get(icon.URL)
+		if err != nil {
+			t.Fatalf("GET %s: %v", icon.URL, err)
+		}
+		defer func() { _ = resp.Body.Close() }()
+		cfg, err := png.DecodeConfig(resp.Body)
+		if err != nil {
+			t.Fatalf("stored icon is not a PNG: %v", err)
+		}
+		if cfg.Width != 512 || cfg.Height != 512 {
+			t.Errorf("stored icon is %dx%d, want the server's 512x512 downscale of the 1024x1024 upload", cfg.Width, cfg.Height)
+		}
+	})
+	t.Run("real_icon_is_accepted", func(t *testing.T) {
+		got, err := cl.IssueMobileDeviceCommand(ctx, wallpaperCommand(id, proclassic.MobileDeviceCommandPostGeneral{
+			WallpaperSetting: new(proclassic.MobileDeviceCommandPostGeneralWallpaperSetting3),
+			WallpaperID:      new(icon.ID),
+		}))
+		if err != nil {
+			skipOnServerError(t, err)
+			t.Fatalf("IssueMobileDeviceCommand: %v", err)
+		}
+		assertIssuedCommand(t, got, "Wallpaper", id)
+	})
+	t.Run("nonexistent_icon_is_refused", func(t *testing.T) {
+		for _, bad := range []int{0, -1, 2147483647} {
+			_, err := cl.IssueMobileDeviceCommand(ctx, wallpaperCommand(id, proclassic.MobileDeviceCommandPostGeneral{
+				WallpaperSetting: new(proclassic.MobileDeviceCommandPostGeneralWallpaperSetting3),
+				WallpaperID:      new(bad),
+			}))
+			if err == nil {
+				t.Errorf("wallpaper_id %d was accepted", bad)
+				continue
+			}
+			skipOnServerError(t, err)
+			if !strings.Contains(err.Error(), "Problem with mobile_device_command") {
+				t.Errorf("wallpaper_id %d: err = %v", bad, err)
+			}
+		}
+	})
+	t.Run("content_is_not_validated", func(t *testing.T) {
+		got, err := cl.IssueMobileDeviceCommand(ctx, wallpaperCommand(id, proclassic.MobileDeviceCommandPostGeneral{
+			WallpaperSetting: new(proclassic.MobileDeviceCommandPostGeneralWallpaperSetting3),
+			WallpaperContent: new("***not base64, not an image***"),
+		}))
+		if err != nil {
+			skipOnServerError(t, err)
+			t.Fatalf("the server now validates wallpaper_content (%v); assert the refusal", err)
+		}
+		assertIssuedCommand(t, got, "Wallpaper", id)
 	})
 }

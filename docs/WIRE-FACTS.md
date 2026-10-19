@@ -1803,11 +1803,29 @@ the path-parameter enum godoc (which no key reaches) is corrected by
   **or** `wallpaper_content` is then required (`400 wallpaper_id or
   wallpaper_content must be provided`). The integer is not range-checked: `9`
   was accepted though the spec lists 1, 2 and 3. `wallpaper_id` is a Jamf Pro
-  icon ID and is **not validated at queue time** — `1` returned `201`. The
-  command is deprecated in the spec (2026-03-13) and still queued. Uploading the
-  icon (`pro.UploadIconV1`) **resizes it**: a 2048×2048, 5.7 MB PNG was stored as
-  512×512, 409 KB, and the stored copy is fetched from the returned `url`;
-  `GET /v1/icon/download/{id}` answered `500` for every `res`/`scale` tried.
+  icon ID, and **it is validated**: a real icon (stock icon `1`, or one just
+  uploaded) is `201`, while `2147483647`, `0` and `-1` are
+  `400 Problem with mobile_device_command` (an earlier version of this note said
+  it was not validated; icon `1` exists, which is why it passed). `wallpaper_content`
+  is the opposite — **nothing is checked**: a base64 string that is not an
+  image, a string that is not base64, the full 5.7 MB 2048×2048 PNG (a 7.6 MB
+  body) and a body carrying both `wallpaper_id` and `wallpaper_content` were all
+  `201`, so a bad image fails on the device, not at the API. The command is
+  deprecated in the spec (2026-03-13) and still queued.
+- **Icon upload (`pro.UploadIconV1`, `POST /v1/icon`).** The SDK sends the file
+  untouched: the multipart `file` part was byte-identical to the source (same
+  SHA-256, `Content-Type: image/png`, HTTP/1.1 chunked, no declared length),
+  verified by capturing the request body. **The server then resizes it**: a
+  2048×2048, 5.7 MB RGBA PNG is stored as a 512×512, 409 KB RGBA PNG — a plain
+  downscale (alpha kept; mean per-channel difference 0.44/255 against a local
+  resize of the original), re-encoded, and it is the only copy: the returned
+  `url` serves the same 512×512 bytes whatever `res`, `scale` or size query is
+  appended, and `GET /v1/icon/download/{id}` answered `500` for every
+  `res`/`scale` tried. The `url` is content-addressed, so identical uploads
+  share it, but **each upload still mints a new icon ID** (5227, 5235 and 5236 for
+  one file), and there is no way to delete one. Whether a Wallpaper command
+  sent with `wallpaper_content` is resized the same way is not observable
+  through the API.
 - **Lost mode.** `EnableLostMode` with neither message nor phone is
   `400 Either phone number or Lost Mode message must be entered`; either alone is
   `201`. The server does not echo the fields, and it **deduplicates identical
