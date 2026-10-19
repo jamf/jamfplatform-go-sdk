@@ -543,7 +543,7 @@ func TestAcceptance_Classic_ComputerCommandStatusUnknownUUID(t *testing.T) {
 
 // TestAcceptance_Classic_ComputerCommandsByCommandEmptyBody pins a server
 // fault: GET /computercommands/command/{command} answers 200 with a body that
-// is only the XML declaration, for commands the tenant holds hundreds of and for
+// is only the XML declaration, for a command the tenant holds and for
 // a nonsense name alike. The method can never return data. It fails the day the
 // server returns a body, which is the cue to type it (it is the flat list shape
 // the by-name read answers) and drop the godoc warning.
@@ -551,17 +551,36 @@ func TestAcceptance_Classic_ComputerCommandsByCommandEmptyBody(t *testing.T) {
 	cl := proclassic.New(accClient(t))
 	ctx := context.Background()
 
-	// control: the by-name read holds the same commands and answers them
-	named, err := cl.GetComputerCommandByName(ctx, "DeviceInformation")
+	// The control is a command the tenant holds, taken from the list: which
+	// commands exist differs per tenant, and the by-name read answers 404 for
+	// a name the tenant has none of.
+	list, err := cl.ListComputerCommands(ctx)
 	if err != nil {
 		skipOnServerError(t, err)
-		t.Fatalf("control GetComputerCommandByName: %v", err)
+		t.Fatalf("ListComputerCommands: %v", err)
 	}
-	if named.ComputerCommand == nil || len(*named.ComputerCommand) == 0 {
-		t.Skip("the tenant holds no DeviceInformation command to contrast with")
+	held := ""
+	for _, c := range deref(list.ComputerCommand) {
+		if c.Command != nil && *c.Command != "" {
+			held = *c.Command
+			break
+		}
+	}
+	if held == "" {
+		t.Skip("the tenant holds no computer command to contrast with")
 	}
 
-	for _, name := range []string{"DeviceInformation", "EnableRemoteDesktop", "NotACommand"} {
+	// control: the by-name read holds the same commands and answers them
+	named, err := cl.GetComputerCommandByName(ctx, held)
+	if err != nil {
+		skipOnServerError(t, err)
+		t.Fatalf("control GetComputerCommandByName(%s): %v", held, err)
+	}
+	if named.ComputerCommand == nil || len(*named.ComputerCommand) == 0 {
+		t.Fatalf("control GetComputerCommandByName(%s) answered no commands, though the list holds one", held)
+	}
+
+	for _, name := range []string{held, "EnableRemoteDesktop", "NotACommand"} {
 		got, err := cl.GetComputerCommandsByCommand(ctx, name)
 		if err != nil {
 			skipOnServerError(t, err)
