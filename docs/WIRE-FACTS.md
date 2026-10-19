@@ -1732,6 +1732,108 @@ withdrawn them) and dropped five schemas no operation referenced. On the wire,
 `/pro/v2/inventory-preload/records` serves, against `403 BAD_PERMISSIONS` for a
 bogus `/pro/v1/` path. Inert to the SDK, which does not carry v1.
 
+### Mobile device commands: every response is flat, and the generator had dropped every request-only field (2026-10-19)
+
+Probed on the EU test environment against a supervised, simulated iPhone, with
+curl for the raw bodies and the SDK for what they decode to. Three independent
+defects, one cause each, none visible to a test that only checked for an error.
+
+**The create response is flat; the spec nests it.** Every create endpoint
+answers `201` with
+`<mobile_device_command><uuid>…</uuid><command>…</command><mobile_devices>
+<mobile_device><id/><management_id/><status/></mobile_device></mobile_devices>
+</mobile_device_command>`. The spec's `mobile_device_command` puts `uuid` and
+`command` under `<general>`, so the typed result decoded the device echo and
+nothing else — no UUID, the one handle a caller needs to poll. A command sent to
+`/id/{a},{b}` returns one `<mobile_device>` per device. `mobile_device_command_issued`
+is a `schemaCreations` entry carrying the wire shape.
+
+**The three list reads share one flat shape the spec does not declare.**
+`GET /mobiledevicecommands`, `…/command/{command}` and `…/name/{name}` all
+answer `<mobile_device_commands><size/>` followed by one flat
+`<mobile_device_command>` per command (`command`, `uuid`, `profile_id`,
+`date_sent`, `date_sent_epoch`, `date_sent_utc`, `apns_result_status`,
+`profile_udid`, then `mobile_devices` with `size` and each device's `id`,
+`management_id`, `udid`, `serial_number`, `phone_number`, `wifi_mac_address`).
+The spec declares the list as a bare array of items nesting a trimmed command
+(no `uuid`), and declares the two filters as a *single* `mobile_device_command`.
+The cost was worse than missing fields:
+
+- the two filters decoded to a zero struct and a **nil error**
+  (`XMLName.Local` was `mobile_device_commands`) — the untagged-`XMLName` trap;
+- the list decoded **1 element of 453**, because `encoding/xml` appends one
+  element per `Unmarshal` into a slice, and the one it kept had no UUID.
+
+`mobile_device_commands_listed` wraps `mobile_device_command_summary`.
+`GET …/uuid/{uuid}` is the one read that matches the spec — nested `<general>`,
+a single device — except that its device carries `management_id`, which the spec
+omits (`schemaPatches`, with a `schemaPatchesRequireAbsent` guard). A command
+sent to several devices reads back through its UUID as **one device**: the
+server records one command per device.
+
+**`applyPostSymmetry` overwrote the request's `general` with the response's.**
+The post-symmetry pass replaces a property both schemas declare, so
+`mobile_device_command_post.general` — the only place the spec puts request
+parameters — was swapped for the read sibling's `general` (UUID, timestamps,
+APNs status). Eleven fields could not be sent: `wallpaper_setting`,
+`wallpaper_id`, `wallpaper_content`, `passcode_lock_grace_period`,
+`lost_mode_message`, `lost_mode_phone`, `lost_mode_footnote`,
+`always_enforce_lost_mode`, `lost_mode_with_sound`, `disallow_proximity_setup`,
+`e_sim_server_url`. `config.postSymmetryExcludes` now keeps `general`, which
+costs the nine response-only fields (`ID`, `UDID`, `UUID`, `ProfileID`,
+`ProfileUDID`, `ApnsResultStatus`, `DateSent*`) on the request type — a breaking
+removal, and the right one.
+
+**The `command` enum is prose.** The spec's request `command` enum is
+`"Wallpaper (supervised only) (Deprecated on 2026-03-13)"` and the like; the
+server takes the bare name. `schemaPatches` replaces it with a plain string, and
+the path-parameter enum godoc (which no key reaches) is corrected by
+`methodNotes`.
+
+| Command | Result |
+|---|---|
+| `UpdateInventory`, `Wallpaper`, `EnableLostMode`, `PlayLostModeSound`, `DeviceLocation`, `RefreshCellularPlans` | `201` — the last is **absent from the spec's list** |
+| `RestartDevice`, `ShutDownDevice`, `ClearPasscode`, `DisableLostMode` | `400 Invalid command` |
+| `EnableDataRoaming` | `409 Unsupported command` |
+| `PasscodeLockGracePeriod` | `400 Device does not support PasscodeLockGracePeriod` off a Shared iPad (untestable here) |
+
+- **Wallpaper.** The spec's prose table calls the field `wallpaper_settings`; the
+  schema and the wire both say **`wallpaper_setting`**, and the plural is
+  silently ignored (`400 wallpaper_setting must be provided`). `wallpaper_id`
+  **or** `wallpaper_content` is then required (`400 wallpaper_id or
+  wallpaper_content must be provided`). The integer is not range-checked: `9`
+  was accepted though the spec lists 1, 2 and 3. `wallpaper_id` is a Jamf Pro
+  icon ID and is **not validated at queue time** — `1` returned `201`. The
+  command is deprecated in the spec (2026-03-13) and still queued. Uploading the
+  icon (`pro.UploadIconV1`) **resizes it**: a 2048×2048, 5.7 MB PNG was stored as
+  512×512, 409 KB, and the stored copy is fetched from the returned `url`;
+  `GET /v1/icon/download/{id}` answered `500` for every `res`/`scale` tried.
+- **Lost mode.** `EnableLostMode` with neither message nor phone is
+  `400 Either phone number or Lost Mode message must be entered`; either alone is
+  `201`. The server does not echo the fields, and it **deduplicates identical
+  pending commands per device** into the first one's UUID — three
+  `EnableLostMode` bodies with different fields returned one UUID, and
+  `UpdateInventory` through four endpoints returned one — so a field's arrival
+  is provable only through a validation refusal. `PlayLostModeSound` is
+  recorded as `PLAY_LOST_MODE_SOUND`.
+- **Nothing turns lost mode off.** `DisableLostMode` is not a command the server
+  knows, so a fixture that has been through `EnableLostMode` stays in it.
+
+**The two parameterised paths are unrouted at the gateway.**
+`…/command/{command}/{parameter}/id/{id_list}` and
+`…/command/{command}/{parameter}/{version}/id/{id_list}` answer
+`403 BAD_PERMISSIONS` for every command tried, identically to a nonsense path in
+the same namespace (control in the same invocation). The 4-segment form is
+routed for `DeviceName` alone, which the service then refuses as `Invalid
+command`. No command has been seen to succeed through either, so both methods
+return the same type as the rest and their tests pin the refusal.
+
+Pinned by `TestAcceptance_Classic_MobileDeviceCommand*` (create variants, reads,
+wallpaper, lost-mode fields, unrouted parameter forms), all behind
+`JAMFPLATFORM_ACC_CLASSIC_MOBILE_COMMANDS_WRITE_OK`. Report upstream: the
+response shapes, the `wallpaper_settings` prose, the prose-annotated `command`
+enum, `RefreshCellularPlans` missing from it, and the unrouted parameter forms.
+
 ### The gateway-bypass technique
 
 When a gateway 403 blocks verification, separate "Jamf Pro can't do this" from

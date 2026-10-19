@@ -65,7 +65,7 @@ func TestGetMobileDeviceCommandByName(t *testing.T) {
 		if r.Method != http.MethodGet {
 			t.Errorf("method = %s, want GET", r.Method)
 		}
-		writeXML(t, w, http.StatusOK, "<mobile_device_command></mobile_device_command>")
+		writeXML(t, w, http.StatusOK, "<mobile_device_commands></mobile_device_commands>")
 	})
 
 	result, err := c.GetMobileDeviceCommandByName(context.Background(), "test-id")
@@ -125,7 +125,7 @@ func TestGetMobileDeviceCommandByCommand(t *testing.T) {
 		if r.Method != http.MethodGet {
 			t.Errorf("method = %s, want GET", r.Method)
 		}
-		writeXML(t, w, http.StatusOK, "<mobile_device_command></mobile_device_command>")
+		writeXML(t, w, http.StatusOK, "<mobile_device_commands></mobile_device_commands>")
 	})
 
 	result, err := c.GetMobileDeviceCommandByCommand(context.Background(), "test-id")
@@ -155,12 +155,15 @@ func TestCreateMobileDeviceCommandByCommandID(t *testing.T) {
 		if r.Method != http.MethodPost {
 			t.Errorf("method = %s, want POST", r.Method)
 		}
-		w.WriteHeader(http.StatusCreated)
+		writeXML(t, w, http.StatusCreated, "<mobile_device_command></mobile_device_command>")
 	})
 
-	err := c.CreateMobileDeviceCommandByCommandID(context.Background(), "test-id", "test-id", &MobileDeviceCommandPost{})
+	result, err := c.CreateMobileDeviceCommandByCommandID(context.Background(), "test-id", "test-id", &MobileDeviceCommandPost{})
 	if err != nil {
 		t.Fatal(err)
+	}
+	if result == nil {
+		t.Fatal("expected non-nil result")
 	}
 }
 
@@ -170,12 +173,15 @@ func TestCreateMobileDeviceCommandByCommand(t *testing.T) {
 		if r.Method != http.MethodPost {
 			t.Errorf("method = %s, want POST", r.Method)
 		}
-		w.WriteHeader(http.StatusCreated)
+		writeXML(t, w, http.StatusCreated, "<mobile_device_command></mobile_device_command>")
 	})
 
-	err := c.CreateMobileDeviceCommandByCommand(context.Background(), "test-id", &MobileDeviceCommandPost{})
+	result, err := c.CreateMobileDeviceCommandByCommand(context.Background(), "test-id", &MobileDeviceCommandPost{})
 	if err != nil {
 		t.Fatal(err)
+	}
+	if result == nil {
+		t.Fatal("expected non-nil result")
 	}
 }
 
@@ -185,12 +191,15 @@ func TestCreateMobileDeviceCommandWithParameterByIDList(t *testing.T) {
 		if r.Method != http.MethodPost {
 			t.Errorf("method = %s, want POST", r.Method)
 		}
-		w.WriteHeader(http.StatusCreated)
+		writeXML(t, w, http.StatusCreated, "<mobile_device_command></mobile_device_command>")
 	})
 
-	err := c.CreateMobileDeviceCommandWithParameterByIDList(context.Background(), "test-id", "test-id", "test-id", &MobileDeviceCommandPost{})
+	result, err := c.CreateMobileDeviceCommandWithParameterByIDList(context.Background(), "test-id", "test-id", "test-id", &MobileDeviceCommandPost{})
 	if err != nil {
 		t.Fatal(err)
+	}
+	if result == nil {
+		t.Fatal("expected non-nil result")
 	}
 }
 
@@ -200,12 +209,15 @@ func TestCreateMobileDeviceCommandWithParameterVersionByIDList(t *testing.T) {
 		if r.Method != http.MethodPost {
 			t.Errorf("method = %s, want POST", r.Method)
 		}
-		w.WriteHeader(http.StatusCreated)
+		writeXML(t, w, http.StatusCreated, "<mobile_device_command></mobile_device_command>")
 	})
 
-	err := c.CreateMobileDeviceCommandWithParameterVersionByIDList(context.Background(), "test-id", "test-id", "test-id", "test-id", &MobileDeviceCommandPost{})
+	result, err := c.CreateMobileDeviceCommandWithParameterVersionByIDList(context.Background(), "test-id", "test-id", "test-id", "test-id", &MobileDeviceCommandPost{})
 	if err != nil {
 		t.Fatal(err)
+	}
+	if result == nil {
+		t.Fatal("expected non-nil result")
 	}
 }
 
@@ -215,11 +227,14 @@ func TestCreateMobileDeviceCommandByName(t *testing.T) {
 		if r.Method != http.MethodPost {
 			t.Errorf("method = %s, want POST", r.Method)
 		}
-		w.WriteHeader(http.StatusCreated)
+		writeXML(t, w, http.StatusCreated, "<mobile_device_command></mobile_device_command>")
 	})
 
-	err := c.CreateMobileDeviceCommandByName(context.Background(), "test-id", &MobileDeviceCommandPost{})
+	result, err := c.CreateMobileDeviceCommandByName(context.Background(), "test-id", &MobileDeviceCommandPost{})
 	if err != nil {
 		t.Fatal(err)
+	}
+	if result == nil {
+		t.Fatal("expected non-nil result")
 	}
 }

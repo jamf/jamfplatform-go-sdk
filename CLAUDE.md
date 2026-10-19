@@ -610,6 +610,9 @@ recorded**, unless noted.
 | `proclassic` `/activationcode` | deprecated with **no successor** anywhere — ships a `// Deprecated:` marker deliberately (see Hard rules) | `TestAcceptance_Classic_GetActivationCode` |
 | `proclassic` `GET /patches/name/{name}` | `500` for every name | `TestAcceptance_Classic_PatchByName` |
 | `proclassic` `POST`/`PUT /patches/id/{id}` | refused whatever the body | `TestAcceptance_Classic_PatchByIDWrites` |
+| `proclassic` mobile device command responses | create answers flat (`uuid`, `command`, devices with `management_id`) against a spec nesting them under `general`; the list and both filters answer a `<mobile_device_commands>` list of flat elements against a bare array and a single command. Followed on the wire, not the spec — `mobile_device_command_issued`, `mobile_device_commands_listed` — see [WIRE-FACTS](docs/WIRE-FACTS.md#mobile-device-commands-every-response-is-flat-and-the-generator-had-dropped-every-request-only-field-2026-10-19) | `TestAcceptance_Classic_MobileDeviceCommandCreateVariants`, `TestAcceptance_Classic_MobileDeviceCommandReads` |
+| `proclassic` mobile device command parameter forms | `…/command/{command}/{parameter}/id/{id_list}` and `…/{parameter}/{version}/id/{id_list}` published, refused `403 BAD_PERMISSIONS` at the gateway for every command tried | `TestAcceptance_Classic_MobileDeviceCommandParameterFormsUnrouted` |
+| `proclassic` mobile device command `command` | spec enum carries prose (`Wallpaper (supervised only) (Deprecated…)`); server takes bare names and accepts `RefreshCellularPlans`, which the enum omits. Patched to a plain string | `TestAcceptance_Classic_MobileDeviceCommandLostModeFields` |
 | v1942's 146 withdrawn operations | still served on the wire; SDK deliberately stricter | — (see [WIRE-FACTS](docs/WIRE-FACTS.md#v1942-dropped-146-deprecated-operations-from-the-specs-every-one-is-live-2026-09-01)) |
 | `blueprints` `com.jamf.ddm-strict` | closed declaration `oneOf` in the spec, open on the wire | `TestAcceptance_Blueprint_DeclarationsComponentRoundTrip` |
 | `securitycloud` uem-connect `Accept` | `application/xml` answers 200 with XML against a JSON-only claim | `TestAcceptance_SecurityCloudUemConnectAcceptNegotiation` |
@@ -646,7 +649,8 @@ items are listed at the end of each build in the history file.
   tool for this case is a hold, and a hold is cheap exactly when the offending
   flag is the build's only change.
 - **Local spec repairs are self-expiring.** `schemaCreations` panics if the name
-  reappears; a `schemaPatches` entry that *supplies* a missing property needs a
+  reappears (except where it holds a *wire shape* under a new name, which cannot
+  expire — its acceptance test retires it); a `schemaPatches` entry that *supplies* a missing property needs a
   `schemaPatchesRequireAbsent` line or it shadows the real one forever;
   `enumAdditions` panics on a value the spec now declares; `requiredPrivileges`
   fails generation once the operation declares `x-required-privileges`;

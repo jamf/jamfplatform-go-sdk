@@ -8825,6 +8825,9 @@
                     "example": 1,
                     "type": "integer"
                   },
+                  "management_id": {
+                    "type": "string"
+                  },
                   "phone_number": {
                     "example": "123-555-6789",
                     "type": "string"
@@ -8853,49 +8856,122 @@
         },
         "type": "object"
       },
+      "mobile_device_command_issued": {
+        "description": "The 201 body of POST /mobiledevicecommands/command. The spec declares mobile_device_command here, which nests uuid and command under general; the server answers flat (wire-verified 2026-10-19), so that type decodes everything but the device echo.",
+        "properties": {
+          "command": {
+            "type": "string"
+          },
+          "mobile_devices": {
+            "properties": {
+              "mobile_device": {
+                "items": {
+                  "properties": {
+                    "id": {
+                      "type": "integer"
+                    },
+                    "management_id": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object",
+                  "xml": {
+                    "name": "mobile_device"
+                  }
+                },
+                "type": "array"
+              }
+            },
+            "type": "object"
+          },
+          "uuid": {
+            "description": "UUID of the queued command; the handle for GetMobileDeviceCommandByUUID.",
+            "type": "string"
+          }
+        },
+        "type": "object",
+        "xml": {
+          "name": "mobile_device_command"
+        }
+      },
       "mobile_device_command_post": {
         "properties": {
           "general": {
             "properties": {
-              "apns_result_status": {
-                "example": "Acknowledged",
-                "type": "string"
+              "always_enforce_lost_mode": {
+                "default": true,
+                "description": "Whether Lost Mode should be enabled after the device is wiped and re-enrolled (optional, but defaults to true)",
+                "example": "Whether Lost Mode should be enabled after the device is wiped and re-enrolled (optional, but defaults to true)",
+                "type": "boolean"
               },
               "command": {
-                "example": "ClearPasscode",
+                "description": "Command to send the device, by its plain name, for example Wallpaper or EnableLostMode. The spec's enum members carry prose annotations such as \"(supervised only)\" and \"(Deprecated on ...)\" that the server does not accept, so the field is a plain string.",
                 "type": "string"
               },
-              "date_sent": {
-                "example": "2017-07-07T18:37:04.000Z",
+              "disallow_proximity_setup": {
+                "default": false,
+                "description": "If true, on the next reboot Proximity Setup is not allowed and the pane in Setup Assistant will be skipped. Defaults to false.",
+                "example": "If true, on the next reboot Proximity Setup is not allowed and the pane in Setup Assistant will be skipped. Defaults to false.",
+                "type": "boolean"
+              },
+              "e_sim_server_url": {
+                "description": "The carrier's eSIM server URL to query. This URL is obtained from each carrier separately.",
+                "example": "https://support.apple.com/en-us/HT209096",
                 "type": "string"
               },
-              "date_sent_epoch": {
-                "example": 1499470624555,
+              "lost_mode_footnote": {
+                "description": "The footnote to be displayed for the EnableLostMode command (optional)",
+                "example": "The footnote to be displayed for the EnableLostMode command (optional)",
                 "type": "string"
               },
-              "date_sent_utc": {
-                "example": "2017-07-07T18:37:04.555-0500",
+              "lost_mode_message": {
+                "description": "The message to be displayed on the lost device (Required for EnableLostMode command if lost_mode_phone is not specified)",
+                "example": "The message to be displayed on the lost device (Required for EnableLostMode command if lost_mode_phone is not specified)",
                 "type": "string"
               },
-              "id": {
-                "example": 1,
+              "lost_mode_phone": {
+                "description": "The phone number to be displayed on the lost device (Required for EnableLostMode command if lost_mode_message is not specified)",
+                "example": "The phone number to be displayed on the lost device (Required for EnableLostMode command if lost_mode_message is not specified)",
+                "type": "string"
+              },
+              "lost_mode_with_sound": {
+                "default": false,
+                "description": "Whether to play a sound on the device when the EnableLostMode command is sent (optional)",
+                "example": "Whether to play a sound on the device when the EnableLostMode command is sent (optional)",
+                "type": "boolean"
+              },
+              "passcode_lock_grace_period": {
+                "description": "Number of seconds the screen must be locked before unlock attempts will require the device passcode (Required for PasscodeLockGracePeriod command)",
+                "example": "Number of seconds the screen must be locked before unlock attempts will require the device passcode (Required for PasscodeLockGracePeriod command)",
                 "type": "integer"
               },
-              "profile_id": {
+              "wallpaper_content": {
+                "description": "Wallpaper image in PNG or JPEG format, encoded using base64 (required for Wallpaper command if wallpaper_id is not specified)",
+                "example": "Wallpaper image in PNG or JPEG format, encoded using base64 (required for Wallpaper command if wallpaper_id is not specified)",
+                "type": "string"
+              },
+              "wallpaper_id": {
+                "description": "ID of existing icon within Jamf Pro to use (required for Wallpaper command if wallpaper_content is not specified)",
+                "example": "ID of existing icon within Jamf Pro to use (required for Wallpaper command if wallpaper_content is not specified)",
                 "type": "integer"
               },
-              "profile_udid": {
-                "type": "string"
-              },
-              "udid": {
-                "example": "be597b7d-d0a4-42e6-ab98-18d1fd0c5640",
-                "type": "string"
-              },
-              "uuid": {
-                "example": "be597b7d-d0a4-42e6-ab98-18d1fd0c5640",
-                "type": "string"
+              "wallpaper_setting": {
+                "description": "Where to set wallpaper (Required for Wallpaper command.) Possible values include - 1 (Lock screen), 2 (Home screen), 3 (Lock and home screens)",
+                "enum": [
+                  1,
+                  2,
+                  3
+                ],
+                "example": "Where to set wallpaper (Required for Wallpaper command.) Possible values include - 1 (Lock screen), 2 (Home screen), 3 (Lock and home screens)",
+                "type": "integer"
               }
             },
+            "required": [
+              "command"
+            ],
             "type": "object"
           },
           "mobile_devices": {
@@ -8905,6 +8981,9 @@
                   "id": {
                     "example": 1,
                     "type": "integer"
+                  },
+                  "management_id": {
+                    "type": "string"
                   },
                   "phone_number": {
                     "example": "123-555-6789",
@@ -8930,6 +9009,78 @@
               }
             },
             "type": "object"
+          }
+        },
+        "type": "object",
+        "xml": {
+          "name": "mobile_device_command"
+        }
+      },
+      "mobile_device_command_summary": {
+        "description": "One element of the mobile device command list. The server answers flat (wire-verified 2026-10-19): command, uuid and the send timestamps sit directly on the element, beside mobile_devices. The spec nests a trimmed mobile_device_command inside each item and omits uuid, so decoding it yields no UUID and no devices.",
+        "properties": {
+          "apns_result_status": {
+            "type": "string"
+          },
+          "command": {
+            "description": "Command name as the server records it. Not always the name that was sent: PlayLostModeSound is recorded as PLAY_LOST_MODE_SOUND.",
+            "type": "string"
+          },
+          "date_sent": {
+            "type": "string"
+          },
+          "date_sent_epoch": {
+            "type": "string"
+          },
+          "date_sent_utc": {
+            "type": "string"
+          },
+          "mobile_devices": {
+            "properties": {
+              "mobile_device": {
+                "items": {
+                  "properties": {
+                    "id": {
+                      "type": "integer"
+                    },
+                    "management_id": {
+                      "type": "string"
+                    },
+                    "phone_number": {
+                      "type": "string"
+                    },
+                    "serial_number": {
+                      "type": "string"
+                    },
+                    "udid": {
+                      "type": "string"
+                    },
+                    "wifi_mac_address": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object",
+                  "xml": {
+                    "name": "mobile_device"
+                  }
+                },
+                "type": "array"
+              },
+              "size": {
+                "$ref": "#/components/schemas/size"
+              }
+            },
+            "type": "object"
+          },
+          "profile_id": {
+            "type": "integer"
+          },
+          "profile_udid": {
+            "type": "string"
+          },
+          "uuid": {
+            "description": "UUID of the command; the handle for GetMobileDeviceCommandByUUID.",
+            "type": "string"
           }
         },
         "type": "object",
@@ -8999,6 +9150,24 @@
           }
         },
         "type": "array"
+      },
+      "mobile_device_commands_listed": {
+        "description": "The list body for GET /mobiledevicecommands and its command and name filters. The spec declares mobile_device_commands as a bare array of items rather than a wrapper object, so only the first element decodes (one of 453 on the EU test environment).",
+        "properties": {
+          "mobile_device_command": {
+            "items": {
+              "$ref": "#/components/schemas/mobile_device_command_summary"
+            },
+            "type": "array"
+          },
+          "size": {
+            "$ref": "#/components/schemas/size"
+          }
+        },
+        "type": "object",
+        "xml": {
+          "name": "mobile_device_commands"
+        }
       },
       "mobile_device_configuration_profile": {
         "properties": {
