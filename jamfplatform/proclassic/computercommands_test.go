@@ -65,7 +65,7 @@ func TestGetComputerCommandByName(t *testing.T) {
 		if r.Method != http.MethodGet {
 			t.Errorf("method = %s, want GET", r.Method)
 		}
-		writeXML(t, w, http.StatusOK, "<computer_command></computer_command>")
+		writeXML(t, w, http.StatusOK, "<computer_commands></computer_commands>")
 	})
 
 	result, err := c.GetComputerCommandByName(context.Background(), "test-id")

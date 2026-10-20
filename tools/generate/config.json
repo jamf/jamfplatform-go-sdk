@@ -4614,13 +4614,28 @@
       "namespace": "proclassic",
       "package": "proclassic",
       "methodNotes": {
+        "CreateComputerCommandByCommand": "Pass the plain command name: the allowed-values list above is the spec's, and its entries carry prose annotations such as \"(macOS 10.14.4 and later)\" that the server refuses (500). Names are matched case-insensitively. Wire-verified 2026-10-19: EnableRemoteDesktop, DisableRemoteDesktop and UnlockUserAccount (which needs `general.user_name` in the body) answer 201. BlankPush, RestartDevice, DeviceLock, SettingsEnableBluetooth, SettingsDisableBluetooth and ScheduleOSUpdate are recognised but answer 400 `No command was queued for computer {id}` on the test fixtures; ShutDownDevice, EraseDevice, DeleteUser and UnmanageDevice are recognised (a nonexistent ID answers 400 `Unable to match computer`) and were not sent to a real computer. Every other name, including ProfileList, DeviceInformation, UpdateInventory and ClearPasscode, answers 500 INTERNAL_SERVER_ERROR before the ID is looked at. The response lists one `Command` per computer, each with its own UUID (`CommandUUID`), which is the handle for GetComputerCommandByUUID and GetComputerCommandsByStatus; an identical pending command for one computer is deduplicated and returns the earlier UUID. Name the computers in the request body; several are allowed. One unknown ID fails the whole request (400 `Unable to match computer`) and queues nothing.",
+        "GetComputerCommandByUUID": "An unknown UUID answers 500, not 404.",
+        "GetComputerCommandByName": "Filters the command list by command name. An unknown name answers 404. Lists the command's computers flat, one command per element: the spec's single-command response does not match the wire.",
+        "CreateMobileDeviceCommandByCommand": "Pass the plain command name: the allowed-values list above is the spec's, and the server refuses its prose annotations such as \"(Deprecated on ...)\". Accepted on the wire (2026-10-19): UpdateInventory, Wallpaper, EnableLostMode, PlayLostModeSound (recorded as PLAY_LOST_MODE_SOUND), DeviceLocation and RefreshCellularPlans, which the list omits. Refused: RestartDevice, ShutDownDevice, ClearPasscode and DisableLostMode (400 `Invalid command`), EnableDataRoaming (409 `Unsupported command`), and PasscodeLockGracePeriod on anything but a Shared iPad (400). The response is flat: `UUID` is the handle for GetMobileDeviceCommandByUUID, and identical pending commands for one device are deduplicated and share it. When the request body names devices, the server targets those and ignores any IDs in the URL, so a command that carries parameters (Wallpaper, EnableLostMode) must list its devices in the body to reach more than one.",
+        "CreateMobileDeviceCommandByCommandID": "Pass the plain command name: the allowed-values list above is the spec's, and the server refuses its prose annotations such as \"(Deprecated on ...)\". Accepted on the wire (2026-10-19): UpdateInventory, Wallpaper, EnableLostMode, PlayLostModeSound (recorded as PLAY_LOST_MODE_SOUND), DeviceLocation and RefreshCellularPlans, which the list omits. Refused: RestartDevice, ShutDownDevice, ClearPasscode and DisableLostMode (400 `Invalid command`), EnableDataRoaming (409 `Unsupported command`), and PasscodeLockGracePeriod on anything but a Shared iPad (400). The response is flat: `UUID` is the handle for GetMobileDeviceCommandByUUID, and identical pending commands for one device are deduplicated and share it. When the request body names devices, the server targets those and ignores any IDs in the URL. To reach several devices, list them in the body whatever the command: the server also takes a comma-separated `id_list`, but this method percent-encodes the commas (`152%2C153`), which the server does not decode and answers 400 `Unable to match mobile_device`.",
+        "CreateMobileDeviceCommandByName": "The response is flat: `UUID` is the handle for GetMobileDeviceCommandByUUID, and identical pending commands for one device are deduplicated and share it. When the request body names devices, the server targets those and ignores any IDs in the URL, so a command that carries parameters (Wallpaper, EnableLostMode) must list its devices in the body to reach more than one.",
+        "CreateMobileDeviceCommandWithParameterByIDList": "Unrouted at the gateway: every call answers `403 BAD_PERMISSIONS`, identically to a nonsense path in the namespace, for every command tried (2026-10-19). Use CreateMobileDeviceCommandByCommandID or IssueMobileDeviceCommand. `TestAcceptance_Classic_MobileDeviceCommandParameterFormsUnrouted` fails the day the route appears, which is the notification to delete this note.",
+        "CreateMobileDeviceCommandWithParameterVersionByIDList": "Unrouted at the gateway: every call answers `403 BAD_PERMISSIONS`, identically to a nonsense path in the namespace, for every command tried (2026-10-19). Use CreateMobileDeviceCommandByCommandID or IssueMobileDeviceCommand. `TestAcceptance_Classic_MobileDeviceCommandParameterFormsUnrouted` fails the day the route appears, which is the notification to delete this note.",
         "GetActivationCode": "No successor exists. The deprecation above says the endpoint may be removed, but the Jamf Pro API publishes no `GET /v1/activation-code` in any environment — only `PUT /v1/activation-code` and `PATCH /v1/activation-code/organization-name` — and no other Classic operation returns the activation code. So this remains the only way to read it, it answers 200 with real data, and there is nothing to migrate to. Reported upstream.",
+        "IssueComputerCommandByID": "Pass the plain command name: the allowed-values list above is the spec's, and its entries carry prose annotations such as \"(macOS 10.14.4 and later)\" that the server refuses (500). Names are matched case-insensitively. Wire-verified 2026-10-19: EnableRemoteDesktop, DisableRemoteDesktop and UnlockUserAccount (which needs `general.user_name` in the body) answer 201. BlankPush, RestartDevice, DeviceLock, SettingsEnableBluetooth, SettingsDisableBluetooth and ScheduleOSUpdate are recognised but answer 400 `No command was queued for computer {id}` on the test fixtures; ShutDownDevice, EraseDevice, DeleteUser and UnmanageDevice are recognised (a nonexistent ID answers 400 `Unable to match computer`) and were not sent to a real computer. Every other name, including ProfileList, DeviceInformation, UpdateInventory and ClearPasscode, answers 500 INTERNAL_SERVER_ERROR before the ID is looked at. The response lists one `Command` per computer, each with its own UUID (`CommandUUID`), which is the handle for GetComputerCommandByUUID and GetComputerCommandsByStatus; an identical pending command for one computer is deduplicated and returns the earlier UUID. A request body naming computers wins over the IDs in the URL, and is the way to reach several computers: the server also takes a comma-separated list in the URL, but this method percent-encodes the commas (`216%2C215`), which the server does not decode and answers 400 `Unable to match computer`. One unknown ID fails the whole request (400 `Unable to match computer`) and queues nothing.",
+        "GetComputerCommandsByCommand": "Always answers 200 with a body that is only the XML declaration, for real command names and nonsense alike (wire-verified 2026-10-19, repeatedly), so the result is always empty. This is a server fault. Use GetComputerCommandByName, which filters by command name and answers the list.",
+        "GetComputerCommandsByStatus": "Poll with the UUID from a create response. `Status` is Pending for a queued command. An unknown UUID answers 200 with status Canceled rather than 404, so Canceled cannot be told from a command that never existed.",
+        "GetMobileDeviceCommandByUUID": "Unlike the create and list responses, which are flat, this one nests the command under `General`: the UUID is `General.UUID` (wire-verified 2026-10-19).",
+        "IssueMobileDeviceCommand": "The response is flat: `UUID` is the handle for GetMobileDeviceCommandByUUID, and identical pending commands for one device are deduplicated and share it. When the request body names devices, the server targets those and ignores any IDs in the URL, so a command that carries parameters (Wallpaper, EnableLostMode) must list its devices in the body to reach more than one.",
         "UpdateActivationCode": "Use `pro.UpdateActivationCodeV1` instead. The deprecation above names no successor; that is the one, and unlike the read half it is published and routed today."
       },
       "specFile": "classic_api_resource_documentation.json",
       "format": "xml",
       "splitByTag": true,
       "docNotes": {
+        "ComputerCommandsItem": "No method returns this type. The spec declares `GET /computercommands` as a bare array of these, which decodes only the first element of the real list; ListComputerCommands returns ComputerCommandsListed. It stays emitted because `api/` keeps the spec's declaration and the `responseType` override is generator-only.",
+        "MobileDeviceCommandsItem": "No method returns this type. The spec declares `GET /mobiledevicecommands` as a bare array of these, which decodes only the first element of the real list and drops every UUID; ListMobileDeviceCommands returns MobileDeviceCommandsListed. It stays emitted because `api/` keeps the spec's declaration and the `responseType` override is generator-only.",
         "MobileDeviceConfigurationProfileSelfServiceSelfServiceCategoriesCategoryItem": "`display_in` is the only property that makes the server store the category, and the spec omitted it: it `$ref`ed the shared `category` schema ({id, name, priority}), so this type could not express the write at all. `feature_in` is deliberately absent \u2014 the mobile profile's Self Service tab has no per-category \"feature in\" control, only the single `FeatureOnMainPage` checkbox, and the wire discards a `<category>` carrying `<feature_in>` without `<display_in>` exactly as it discards a bare `<id>`. The sibling `mobile_device_application` agrees on both the spec and the wire: it declares `display_in` and no `feature_in` at the same position, and it stores and echoes `display_in` while storing no `feature_in` at all. The four macOS/ebook siblings do store `feature_in` and echo it defaulted to false, so this is a per-resource capability rather than a field the server ignores everywhere. All six were wire-probed on Jamf Pro 11.31.1, 2026-09-07, with `FeatureOnMainPage` toggled in the same request as the control; the display_in-or-discarded law is identical across all six, and only this resource hides `display_in` from the read."
       },
       "fieldTypeOverrides": {
@@ -4631,6 +4646,276 @@
         "*.map_user_membership_to_group_field": "*string",
         "os_x_configuration_profile_general.payloads": "PayloadsXMLText",
         "mobile_device_configuration_profile_general.payloads": "PayloadsXMLText"
+      },
+      "schemaCreations": {
+        "computer_command_summary": {
+          "type": "object",
+          "xml": {
+            "name": "computer_command"
+          },
+          "description": "One element of the computer command list. The server answers flat (wire-verified 2026-10-19): command, uuid and the send timestamps sit directly on the element, beside computers. The spec nests a trimmed computer_command inside each item and omits management_id.",
+          "properties": {
+            "command": {
+              "type": "string",
+              "description": "Command name as the server records it."
+            },
+            "uuid": {
+              "type": "string",
+              "description": "UUID of the command; the handle for GetComputerCommandByUUID."
+            },
+            "profile_id": {
+              "type": "integer"
+            },
+            "date_sent": {
+              "type": "string"
+            },
+            "date_sent_epoch": {
+              "type": "string"
+            },
+            "date_sent_utc": {
+              "type": "string"
+            },
+            "apns_result_status": {
+              "type": "string"
+            },
+            "profile_udid": {
+              "type": "string"
+            },
+            "computers": {
+              "type": "object",
+              "properties": {
+                "size": {
+                  "$ref": "#/components/schemas/size"
+                },
+                "computer": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "xml": {
+                      "name": "computer"
+                    },
+                    "properties": {
+                      "id": {
+                        "type": "integer"
+                      },
+                      "management_id": {
+                        "type": "string"
+                      },
+                      "udid": {
+                        "type": "string"
+                      },
+                      "ip_address": {
+                        "type": "string"
+                      },
+                      "users": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "computer_commands_listed": {
+          "type": "object",
+          "xml": {
+            "name": "computer_commands"
+          },
+          "description": "The list body for GET /computercommands and GET /computercommands/name/{name}. The spec declares computer_commands as a bare array of items rather than a wrapper object, so only the first element decodes, and declares the name filter as a single computer_command, which decodes to a zero struct with a nil error (601 elements on the EU test environment).",
+          "properties": {
+            "size": {
+              "$ref": "#/components/schemas/size"
+            },
+            "computer_command": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/computer_command_summary"
+              }
+            }
+          }
+        },
+        "computer_command_issued": {
+          "type": "object",
+          "xml": {
+            "name": "computer_command"
+          },
+          "description": "The 201 body of POST /computercommands/command/{command} and its /id/{id} form. The spec declares no body and config pointed it at computer_command, which decodes to nothing; the server answers one flat command element per computer, each with its own UUID (wire-verified 2026-10-19). Mobile device commands answer one UUID for all devices; computer commands do not.",
+          "properties": {
+            "command": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "xml": {
+                  "name": "command"
+                },
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "Command name as the server normalised it."
+                  },
+                  "command_uuid": {
+                    "type": "string",
+                    "description": "UUID of the queued command for this computer; the handle for GetComputerCommandByUUID and GetComputerCommandsByStatus."
+                  },
+                  "computer_id": {
+                    "type": "integer"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "computer_command_status": {
+          "type": "object",
+          "xml": {
+            "name": "computer_command"
+          },
+          "description": "The body of GET /computercommands/status/{uuid}. No schema in the spec declares status, so the typed result dropped the one field that says whether a command has run. An unknown UUID answers 200 with status Canceled.",
+          "properties": {
+            "uuid": {
+              "type": "string"
+            },
+            "command": {
+              "type": "string"
+            },
+            "status": {
+              "type": "string",
+              "description": "Pending for a queued command; Canceled for an unknown UUID."
+            }
+          }
+        },
+        "mobile_device_command_summary": {
+          "type": "object",
+          "xml": {
+            "name": "mobile_device_command"
+          },
+          "description": "One element of the mobile device command list. The server answers flat (wire-verified 2026-10-19): command, uuid and the send timestamps sit directly on the element, beside mobile_devices. The spec nests a trimmed mobile_device_command inside each item and omits uuid, so decoding it yields no UUID and no devices.",
+          "properties": {
+            "command": {
+              "type": "string",
+              "description": "Command name as the server records it. Not always the name that was sent: PlayLostModeSound is recorded as PLAY_LOST_MODE_SOUND."
+            },
+            "uuid": {
+              "type": "string",
+              "description": "UUID of the command; the handle for GetMobileDeviceCommandByUUID."
+            },
+            "profile_id": {
+              "type": "integer"
+            },
+            "date_sent": {
+              "type": "string"
+            },
+            "date_sent_epoch": {
+              "type": "string"
+            },
+            "date_sent_utc": {
+              "type": "string"
+            },
+            "apns_result_status": {
+              "type": "string"
+            },
+            "profile_udid": {
+              "type": "string"
+            },
+            "mobile_devices": {
+              "type": "object",
+              "properties": {
+                "size": {
+                  "$ref": "#/components/schemas/size"
+                },
+                "mobile_device": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "xml": {
+                      "name": "mobile_device"
+                    },
+                    "properties": {
+                      "id": {
+                        "type": "integer"
+                      },
+                      "management_id": {
+                        "type": "string"
+                      },
+                      "udid": {
+                        "type": "string"
+                      },
+                      "serial_number": {
+                        "type": "string"
+                      },
+                      "phone_number": {
+                        "type": "string"
+                      },
+                      "wifi_mac_address": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "mobile_device_commands_listed": {
+          "type": "object",
+          "xml": {
+            "name": "mobile_device_commands"
+          },
+          "description": "The list body for GET /mobiledevicecommands and its command and name filters. The spec declares mobile_device_commands as a bare array of items rather than a wrapper object, so only the first element decodes (one of 453 on the EU test environment).",
+          "properties": {
+            "size": {
+              "$ref": "#/components/schemas/size"
+            },
+            "mobile_device_command": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/mobile_device_command_summary"
+              }
+            }
+          }
+        },
+        "mobile_device_command_issued": {
+          "type": "object",
+          "xml": {
+            "name": "mobile_device_command"
+          },
+          "description": "The 201 body of POST /mobiledevicecommands/command. The spec declares mobile_device_command here, which nests uuid and command under general; the server answers flat (wire-verified 2026-10-19), so that type decodes everything but the device echo.",
+          "properties": {
+            "uuid": {
+              "type": "string",
+              "description": "UUID of the queued command; the handle for GetMobileDeviceCommandByUUID."
+            },
+            "command": {
+              "type": "string"
+            },
+            "mobile_devices": {
+              "type": "object",
+              "properties": {
+                "mobile_device": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "xml": {
+                      "name": "mobile_device"
+                    },
+                    "properties": {
+                      "id": {
+                        "type": "integer"
+                      },
+                      "management_id": {
+                        "type": "string"
+                      },
+                      "status": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
       },
       "schemaAdditions": {
         "account": {
@@ -4703,6 +4988,26 @@
           "invitation_usage": "invitation_usages"
         }
       },
+      "schemaPatchesRequireAbsent": [
+        "computer_command.computers.computer.management_id",
+        "computer_command.status",
+        "computer_commands.apns_result_status",
+        "ldap_server.connection.certificate_used",
+        "mobile_device_command.mobile_devices.mobile_device.management_id",
+        "mobile_device_command.uuid",
+        "mobile_device_commands.uuid",
+        "mobile_device_commands.mobile_device_command.uuid"
+      ],
+      "postSymmetryExcludes": {
+        "computer_command_post": [
+          "general",
+          "computers"
+        ],
+        "mobile_device_command_post": [
+          "general",
+          "mobile_devices"
+        ]
+      },
       "propertyRemovals": {
         "mac_application": [
           "self_service.vpp"
@@ -4733,6 +5038,86 @@
           },
           "self_service.self_service_after_install_button_text": {
             "type": "string"
+          }
+        },
+        "computer_command": {
+          "computers.computer.management_id": {
+            "type": "string"
+          }
+        },
+        "computer_command_post": {
+          "computers": {
+            "type": "object",
+            "description": "The computers to send the command to. The spec declares one computer; the server takes several (wire-verified 2026-10-19) and queues one command per computer, answering 400 Unable to match computer for an unknown ID and queueing nothing. When a body names computers the server targets those and ignores any IDs in the URL.",
+            "properties": {
+              "computer": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "xml": {
+                    "name": "computer"
+                  },
+                  "properties": {
+                    "id": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "id"
+                  ]
+                }
+              }
+            }
+          },
+          "general.command": {
+            "type": "string",
+            "description": "Command to queue, by its plain name, for example EnableRemoteDesktop or UnlockUserAccount. The spec's enum members carry prose annotations that the server refuses, so the field is a plain string."
+          }
+        },
+        "mobile_device_command": {
+          "mobile_devices.mobile_device.management_id": {
+            "type": "string"
+          }
+        },
+        "mobile_device_command_post": {
+          "mobile_devices": {
+            "type": "object",
+            "description": "The devices to send the command to. The spec declares one device; the server takes several (wire-verified 2026-10-19) and applies the command to all of them or none, answering 400 Unable to match mobile_device for an unknown ID. When a body is present the server targets these devices and ignores any IDs in the URL.",
+            "properties": {
+              "mobile_device": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "xml": {
+                    "name": "mobile_device"
+                  },
+                  "properties": {
+                    "id": {
+                      "type": "integer"
+                    },
+                    "management_id": {
+                      "type": "string"
+                    },
+                    "udid": {
+                      "type": "string"
+                    },
+                    "serial_number": {
+                      "type": "string"
+                    },
+                    "phone_number": {
+                      "type": "string"
+                    },
+                    "wifi_mac_address": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "general.command": {
+            "type": "string",
+            "description": "Command to send the device, by its plain name, for example Wallpaper or EnableLostMode. The spec's enum members carry prose annotations such as \"(supervised only)\" and \"(Deprecated on ...)\" that the server does not accept, so the field is a plain string."
           }
         },
         "patch_software_title": {
@@ -5425,7 +5810,31 @@
             "type": "integer"
           },
           "connection.certificates_used": {
-            "type": "string"
+            "type": "object",
+            "description": "Certificates the server trusts, each as its configuration name and issuer. The spec declares a string; the server nests a certificate element per entry (wire-verified 2026-10-19).",
+            "properties": {
+              "certificate": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "xml": {
+                    "name": "certificate"
+                  },
+                  "properties": {
+                    "configuration_name": {
+                      "type": "string"
+                    },
+                    "issuer": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "connection.certificate_used": {
+            "type": "string",
+            "description": "Certificate to trust for LDAPS, as PEM or base64-encoded DER. Write-only: the server stores it as a certificate named after the server and returns it in certificates_used. The spec declares this field on ldap_server_post only, where post-symmetry replaces it away."
           },
           "connection.account.password_sha256": {
             "type": "string"
@@ -5728,6 +6137,24 @@
         }
       },
       "fieldOrder": {
+        "ldap_server_post_connection": [
+          "id",
+          "name",
+          "hostname",
+          "port",
+          "server_type",
+          "use_ssl",
+          "authentication_type",
+          "account",
+          "is_enabled",
+          "migrated_to_id",
+          "open_close_timeout",
+          "search_timeout",
+          "referral_response",
+          "use_wildcards",
+          "certificates_used",
+          "certificate_used"
+        ],
         "vpp_invitation_general": [
           "id",
           "name",
@@ -7699,7 +8126,7 @@
           "op": "POST /computercommands/command/{command}/id/{id}",
           "name": "IssueComputerCommandByID",
           "requestType": "computer_command_post",
-          "responseType": "computer_command",
+          "responseType": "computer_command_issued",
           "pathNames": {
             "command": "command",
             "id": "id"
@@ -7718,7 +8145,7 @@
           "op": "POST /mobiledevicecommands/command",
           "name": "IssueMobileDeviceCommand",
           "requestType": "mobile_device_command_post",
-          "responseType": "mobile_device_command",
+          "responseType": "mobile_device_command_issued",
           "expectedStatus": 201
         },
         {
@@ -8926,12 +9353,12 @@
         {
           "op": "GET /computercommands/name/{name}",
           "name": "GetComputerCommandByName",
-          "responseType": "computer_command"
+          "responseType": "computer_commands_listed"
         },
         {
           "op": "GET /mobiledevicecommands/name/{name}",
           "name": "GetMobileDeviceCommandByName",
-          "responseType": "mobile_device_command"
+          "responseType": "mobile_device_commands_listed"
         },
         {
           "op": "GET /buildings",
@@ -9116,7 +9543,7 @@
         {
           "op": "GET /mobiledevicecommands",
           "name": "ListMobileDeviceCommands",
-          "responseType": "mobile_device_commands"
+          "responseType": "mobile_device_commands_listed"
         },
         {
           "op": "GET /mobiledeviceconfigurationprofiles",
@@ -9221,7 +9648,7 @@
         {
           "op": "GET /computercommands",
           "name": "ListComputerCommands",
-          "responseType": "computer_commands"
+          "responseType": "computer_commands_listed"
         },
         {
           "op": "PUT /advancedcomputersearches/name/{name}",
@@ -9294,7 +9721,7 @@
           "op": "POST /computercommands/command/{command}",
           "name": "CreateComputerCommandByCommand",
           "requestType": "computer_command_post",
-          "responseType": "computer_command",
+          "responseType": "computer_command_issued",
           "expectedStatus": 201
         },
         {
@@ -9494,12 +9921,14 @@
         },
         {
           "op": "GET /mobiledevicecommands/command/{command}",
-          "name": "GetMobileDeviceCommandByCommand"
+          "name": "GetMobileDeviceCommandByCommand",
+          "responseType": "mobile_device_commands_listed"
         },
         {
           "op": "POST /mobiledevicecommands/command/{command}/id/{id_list}",
           "name": "CreateMobileDeviceCommandByCommandID",
           "requestType": "mobile_device_command_post",
+          "responseType": "mobile_device_command_issued",
           "expectedStatus": 201
         },
         {
@@ -9749,7 +10178,7 @@
         {
           "op": "GET /computercommands/status/{uuid}",
           "name": "GetComputerCommandsByStatus",
-          "responseType": "computer_command",
+          "responseType": "computer_command_status",
           "pathNames": {
             "uuid": "uuid"
           }
@@ -9905,12 +10334,14 @@
           "op": "POST /mobiledevicecommands/command/{command}",
           "name": "CreateMobileDeviceCommandByCommand",
           "requestType": "mobile_device_command_post",
+          "responseType": "mobile_device_command_issued",
           "expectedStatus": 201
         },
         {
           "op": "POST /mobiledevicecommands/command/{command}/{parameter}/id/{id_list}",
           "name": "CreateMobileDeviceCommandWithParameterByIDList",
           "requestType": "mobile_device_command_post",
+          "responseType": "mobile_device_command_issued",
           "pathNames": {
             "id_list": "idList"
           },
@@ -9920,6 +10351,7 @@
           "op": "POST /mobiledevicecommands/command/{command}/{parameter}/{version}/id/{id_list}",
           "name": "CreateMobileDeviceCommandWithParameterVersionByIDList",
           "requestType": "mobile_device_command_post",
+          "responseType": "mobile_device_command_issued",
           "pathNames": {
             "id_list": "idList"
           },
@@ -9929,6 +10361,7 @@
           "op": "POST /mobiledevicecommands/name/{name}",
           "name": "CreateMobileDeviceCommandByName",
           "requestType": "mobile_device_command_post",
+          "responseType": "mobile_device_command_issued",
           "expectedStatus": 201
         },
         {

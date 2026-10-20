@@ -649,42 +649,8 @@ func TestAcceptance_Classic_MatchComputersByName(t *testing.T) {
 
 // --- computer commands by command / status ---------------------------
 
-func TestAcceptance_Classic_ComputerCommandsByCommand(t *testing.T) {
-	c := accClient(t)
-	ctx := context.Background()
-
-	// BlankPush is the most common MDM command. Server returns empty
-	// body (200) when no commands of this type exist — transport empty-
-	// body guard means we get a zero-value ComputerCommand back.
-	got, err := proclassic.New(c).GetComputerCommandsByCommand(ctx, "BlankPush")
-	if err != nil {
-		skipOnServerError(t, err)
-		if apiErr, ok := errors.AsType[*jamfplatform.APIResponseError](err); ok {
-			t.Logf("GetComputerCommandsByCommand(BlankPush): API error %d — accepted", apiErr.StatusCode)
-			return
-		}
-		t.Fatalf("GetComputerCommandsByCommand(BlankPush): %v", err)
-	}
-	_ = got
-	t.Log("GetComputerCommandsByCommand(BlankPush) succeeded")
-}
-
-func TestAcceptance_Classic_ComputerCommandsByStatus(t *testing.T) {
-	c := accClient(t)
-	ctx := context.Background()
-
-	got, err := proclassic.New(c).GetComputerCommandsByStatus(ctx, "Pending")
-	if err != nil {
-		skipOnServerError(t, err)
-		if apiErr, ok := errors.AsType[*jamfplatform.APIResponseError](err); ok {
-			t.Logf("GetComputerCommandsByStatus(Pending): API error %d — accepted", apiErr.StatusCode)
-			return
-		}
-		t.Fatalf("GetComputerCommandsByStatus(Pending): %v", err)
-	}
-	_ = got
-	t.Log("GetComputerCommandsByStatus(Pending) succeeded")
-}
+// The by-command and status reads are pinned in
+// acc_proclassic_computer_command_test.go.
 
 // --- mobile device by MAC / UDID -------------------------------------
 

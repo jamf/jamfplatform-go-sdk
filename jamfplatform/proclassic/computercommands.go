@@ -18,6 +18,8 @@ import (
 //
 // Parameters:
 //   - uuid: UUID to filter by.
+//
+// An unknown UUID answers 500, not 404.
 func (c *Client) GetComputerCommandByUUID(ctx context.Context, uuid string) (*ComputerCommand, error) {
 	prefix := c.transport.APIPrefix("proclassic", "")
 	var result ComputerCommand
@@ -36,9 +38,27 @@ func (c *Client) GetComputerCommandByUUID(ctx context.Context, uuid string) (*Co
 //   - command: Command to send (EnableRemoteDesktop and DisableRemoteDesktop require macOS 10.14.4).
 //     Allowed values: "EnableRemoteDesktop", "DisableRemoteDesktop".
 //   - id: Computer ID - supports comma separated values (e.g. id/8,10,55).
-func (c *Client) IssueComputerCommandByID(ctx context.Context, command string, id string, request *ComputerCommandPost) (*ComputerCommand, error) {
+//
+// Pass the plain command name: the allowed-values list above is the spec's, and its entries carry
+// prose annotations such as "(macOS 10.14.4 and later)" that the server refuses (500). Names are
+// matched case-insensitively. Wire-verified 2026-10-19: EnableRemoteDesktop, DisableRemoteDesktop and
+// UnlockUserAccount (which needs `general.user_name` in the body) answer 201. BlankPush,
+// RestartDevice, DeviceLock, SettingsEnableBluetooth, SettingsDisableBluetooth and ScheduleOSUpdate
+// are recognised but answer 400 `No command was queued for computer {id}` on the test fixtures;
+// ShutDownDevice, EraseDevice, DeleteUser and UnmanageDevice are recognised (a nonexistent ID answers
+// 400 `Unable to match computer`) and were not sent to a real computer. Every other name, including
+// ProfileList, DeviceInformation, UpdateInventory and ClearPasscode, answers 500 INTERNAL_SERVER_ERROR
+// before the ID is looked at. The response lists one `Command` per computer, each with its own UUID
+// (`CommandUUID`), which is the handle for GetComputerCommandByUUID and GetComputerCommandsByStatus;
+// an identical pending command for one computer is deduplicated and returns the earlier UUID. A
+// request body naming computers wins over the IDs in the URL, and is the way to reach several
+// computers: the server also takes a comma-separated list in the URL, but this method percent-encodes
+// the commas (`216%2C215`), which the server does not decode and answers 400 `Unable to match
+// computer`. One unknown ID fails the whole request (400 `Unable to match computer`) and queues
+// nothing.
+func (c *Client) IssueComputerCommandByID(ctx context.Context, command string, id string, request *ComputerCommandPost) (*ComputerCommandIssued, error) {
 	prefix := c.transport.APIPrefix("proclassic", "")
-	var result ComputerCommand
+	var result ComputerCommandIssued
 	endpoint := fmt.Sprintf("%s/computercommands/command/%s/id/%s", prefix, url.PathEscape(command), url.PathEscape(id))
 	if err := c.transport.DoExpect(ctx, http.MethodPost, endpoint, request, http.StatusCreated, &result); err != nil {
 		return nil, fmt.Errorf("IssueComputerCommandByID(%s): %w", command, err)
@@ -52,9 +72,12 @@ func (c *Client) IssueComputerCommandByID(ctx context.Context, command string, i
 //
 // Parameters:
 //   - name: Name to filter by.
-func (c *Client) GetComputerCommandByName(ctx context.Context, name string) (*ComputerCommand, error) {
+//
+// Filters the command list by command name. An unknown name answers 404. Lists the command's computers
+// flat, one command per element: the spec's single-command response does not match the wire.
+func (c *Client) GetComputerCommandByName(ctx context.Context, name string) (*ComputerCommandsListed, error) {
 	prefix := c.transport.APIPrefix("proclassic", "")
-	var result ComputerCommand
+	var result ComputerCommandsListed
 	endpoint := fmt.Sprintf("%s/computercommands/name/%s", prefix, url.PathEscape(name))
 	if err := c.transport.Do(ctx, http.MethodGet, endpoint, nil, &result); err != nil {
 		return nil, fmt.Errorf("GetComputerCommandByName(%s): %w", name, err)
@@ -65,9 +88,9 @@ func (c *Client) GetComputerCommandByName(ctx context.Context, name string) (*Co
 // ListComputerCommands finds all computer commands.
 //
 // Required privileges: device-actions:read.
-func (c *Client) ListComputerCommands(ctx context.Context) (*ComputerCommands, error) {
+func (c *Client) ListComputerCommands(ctx context.Context) (*ComputerCommandsListed, error) {
 	prefix := c.transport.APIPrefix("proclassic", "")
-	var result ComputerCommands
+	var result ComputerCommandsListed
 	endpoint := prefix + "/computercommands"
 	if err := c.transport.Do(ctx, http.MethodGet, endpoint, nil, &result); err != nil {
 		return nil, fmt.Errorf("ListComputerCommands: %w", err)
@@ -82,9 +105,24 @@ func (c *Client) ListComputerCommands(ctx context.Context) (*ComputerCommands, e
 // Parameters:
 //   - command: Allowed values: "EnableRemoteDesktop (macOS 10.14.4 and later)", "DisableRemoteDesktop (macOS
 //     10.14.4 and later)".
-func (c *Client) CreateComputerCommandByCommand(ctx context.Context, command string, request *ComputerCommandPost) (*ComputerCommand, error) {
+//
+// Pass the plain command name: the allowed-values list above is the spec's, and its entries carry
+// prose annotations such as "(macOS 10.14.4 and later)" that the server refuses (500). Names are
+// matched case-insensitively. Wire-verified 2026-10-19: EnableRemoteDesktop, DisableRemoteDesktop and
+// UnlockUserAccount (which needs `general.user_name` in the body) answer 201. BlankPush,
+// RestartDevice, DeviceLock, SettingsEnableBluetooth, SettingsDisableBluetooth and ScheduleOSUpdate
+// are recognised but answer 400 `No command was queued for computer {id}` on the test fixtures;
+// ShutDownDevice, EraseDevice, DeleteUser and UnmanageDevice are recognised (a nonexistent ID answers
+// 400 `Unable to match computer`) and were not sent to a real computer. Every other name, including
+// ProfileList, DeviceInformation, UpdateInventory and ClearPasscode, answers 500 INTERNAL_SERVER_ERROR
+// before the ID is looked at. The response lists one `Command` per computer, each with its own UUID
+// (`CommandUUID`), which is the handle for GetComputerCommandByUUID and GetComputerCommandsByStatus;
+// an identical pending command for one computer is deduplicated and returns the earlier UUID. Name the
+// computers in the request body; several are allowed. One unknown ID fails the whole request (400
+// `Unable to match computer`) and queues nothing.
+func (c *Client) CreateComputerCommandByCommand(ctx context.Context, command string, request *ComputerCommandPost) (*ComputerCommandIssued, error) {
 	prefix := c.transport.APIPrefix("proclassic", "")
-	var result ComputerCommand
+	var result ComputerCommandIssued
 	endpoint := fmt.Sprintf("%s/computercommands/command/%s", prefix, url.PathEscape(command))
 	if err := c.transport.DoExpect(ctx, http.MethodPost, endpoint, request, http.StatusCreated, &result); err != nil {
 		return nil, fmt.Errorf("CreateComputerCommandByCommand(%s): %w", command, err)
@@ -98,6 +136,10 @@ func (c *Client) CreateComputerCommandByCommand(ctx context.Context, command str
 //
 // Parameters:
 //   - command: Name to filter by.
+//
+// Always answers 200 with a body that is only the XML declaration, for real command names and nonsense
+// alike (wire-verified 2026-10-19, repeatedly), so the result is always empty. This is a server fault.
+// Use GetComputerCommandByName, which filters by command name and answers the list.
 func (c *Client) GetComputerCommandsByCommand(ctx context.Context, command string) (*ComputerCommand, error) {
 	prefix := c.transport.APIPrefix("proclassic", "")
 	var result ComputerCommand
@@ -114,9 +156,13 @@ func (c *Client) GetComputerCommandsByCommand(ctx context.Context, command strin
 //
 // Parameters:
 //   - uuid: UUID to filter by.
-func (c *Client) GetComputerCommandsByStatus(ctx context.Context, uuid string) (*ComputerCommand, error) {
+//
+// Poll with the UUID from a create response. `Status` is Pending for a queued command. An unknown UUID
+// answers 200 with status Canceled rather than 404, so Canceled cannot be told from a command that
+// never existed.
+func (c *Client) GetComputerCommandsByStatus(ctx context.Context, uuid string) (*ComputerCommandStatus, error) {
 	prefix := c.transport.APIPrefix("proclassic", "")
-	var result ComputerCommand
+	var result ComputerCommandStatus
 	endpoint := fmt.Sprintf("%s/computercommands/status/%s", prefix, url.PathEscape(uuid))
 	if err := c.transport.Do(ctx, http.MethodGet, endpoint, nil, &result); err != nil {
 		return nil, fmt.Errorf("GetComputerCommandsByStatus(%s): %w", uuid, err)

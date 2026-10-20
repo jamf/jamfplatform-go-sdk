@@ -1286,6 +1286,31 @@ func MobileDeviceApplicationGeneralDeploymentTypeValues() []MobileDeviceApplicat
 	}
 }
 
+// MobileDeviceCommandPostGeneralWallpaperSetting is the set of values accepted by MobileDeviceCommandPostGeneral.WallpaperSetting.
+type MobileDeviceCommandPostGeneralWallpaperSetting = int
+
+// MobileDeviceCommandPostGeneralWallpaperSetting values accepted by the Jamf API. The alias above is an int, so
+// these constants pass to any parameter or field declared as a plain int.
+const (
+	MobileDeviceCommandPostGeneralWallpaperSetting1 MobileDeviceCommandPostGeneralWallpaperSetting = 1
+	MobileDeviceCommandPostGeneralWallpaperSetting2 MobileDeviceCommandPostGeneralWallpaperSetting = 2
+	MobileDeviceCommandPostGeneralWallpaperSetting3 MobileDeviceCommandPostGeneralWallpaperSetting = 3
+)
+
+// MobileDeviceCommandPostGeneralWallpaperSettingValues returns every value the Jamf API accepts for MobileDeviceCommandPostGeneralWallpaperSetting,
+// in the order the spec declares them. Returns a fresh slice per call, so no
+// caller can corrupt the set for the rest of the process — which a package
+// level var would allow. Suits attribute validation (Terraform's
+// int64validator.OneOf, say) and anything that needs to enumerate the set
+// rather than name one member.
+func MobileDeviceCommandPostGeneralWallpaperSettingValues() []MobileDeviceCommandPostGeneralWallpaperSetting {
+	return []MobileDeviceCommandPostGeneralWallpaperSetting{
+		MobileDeviceCommandPostGeneralWallpaperSetting1,
+		MobileDeviceCommandPostGeneralWallpaperSetting2,
+		MobileDeviceCommandPostGeneralWallpaperSetting3,
+	}
+}
+
 // MobileDeviceConfigurationProfileGeneralDeploymentMethod is the set of values accepted by MobileDeviceConfigurationProfileGeneral.DeploymentMethod.
 type MobileDeviceConfigurationProfileGeneralDeploymentMethod = string
 
