@@ -95,7 +95,7 @@ func TestRequiredPrivilegesConfigFailsWhenSpecDeclaresThem(t *testing.T) {
 
 var registryEntry = regexp.MustCompile(`"([A-Za-z0-9]+)":\s*\{Method:.*?Scoped: (nil|\[\]string\{[^}]*\}).*?Source: "([a-z-]*)"\}`)
 
-// End-to-end guard on the generated account registry. Every one of the 20
+// End-to-end guard on the generated account registry. Every one of the 26
 // methods must carry a non-empty Scoped set attributed to the gateway policy:
 // the values are absent from the published spec by construction — these routes
 // resolve the organization from the token, which exempts them from the
@@ -108,8 +108,8 @@ func TestAccountRegistryPrivilegesComeFromGatewayPolicy(t *testing.T) {
 		t.Fatalf("reading account registry: %v", err)
 	}
 	matches := registryEntry.FindAllStringSubmatch(string(data), -1)
-	if len(matches) != 20 {
-		t.Fatalf("parsed %d registry entries, want the account package's 20", len(matches))
+	if len(matches) != 26 {
+		t.Fatalf("parsed %d registry entries, want the account package's 26", len(matches))
 	}
 	for _, m := range matches {
 		method, scoped, source := m[1], m[2], m[3]

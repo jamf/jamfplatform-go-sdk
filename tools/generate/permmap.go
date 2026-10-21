@@ -112,7 +112,22 @@ type permissionsMapException struct {
 // parsePermissionsMap, and hence the note here: a capability is declared across
 // as many rows as its resources need, and reading one row as the whole
 // declaration manufactures a disagreement.
-var permissionsMapExceptions = []permissionsMapException{}
+var permissionsMapExceptions = []permissionsMapException{
+	{Permission: "platform-environments:read", Why: platformEnvironmentsWhy},
+	{Permission: "platform-environments:create", Why: platformEnvironmentsWhy},
+	{Permission: "platform-environments:update", Why: platformEnvironmentsWhy},
+	{Permission: "platform-environments:delete", Why: platformEnvironmentsWhy},
+}
+
+// platformEnvironmentsWhy is the evidence for the account-organization
+// operations (GitOps v2495). The capability is absent from the published map's
+// 2026-10-21 snapshot, but the gateway's authorization policy gates exactly
+// these six routes on it (rule dated 2026-09-29), the Account integrations UI
+// offers it as a grantable Organization permission ("Platform Environments",
+// create/read/update/delete, 2026-10-21), and an organization credential reads
+// /organization/v1/environments and /tenants at 200 on the wire. Report the map's omission upstream; the entries expire the day the map
+// declares the capability.
+const platformEnvironmentsWhy = "gateway policy gates /organization/v1/{environments,tenants} on it; absent from the published map"
 
 var capCellRe = regexp.MustCompile("^`([a-z0-9-]+)(?::\\{([a-z,\\s]+)\\})?`$")
 

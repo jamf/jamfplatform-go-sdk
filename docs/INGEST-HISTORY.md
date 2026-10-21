@@ -15,6 +15,73 @@ at the top.
 
 ## Builds
 
+**v2495 (bundle dated 2026-10-19) ingested: `account-sso` 1.0.0 → 1.1.0 is the
+only changed spec bar the newly carried `account-organization`, and its six new operations are published and unrouted.**
+Archive SHA-256
+`dffdd0b0282ddd30cd0d6ea266189a42b2edc6a219d032d1751307fd9fefa5d2`. Eighteen
+specs and both `_permissions` files are `unchanged (since v2481)` against the
+local ingest manifest. (The local manifest recorded v2481, a build this file
+has no entry for; the provenance table above still reads v2362 for those
+specs because their bytes did not move.)
+
+- **`account-organization` is now carried** (reverses the v2362 hold): the
+  `/organization` namespace answers on an organization credential as of
+  2026-10-21 (`GET /v1/environments` 200 with 9, `GET /v1/tenants` 200 with 40,
+  bogus `/organization/v1/nonsense` a repeated `403 BAD_PERMISSIONS`, control
+  `/sso/v1/connections` 200). Six operations whitelisted into `account`
+  (`ListEnvironments`, `CreateEnvironment`, `UpdateEnvironment`,
+  `DeleteEnvironment`, `AssignTenants`, `ListTenants`). **Privileges are
+  `platform-environments:{read,create,update,delete}`**, supplied by
+  `config.requiredPrivileges` from the gateway's authorization policy
+  (rule dated 2026-09-29: GET environments/tenants read, POST create, PUT/environments/{id} and
+  PUT .../tenants update, DELETE delete). The spec carries none and
+  `routes.yaml` has no `/organization` entry, and **the published permissions
+  map does not declare the capability** (checked after `make permmap`) although the Account integrations UI offers it as a grantable Organization permission, "Platform Environments", create/read/update/delete (seen 2026-10-21), so
+  `permissionsMapExceptions` carries four self-expiring entries; report the
+  omission upstream. (This build first shipped these six with no privileges,
+  after a grep that missed the policy rule because the path sat on a different
+  line from the word `organization`.) CRUD wire-verified: create 201 trims the
+  name and canonicalises a mixed-case label, metaRegion is fixed at creation,
+  PUT is a full replacement (missing `label` is `400 FIELD_VALIDATION`), an
+  out-of-enum label or region is `400 MALFORMED_REQUEST_BODY` with no field,
+  an empty/unknown `tenantIds` is `400 FIELD_VALIDATION`/`UNKNOWN_TENANT`,
+  unknown request fields are ignored, and every unknown id is a `500
+  UPSTREAM_ERROR` where the spec declares 404. `AssignTenants` was never sent a
+  real tenant: it cannot be undone and an environment holding a tenant cannot
+  be deleted. Org environment count 9 before and after.
+- **`ai-visibility` re-probed 2026-10-21, still unreachable**: on an EU
+  environment credential that reads `/ai/governance/policies/v1/policies` at 200
+  (2 policies) in the same invocation, real (`devices/count`, `devices/stats`,
+  `tools/count`) and bogus paths under `/ai/governance/visibility/v1` all answer
+  a repeated `403 BAD_PERMISSIONS`; `/blueprints` 200, `/devices` 200 and
+  `/audit` 400 as further controls. This confirms the 2026-10-02 result. (An
+  earlier probe in this session used the bare `/ai/governance/policies` as its
+  control, which is not a route and 403s for every credential; it proved
+  nothing.)
+- **Two new `external/` families, both not carried** (added to `knownUnmapped`):
+  `declarative-asset-service` (5 paths, `blueprints:*`) and `inventory-api`
+  (computers and mobile-devices, `devices:read`; previously stage/dev only).
+  Probed 2026-10-21 on an environment credential with a control: `/blueprints/v1/blueprints`
+  answered 200, while real and bogus paths in both namespaces answered the
+  plain-text `404 page not found` of an unmounted namespace, repeated.
+- **`account-sso` gains a `users` tag**: `GET /v1/users` (`type` required,
+  `JAMF_ID` paginated / `IDP` not), `POST /v1/users`, `GET
+  /v1/users/{userId}/login-history`, `POST /v1/users/{userId}/activate` and
+  `/deactivate`, `DELETE /v1/users/{userId}`; seven new schemas; richer 400/500
+  response prose. No `x-required-privileges` (stripped, as for the rest of
+  `account`). **Not whitelisted**: on an organization credential that reads
+  `/sso/v1/connections` at 200 in the same invocation, every `/sso/v1/users`
+  call (GET twice, login-history, an invalid-body POST) and the bogus
+  `/sso/v1/nonsense` answer the same `403 BAD_PERMISSIONS` — the unrouted tell.
+  Whitelist when the paths answer, with the privileges added to
+  `config.requiredPrivileges` and checked against the permissions map.
+- **Generated diff**: `api/account_sso_api.json` only (+202, the new
+  components, which publishing does not prune); no Go change. Unit tests,
+  generator tests and `go vet -tags acceptance` pass.
+- **To report upstream**: `/sso/v1/users` published ahead of the gateway;
+  `declarative-asset-service` and `inventory-api` published to `external/`
+  with no prod route.
+
 **Ingested through v2414 (2026-10-02), and nothing is held.** jpapi and
 compliance-benchmarks are at v2414, the other seventeen specs at v2362, and
 both `_permissions` files at v2414. **v2219 and v2417 were evaluated and not

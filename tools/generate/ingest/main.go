@@ -136,6 +136,7 @@ var specs = []specRow{
 	{dest: "account-licensing-api.yaml", dir: "account-licensing", title: "Jamf Account Licensing"},
 	{dest: "account-partners-api.yaml", dir: "account-partners", title: "Jamf Account Partners"},
 	{dest: "account-sso-api.yaml", dir: "account-sso", title: "Jamf Account SSO"},
+	{dest: "account-organization-api.yaml", dir: "account-organization", title: "Jamf Account Organization"},
 }
 
 // knownUnmapped are external/ families the SDK deliberately does not carry.
@@ -144,16 +145,20 @@ var specs = []specRow{
 var knownUnmapped = map[string]string{
 	"users": "User Inventory API — prod-published with real privileges, but every path 404s; " +
 		"platform-users-directory is flag-gated to dev.",
-	"account-organization": "Jamf Account Organization API (environments and tenants) — first published at v2362, " +
-		"but the prod gateway does not mount /organization at all: every path answers the same plain-text " +
-		"404 page not found as a nonsense namespace, on an organization credential that reads " +
-		"/licensing/v1/licenses at 200 in the same invocation (2026-09-30). No x-required-privileges, no " +
-		"routes.yaml entry and no capability in the published permissions map either.",
 	"ai-visibility": "AI Visibility API (24 Preview GETs under /ai/governance/visibility) — first published at v2414. " +
 		"The namespace is mounted, but every path, real or bogus, answers a repeated 403 BAD_PERMISSIONS on an " +
 		"environment credential that reads /ai/governance/policies at 200 in the same invocation (2026-10-02). " +
 		"ai-visibility:read is in routes.yaml and scopes.yaml but not in the published permissions map, and it " +
 		"cannot be granted to an API integration.",
+	"declarative-asset-service": "Declarative Assets API (5 paths under /v1/assets and /v1/asset-payloads, " +
+		"blueprints:* privileges) — first published at v2495. The prod gateway does not mount " +
+		"/declarative-asset-service: every path, real or bogus, answers the plain-text 404 page not found of a " +
+		"nonsense namespace, on an environment credential that reads /blueprints/v1/blueprints at 200 in the " +
+		"same invocation (2026-10-21).",
+	"inventory-api": "Jamf Inventory API (computers and mobile-devices, devices:read) — first published to " +
+		"external/ at v2495, previously stage/dev only. The prod gateway does not mount /inventory-api: every " +
+		"path, real or bogus, answers the plain-text 404 page not found of a nonsense namespace, on an " +
+		"environment credential that reads /blueprints/v1/blueprints at 200 in the same invocation (2026-10-21).",
 }
 
 // permissionFiles are the privilege oracle, copied alongside the specs. They

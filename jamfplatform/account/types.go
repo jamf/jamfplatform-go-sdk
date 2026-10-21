@@ -1002,3 +1002,93 @@ type SessionInfo struct {
 	// Jamf default.
 	MaxSessionTimeInMinutes *int `json:"maxSessionTimeInMinutes,omitempty"`
 }
+
+// AssignTenantsRequest The tenants to add to an environment. Additive: the tenants already in the environment are kept.
+type AssignTenantsRequest struct {
+	// Identifiers of the tenants to add, as returned in the `id` field of a tenant. Every one must be an
+	// unassigned tenant of the organization, and no identifier may be repeated.
+	TenantIds []string `json:"tenantIds"`
+}
+
+// CreateEnvironmentRequest An environment to create. It is created empty.
+type CreateEnvironmentRequest struct {
+	// What the environment is for. Descriptive only — it does not change what can be assigned to the
+	// environment.
+	Label EnvironmentLabel `json:"label"`
+	// Region every tenant assigned to this environment must be in. Omit to create a global environment,
+	// which accepts tenants from any region. Cannot be changed once the environment exists.
+	MetaRegion *MetaRegion `json:"metaRegion,omitempty"`
+	// Display name for the environment, shown to administrators in Jamf Account. Trimmed of surrounding
+	// whitespace, and not required to be unique.
+	Name string `json:"name"`
+}
+
+// Environment A named grouping of the organization's tenants, representing one deployment of Jamf.
+type Environment struct {
+	// URL of the environment, relative to this API. Resolve it against the server URL you called; it does
+	// not name a region.
+	Href string `json:"href"`
+	// Jamf-assigned identifier of the environment. Use it to update or delete the environment and to
+	// assign tenants to it. Treat it as an opaque string.
+	ID string `json:"id"`
+	// What the environment is for, normally one of the `EnvironmentLabel` values (`BETA`, `NFR`,
+	// `PRODUCTION`, `SANDBOX`, `TRIAL`). Typed as a string rather than an enum because a label Jamf
+	// introduces elsewhere is passed through unchanged rather than failing the read; match on it
+	// defensively.
+	Label *string `json:"label,omitempty"`
+	// Region the environment's tenants must be in, one of the `MetaRegion` values. Null for a global
+	// environment, which accepts tenants from any region. Fixed when the environment is created.
+	MetaRegion *string `json:"metaRegion,omitempty"`
+	// Display name of the environment, as supplied on create.
+	Name string `json:"name"`
+}
+
+// EnvironmentList The environments of the organization.
+type EnvironmentList struct {
+	// The environments of the organization.
+	Results []Environment `json:"results"`
+	// Number of environments in `results`.
+	TotalCount int `json:"totalCount"`
+}
+
+// Tenant A single Jamf service instance held for the organization, and the environment it belongs to.
+type Tenant struct {
+	// Identifier of the environment the tenant belongs to. Null for a tenant that has not been assigned
+	// yet, which is the only kind `PUT /environments/{environmentId}/tenants` accepts.
+	EnvironmentID *string `json:"environmentId,omitempty"`
+	// Jamf-assigned identifier of the tenant, as accepted by `PUT /environments/{environmentId}/tenants`.
+	// Treat it as an opaque string.
+	ID string `json:"id"`
+	// Region the tenant is hosted in, one of the `MetaRegion` values. It must match the `metaRegion` of
+	// the environment the tenant is assigned to, unless the product is global.
+	MetaRegion *string `json:"metaRegion,omitempty"`
+	// Display name of the tenant. Null for a tenant Jamf holds no name for.
+	Name *string `json:"name,omitempty"`
+	// Code of the Jamf product the tenant is an instance of, such as `pro` for Jamf Pro, `school`, `now`,
+	// `protect`, `jetp` for Jamf Mobile Forensics, `jsc` or `security` for Jamf Security Cloud, and `wizy`
+	// for Jamf Manager for Android. New codes are added as Jamf ships products, so treat the value as an
+	// open set.
+	Product *string `json:"product,omitempty"`
+	// Classification of the product, such as `management` for the products that manage devices.
+	// Descriptive only, an open set like `product`, and null for a product Jamf holds no classification
+	// for.
+	Type *string `json:"type,omitempty"`
+	// URL the tenant is reached at. Null for a product whose tenants have no per-tenant URL.
+	URL *string `json:"url,omitempty"`
+}
+
+// TenantList The tenants of the organization.
+type TenantList struct {
+	// The tenants of the organization.
+	Results []Tenant `json:"results"`
+	// Number of tenants in `results`.
+	TotalCount int `json:"totalCount"`
+}
+
+// UpdateEnvironmentRequest The complete name and label of an existing environment. A full replacement, not a patch.
+type UpdateEnvironmentRequest struct {
+	// What the environment is for.
+	Label EnvironmentLabel `json:"label"`
+	// Display name for the environment. Trimmed of surrounding whitespace, and not required to be unique.
+	Name string `json:"name"`
+}

@@ -364,9 +364,51 @@ func pruneUnreferencedSchemas(doc *openapi3.T, spec SpecDef) {
 		}
 	}
 
+	var pruned []string
 	for name := range doc.Components.Schemas {
 		if !usedSchemas[name] {
 			delete(doc.Components.Schemas, name)
+			pruned = append(pruned, name)
+		}
+	}
+	dropDanglingComponents(doc, pruned)
+}
+
+// dropDanglingComponents removes the shared parameters, responses and request
+// bodies that still $ref a schema pruneUnreferencedSchemas just deleted. They
+// are reachable only from operations the whitelist does not carry, so they are
+// dead, but they are published and re-read from api/ in CI, where a $ref to a
+// missing schema fails the load (account-sso's `userType` parameter after the
+// v2495 `/v1/users` operations arrived unwhitelisted).
+func dropDanglingComponents(doc *openapi3.T, prunedSchemas []string) {
+	if len(prunedSchemas) == 0 {
+		return
+	}
+	dangles := func(v any) bool {
+		raw, err := json.Marshal(v)
+		if err != nil {
+			return false
+		}
+		for _, name := range prunedSchemas {
+			if strings.Contains(string(raw), `"#/components/schemas/`+name+`"`) {
+				return true
+			}
+		}
+		return false
+	}
+	for name, p := range doc.Components.Parameters {
+		if dangles(p) {
+			delete(doc.Components.Parameters, name)
+		}
+	}
+	for name, r := range doc.Components.Responses {
+		if dangles(r) {
+			delete(doc.Components.Responses, name)
+		}
+	}
+	for name, rb := range doc.Components.RequestBodies {
+		if dangles(rb) {
+			delete(doc.Components.RequestBodies, name)
 		}
 	}
 }

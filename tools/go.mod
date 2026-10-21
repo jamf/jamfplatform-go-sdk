@@ -1,6 +1,6 @@
 module github.com/jamf/jamfplatform-go-sdk/tools
 
-go 1.27.2
+go 1.27.3
 
 require (
 	github.com/hashicorp/copywrite v0.25.3

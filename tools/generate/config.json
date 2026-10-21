@@ -11218,6 +11218,64 @@
       }
     },
     {
+      "file": "testing/account-organization-api.yaml",
+      "namespace": "organization",
+      "package": "account",
+      "splitByTag": true,
+      "specFile": "account_organization_api.json",
+      "requiredPrivileges": {
+        "GET /v1/environments": [
+          "platform-environments:read"
+        ],
+        "POST /v1/environments": [
+          "platform-environments:create"
+        ],
+        "PUT /v1/environments/{environmentId}": [
+          "platform-environments:update"
+        ],
+        "DELETE /v1/environments/{environmentId}": [
+          "platform-environments:delete"
+        ],
+        "PUT /v1/environments/{environmentId}/tenants": [
+          "platform-environments:update"
+        ],
+        "GET /v1/tenants": [
+          "platform-environments:read"
+        ]
+      },
+      "operations": [
+        {
+          "op": "GET /v1/environments",
+          "name": "ListEnvironments",
+          "unwrapResults": "[]Environment"
+        },
+        {
+          "op": "POST /v1/environments",
+          "name": "CreateEnvironment"
+        },
+        {
+          "op": "PUT /v1/environments/{environmentId}",
+          "name": "UpdateEnvironment"
+        },
+        {
+          "op": "DELETE /v1/environments/{environmentId}",
+          "name": "DeleteEnvironment"
+        },
+        {
+          "op": "PUT /v1/environments/{environmentId}/tenants",
+          "name": "AssignTenants"
+        },
+        {
+          "op": "GET /v1/tenants",
+          "name": "ListTenants",
+          "unwrapResults": "[]Tenant"
+        }
+      ],
+      "scopeTypes": [
+        "organization"
+      ]
+    },
+    {
       "file": "testing/audit-api.yaml",
       "namespace": "audit",
       "package": "audit",
