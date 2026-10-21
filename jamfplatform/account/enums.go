@@ -571,3 +571,61 @@ func TokenEndpointAuthMethodValues() []TokenEndpointAuthMethod {
 		TokenEndpointAuthMethodPrivateKeyJwt,
 	}
 }
+
+// EnvironmentLabel represents a environment label value.
+type EnvironmentLabel = string
+
+// EnvironmentLabel values accepted by the Jamf API. The alias above is a string, so
+// these constants pass to any parameter or field declared as a plain string.
+const (
+	EnvironmentLabelBeta       EnvironmentLabel = "BETA"
+	EnvironmentLabelNfr        EnvironmentLabel = "NFR"
+	EnvironmentLabelProduction EnvironmentLabel = "PRODUCTION"
+	EnvironmentLabelSandbox    EnvironmentLabel = "SANDBOX"
+	EnvironmentLabelTrial      EnvironmentLabel = "TRIAL"
+)
+
+// EnvironmentLabelValues returns every value the Jamf API accepts for EnvironmentLabel,
+// in the order the spec declares them. Returns a fresh slice per call, so no
+// caller can corrupt the set for the rest of the process — which a package
+// level var would allow. Suits attribute validation (Terraform's
+// stringvalidator.OneOf, say) and anything that needs to enumerate the set
+// rather than name one member.
+func EnvironmentLabelValues() []EnvironmentLabel {
+	return []EnvironmentLabel{
+		EnvironmentLabelBeta,
+		EnvironmentLabelNfr,
+		EnvironmentLabelProduction,
+		EnvironmentLabelSandbox,
+		EnvironmentLabelTrial,
+	}
+}
+
+// MetaRegion represents a meta region value.
+type MetaRegion = string
+
+// MetaRegion values accepted by the Jamf API. The alias above is a string, so
+// these constants pass to any parameter or field declared as a plain string.
+const (
+	MetaRegionUs             MetaRegion = "US"
+	MetaRegionEu             MetaRegion = "EU"
+	MetaRegionApac           MetaRegion = "APAC"
+	MetaRegionHighCompliance MetaRegion = "HIGH_COMPLIANCE"
+	MetaRegionFedramp        MetaRegion = "FEDRAMP"
+)
+
+// MetaRegionValues returns every value the Jamf API accepts for MetaRegion,
+// in the order the spec declares them. Returns a fresh slice per call, so no
+// caller can corrupt the set for the rest of the process — which a package
+// level var would allow. Suits attribute validation (Terraform's
+// stringvalidator.OneOf, say) and anything that needs to enumerate the set
+// rather than name one member.
+func MetaRegionValues() []MetaRegion {
+	return []MetaRegion{
+		MetaRegionUs,
+		MetaRegionEu,
+		MetaRegionApac,
+		MetaRegionHighCompliance,
+		MetaRegionFedramp,
+	}
+}

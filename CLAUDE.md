@@ -530,7 +530,8 @@ agree.** A held row is marked `(**held**)` in its last column.
 | `audit-api.yaml` | `external/audit` | **v2362** |
 | `account-licensing-api.yaml` | `external/account-licensing` | **v2362** |
 | `account-partners-api.yaml` | `external/account-partners` | **v2362** |
-| `account-sso-api.yaml` | `external/account-sso` | **v2362** |
+| `account-sso-api.yaml` | `external/account-sso` | **v2495** |
+| `account-organization-api.yaml` | `external/account-organization` | **v2495** |
 
 The `securitycloud-device-groups-api.yaml` row is named for its *tag* but the
 spec is the **Security Cloud Devices API**. `internal/stage/device-groups` is
@@ -576,7 +577,9 @@ these), `Scopes` an alternatives set (a client carries exactly one scope).
 
 ### Current position and holds
 
-**At v2414 (2026-10-02): all nineteen specs, nothing held.** jpapi and
+**At v2495 (2026-10-21): all twenty specs, nothing held.** `account-sso` is at v2495 (six `/v1/users` operations published, unrouted, not whitelisted); `account-organization` is newly carried (six operations, now mounted).
+
+**Previously, at v2414 (2026-10-02):** jpapi and
 compliance-benchmarks are at v2414, the other seventeen byte-identical since
 v2362; `_permissions` is at v2414. jpapi's `11.33.0` is **live** — the EU
 environment answered `11.33.0-t1790886091046` on 2026-10-14 — so
@@ -590,9 +593,8 @@ lifted hold with the evidence it rested on:
 | family | why |
 |---|---|
 | `users` (User Inventory API) | Prod-published with real privileges, but every path 404s — `platform-users-directory` is flag-gated to dev. In `knownUnmapped`. |
-| `account-organization` (environments, tenants) | First published at v2362. `/organization` is not mounted on the prod gateway — the same plain-text `404 page not found` a nonsense namespace gets, unchanged after an environment-CRUD grant — and no privilege source exists anywhere. In `knownUnmapped`; ingest when the namespace answers. [Evidence](docs/WIRE-FACTS.md#organization-is-published-and-not-mounted-2026-09-30). |
 | `ai-visibility` (AI Visibility API) | First published at v2414: 24 Preview GETs under `/ai/governance/visibility`. The namespace is mounted, but every path — real or bogus — answers a repeated `403 BAD_PERMISSIONS`, and `ai-visibility:read` is in `_permissions` but not in the published permissions map and cannot be granted to an API integration. In `knownUnmapped`; ingest as a second spec in `aigovernance` when the capability is grantable. [Evidence](docs/WIRE-FACTS.md#ai-visibility-is-published-and-ungrantable-2026-10-02). |
-| Jamf Inventory API | stage/dev only. |
+| `declarative-asset-service`, `inventory-api` | First in `external/` at v2495; `/declarative-asset-service` and `/inventory-api` are unmounted on the prod gateway (plain-text 404, 2026-10-21). In `knownUnmapped`. |
 
 **Standing spec/wire disagreements.** Each is pinned by an acceptance test
 that fails the day it resolves, and that failure is the notification. Where the
@@ -623,6 +625,8 @@ recorded**, unless noted.
 | `securitycloud` uem-connect `Accept` | `application/xml` answers 200 with XML against a JSON-only claim | `TestAcceptance_SecurityCloudUemConnectAcceptNegotiation` |
 | `account` deal-registration item + create | deterministic `500 UPSTREAM_ERROR` | `TestAcceptance_AccountDealRegistrationItemAndCreate` |
 | `account` distributor surface | `400 UPSTREAM_ERROR` "… via Skyway distributor service"; `500 UPSTREAM_ERROR` since 2026-10-08 | `TestAcceptance_AccountDistributorReads` |
+| `account` organization unknown ids | spec declares `404` for an unknown environment on PUT, DELETE and the tenants PUT; wire answers a deterministic `500 UPSTREAM_ERROR` for a zero UUID, a non-UUID and an already-deleted id | `TestAcceptance_AccountEnvironmentUnknownIDIs500` |
+| `account` organization privileges | `platform-environments:*` is gated by the gateway policy but absent from the published permissions map; carried in `permissionsMapExceptions` (expires when the map declares it) | `TestScopedPrivilegesUseGAVocabulary` |
 | `account` privileges | stripped from the published specs by the pipeline; supplied by `config.requiredPrivileges` (see Packages) | `TestAccountRegistryPrivilegesComeFromGatewayPolicy` |
 | `aigovernance` | every 2xx carries `Jamf-Preview: true`, invisible to the generated surface | `TestAcceptance_AiGovernancePreviewHeader` |
 | `aigovernance` `GetPolicyDeployment` | reports 0 blueprints for policies that blueprints reference | `TestAcceptance_AiGovernanceDeploymentReportsReferencingBlueprints` |
@@ -765,7 +769,7 @@ Layer-by-layer diagnosis of a refusal, per-package findings and the full evidenc
 | `devices`, `devicegroups`, `deviceactions` | as named | **environment** per the spec; tenant still served | Platform APIs |
 | `blueprints`, `compliancebenchmarks`, `ddmreport` | as named | **environment** | `ddmreport` still answers under tenant scope and is pinned; the other two refuse a tenant credential. Blueprints have no site or division support — `PATCH` refuses `divisionId`, `POST` silently ignores unknown fields, so a 201 is not evidence and the read-back is the oracle |
 | `securitycloud` | `securitycloud` | tenant (own identifier) **or** environment | 52 ops across six specs |
-| `account` | `licensing`, `partners`, `sso` | **organization** | three specs, one package. **US only** |
+| `account` | `licensing`, `partners`, `sso`, `organization` | **organization** | four specs, one package. **US only**. The six `organization` operations (environments, tenants) take their privileges from `config.requiredPrivileges` like the rest of the package: `platform-environments:{read,create,update,delete}`, from the gateway policy (rule dated 2026-09-29). **The published permissions map does not declare that capability**, so `permissionsMapExceptions` carries four entries |
 | `aigovernance` | `ai/governance/policies` | environment | **All 12 operations are Preview** — GA expected 2027-03-03; treat shapes as less settled than elsewhere. Every method's godoc says so |
 | `audit` | `audit` | environment **only** | reachable with a credential granted `audit:read`. `ListAuditEvents` needs `since` **and** one of `actor`/`audit-source`/`audit-type`/`resource-id`, neither expressed in the signature |
 
