@@ -468,3 +468,134 @@ func TestUnionSchemaRefusesContentAddressedMappings(t *testing.T) {
 		t.Fatal("a content-addressed mapping was accepted as a discriminator")
 	}
 }
+
+// A property whose inline `oneOf` carries a discriminator is hoisted like an
+// undiscriminated one. isRefUnion refuses the discriminator on purpose, so the
+// hoist condition is a different one and this pins it: left inline the field was
+// `any`, which jpapi's MdmCommandRequest.commandData (v2508) was.
+func TestHoistInlineObjectsLiftsDiscriminatedUnionProperty(t *testing.T) {
+	doc := &openapi3.T{Components: &openapi3.Components{Schemas: openapi3.Schemas{
+		"Request": {Value: &openapi3.Schema{
+			Type: types("object"),
+			Properties: openapi3.Schemas{
+				"data": {Value: &openapi3.Schema{
+					Discriminator: &openapi3.Discriminator{PropertyName: "kind"},
+					OneOf:         openapi3.SchemaRefs{schemaRef("A"), schemaRef("B")},
+				}},
+			},
+		}},
+		"A": {Value: openapi3.NewObjectSchema()},
+		"B": {Value: openapi3.NewObjectSchema()},
+	}}}
+
+	hoistInlineObjects(doc, "json")
+
+	prop := doc.Components.Schemas["Request"].Value.Properties["data"]
+	if prop.Ref != "#/components/schemas/RequestData" {
+		t.Fatalf("property $ref = %q, want the hoisted schema", prop.Ref)
+	}
+	if got := schemaRefToGoType(prop); got != "RequestData" {
+		t.Fatalf("field type = %q, want RequestData", got)
+	}
+	if unionSchema("RequestData", doc.Components.Schemas["RequestData"].Value) == nil {
+		t.Fatal("hoisted schema is not built as a discriminated union")
+	}
+}
+
+// A later allOf member that only annotates a property — an example, a nullable
+// flag — must not replace the base's typed definition with a type-less one.
+// DisableRemoteDesktopCommand narrows commandType this way, and the replacement
+// came out as `any`. A member that does retype the property still wins.
+func TestFlattenAllOfKeepsBaseTypeUnderAnnotationOnlyOverlay(t *testing.T) {
+	typed := &openapi3.SchemaRef{Ref: "#/components/schemas/Kind", Value: openapi3.NewStringSchema()}
+	base := &openapi3.Schema{Type: types("object"), Properties: openapi3.Schemas{"kind": typed}}
+	annotate := &openapi3.Schema{Properties: openapi3.Schemas{"kind": {Value: &openapi3.Schema{Example: "X"}}}}
+	props, _ := flattenAllOf(&openapi3.Schema{AllOf: openapi3.SchemaRefs{{Value: base}, {Value: annotate}}})
+	if props["kind"] != typed {
+		t.Fatalf("kind = %+v, want the base's typed definition", props["kind"])
+	}
+
+	retype := &openapi3.Schema{Properties: openapi3.Schemas{"kind": {Value: openapi3.NewIntegerSchema()}}}
+	props, _ = flattenAllOf(&openapi3.Schema{AllOf: openapi3.SchemaRefs{{Value: base}, {Value: retype}}})
+	if props["kind"] == typed {
+		t.Fatal("an overlay that retypes the property must still win")
+	}
+}
+
+// A union with no variant set marshals to its discriminator alone, as its godoc
+// says, and not to `null`: a caller who set the type and forgot the payload sent
+// a body the server read as no command at all.
+func TestDiscriminatedUnionMarshalsMinimalObjectWithNoVariant(t *testing.T) {
+	// registerDiscriminatorEnum writes to a package-level registry that extractTypes
+	// owns for the duration of one spec; stand one up for this call.
+	currentPropertyEnums = map[string]GoType{}
+	t.Cleanup(func() { currentPropertyEnums = nil })
+	gt := schemaToDiscriminatorType("Request", &openapi3.Schema{
+		Discriminator: &openapi3.Discriminator{PropertyName: "kind", Mapping: map[string]openapi3.MappingRef{"A": {Ref: "#/components/schemas/A"}, "B": {Ref: "#/components/schemas/B"}}},
+		OneOf:         openapi3.SchemaRefs{schemaRef("A"), schemaRef("B")},
+	})
+	var buf strings.Builder
+	if err := sourceTmpl.Execute(&buf, GeneratedFile{Package: "x", Module: "m", Format: "json", Types: []GoType{gt}}); err != nil {
+		t.Fatal(err)
+	}
+	out := buf.String()
+	if !strings.Contains(out, "if m.A != nil {") {
+		t.Fatalf("variant case does not guard on a nil pointer:\n%s", out)
+	}
+	if !strings.Contains(out, `map[string]string{"kind": m.Kind}`) {
+		t.Fatalf("no minimal-object fallback:\n%s", out)
+	}
+}
+
+func TestResolveRequiredParams(t *testing.T) {
+	m := GoMethod{QueryParams: []ExtraParam{{Spec: "filter", Go: "filter", Type: "string"}, {Spec: "sort", Go: "sort", Type: "[]string"}}}
+
+	if err := resolveRequiredParams(&m, OperationDef{Pagination: "totalCount", RequiredParams: []string{"filter"}}); err != nil {
+		t.Fatal(err)
+	}
+	if len(m.RequiredParams) != 1 || m.RequiredParams[0].Spec != "filter" {
+		t.Fatalf("RequiredParams = %+v", m.RequiredParams)
+	}
+
+	refusals := map[string]struct {
+		op   OperationDef
+		want string
+	}{
+		"not paginated": {OperationDef{RequiredParams: []string{"filter"}}, "paginated operations only"},
+		"unknown param": {OperationDef{Pagination: "totalCount", RequiredParams: []string{"nope"}}, "not one of the operation's configured query params"},
+	}
+	for name, tc := range refusals {
+		err := resolveRequiredParams(&GoMethod{QueryParams: m.QueryParams}, tc.op)
+		if err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Errorf("%s: err = %v, want it to contain %q", name, err, tc.want)
+		}
+	}
+
+	// The spec has since declared it required: the config entry has expired.
+	expired := GoMethod{QueryParams: []ExtraParam{{Spec: "filter", Go: "filter", Type: "string", AlwaysSend: true}}}
+	if err := resolveRequiredParams(&expired, OperationDef{Pagination: "totalCount", RequiredParams: []string{"filter"}}); err == nil ||
+		!strings.Contains(err.Error(), "now declares required") {
+		t.Errorf("expired entry: err = %v", err)
+	}
+}
+
+func TestApplyPrivilegeAlternatives(t *testing.T) {
+	const conj = "Required privileges: a:execute, b:execute.\n// All of them are required, not alternatives."
+	methods := []GoMethod{{Name: "Send", ScopedPrivileges: []string{"a:execute", "b:execute"}, Comment: conj}}
+
+	if err := applyPrivilegeAlternatives(methods, []string{"Send"}); err != nil {
+		t.Fatal(err)
+	}
+	if !methods[0].PrivilegeAlternatives || strings.Contains(methods[0].Comment, "All of them are required") ||
+		!strings.Contains(methods[0].Comment, "Any one of them suffices") {
+		t.Fatalf("not applied: %+v", methods[0])
+	}
+
+	one := []GoMethod{{Name: "Send", ScopedPrivileges: []string{"a:execute"}, Comment: "x"}}
+	if err := applyPrivilegeAlternatives(one, []string{"Send"}); err == nil || !strings.Contains(err.Error(), "nothing to choose between") {
+		t.Errorf("single privilege: err = %v", err)
+	}
+	if err := applyPrivilegeAlternatives(methods, []string{"Nope"}); err == nil || !strings.Contains(err.Error(), "names no emitted method") {
+		t.Errorf("unknown method: err = %v", err)
+	}
+}

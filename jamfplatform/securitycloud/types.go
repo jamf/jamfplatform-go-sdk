@@ -1070,25 +1070,45 @@ func (m *ConnectorCreateRequestBody) UnmarshalJSON(data []byte) error {
 func (m ConnectorCreateRequestBody) MarshalJSON() ([]byte, error) {
 	switch m.Vendor {
 	case "AIRWATCH":
-		return json.Marshal(m.AIRWATCH)
+		if m.AIRWATCH != nil {
+			return json.Marshal(m.AIRWATCH)
+		}
 	case "GOOGLE":
-		return json.Marshal(m.GOOGLE)
+		if m.GOOGLE != nil {
+			return json.Marshal(m.GOOGLE)
+		}
 	case "INTUNE":
-		return json.Marshal(m.INTUNE)
+		if m.INTUNE != nil {
+			return json.Marshal(m.INTUNE)
+		}
 	case "JAMF_PRO":
-		return json.Marshal(m.JAMFPRO)
+		if m.JAMFPRO != nil {
+			return json.Marshal(m.JAMFPRO)
+		}
 	case "JAMF_SCHOOL":
-		return json.Marshal(m.JAMFSCHOOL)
+		if m.JAMFSCHOOL != nil {
+			return json.Marshal(m.JAMFSCHOOL)
+		}
 	case "MAAS360":
-		return json.Marshal(m.MAAS360)
+		if m.MAAS360 != nil {
+			return json.Marshal(m.MAAS360)
+		}
 	case "MOBILEIRONCLOUD":
-		return json.Marshal(m.MOBILEIRONCLOUD)
+		if m.MOBILEIRONCLOUD != nil {
+			return json.Marshal(m.MOBILEIRONCLOUD)
+		}
 	case "MOBILEIRONCORE":
-		return json.Marshal(m.MOBILEIRONCORE)
+		if m.MOBILEIRONCORE != nil {
+			return json.Marshal(m.MOBILEIRONCORE)
+		}
 	case "WIZY":
-		return json.Marshal(m.WIZY)
+		if m.WIZY != nil {
+			return json.Marshal(m.WIZY)
+		}
 	case "XENMOBILE":
-		return json.Marshal(m.XENMOBILE)
+		if m.XENMOBILE != nil {
+			return json.Marshal(m.XENMOBILE)
+		}
 	}
 	return json.Marshal(map[string]string{"vendor": m.Vendor})
 }

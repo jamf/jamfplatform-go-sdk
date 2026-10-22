@@ -88,13 +88,15 @@ type MethodPrivileges struct {
 	// deploy, execute. The three-part beta slug ("create:pro:buildings") is
 	// the retired form and never appears here.
 	//
-	// Where more than one identifier is present, ALL of them are required.
-	// The platform has exactly one route that accepts either of two
-	// capabilities rather than both — DELETE /proclassic/logflush takes
-	// flush-policy-logs:execute or policies:delete — and its specs declare
-	// only the first, so no entry in this registry is an alternatives set. A
-	// consumer can therefore render a multi-entry Scoped slice as "grant all
-	// of these".
+	// Where more than one identifier is present, ALL of them are required
+	// unless ScopedAlternatives is set. The platform has routes that accept
+	// either of two capabilities rather than both — DELETE /proclassic/logflush
+	// takes flush-policy-logs:execute or policies:delete, and its specs declare
+	// only the first — and one the specs do declare as a flat list while the
+	// gateway chooses among them from the request body, POST /pro/v2/mdm/commands.
+	// Only the latter is marked, because it is the only one a spec lists;
+	// ScopedAlternatives is false everywhere else, so a consumer renders a
+	// multi-entry Scoped slice as "grant all of these" unless it is true.
 	//
 	// An empty slice means nothing declares a privilege for the endpoint,
 	// which is not the same as none being required. Most such endpoints are
@@ -103,6 +105,12 @@ type MethodPrivileges struct {
 	// rendering a permissions table must not print an empty slice as "no
 	// permission needed"; read Source to tell the two apart.
 	Scoped []string
+	// ScopedAlternatives reports that Scoped is an alternatives set: the
+	// request selects which one applies, so a caller needs only the one its
+	// request calls for and holding all of them is never required. It is the
+	// exception — false for every entry but one — and is declared in
+	// config.json, since the spec's flat list cannot say so.
+	ScopedAlternatives bool
 	// Source names where Scoped came from:
 	//
 	//   - "spec": the operation's own x-required-privileges extension.

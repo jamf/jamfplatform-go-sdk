@@ -5560,13 +5560,21 @@ func (m *MobileDeviceResponse) UnmarshalJSON(data []byte) error {
 func (m MobileDeviceResponse) MarshalJSON() ([]byte, error) {
 	switch m.DeviceType {
 	case "iOS":
-		return json.Marshal(m.IOS)
+		if m.IOS != nil {
+			return json.Marshal(m.IOS)
+		}
 	case "tvOS":
-		return json.Marshal(m.TvOS)
+		if m.TvOS != nil {
+			return json.Marshal(m.TvOS)
+		}
 	case "visionOS":
-		return json.Marshal(m.VisionOS)
+		if m.VisionOS != nil {
+			return json.Marshal(m.VisionOS)
+		}
 	case "watchOS":
-		return json.Marshal(m.WatchOS)
+		if m.WatchOS != nil {
+			return json.Marshal(m.WatchOS)
+		}
 	}
 	return json.Marshal(map[string]string{"deviceType": m.DeviceType})
 }

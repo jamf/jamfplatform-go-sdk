@@ -337,6 +337,9 @@ func processSpec(root string, cfg Config, spec SpecDef, specPath string, usedFal
 	if err := applyDocNotes(types, spec.DocNotes); err != nil {
 		return fmt.Errorf("%s: %w", spec.File, err)
 	}
+	if err := applyPrivilegeAlternatives(methods, spec.PrivilegeAlternatives); err != nil {
+		return fmt.Errorf("%s: %w", spec.File, err)
+	}
 	if err := applyMethodNotes(methods, spec.MethodNotes); err != nil {
 		return fmt.Errorf("%s: %w", spec.File, err)
 	}
@@ -498,6 +501,9 @@ func processPackage(root string, cfg Config, pkgName string, specs []loadedSpec)
 		methods, err := extractMethods(doc, spec, namedEnumTypes(doc, refs))
 		if err != nil {
 			return fmt.Errorf("spec %s: %w", spec.File, err)
+		}
+		if err := applyPrivilegeAlternatives(methods, spec.PrivilegeAlternatives); err != nil {
+			return fmt.Errorf("%s: %w", spec.File, err)
 		}
 		if err := applyMethodNotes(methods, spec.MethodNotes); err != nil {
 			return fmt.Errorf("%s: %w", spec.File, err)
@@ -2302,6 +2308,16 @@ func New(base *jamfplatform.Client) *Client {
 	return nil
 }
 
+// scopedAlternativesField renders the registry's ScopedAlternatives field, with
+// a leading space, only where it is true: the zero value is the overwhelmingly
+// common case and spelling it out on every entry would be 700 lines of noise.
+func scopedAlternativesField(m GoMethod) string {
+	if m.PrivilegeAlternatives {
+		return " ScopedAlternatives: true,"
+	}
+	return ""
+}
+
 // goStringSliceLiteral renders ss as a Go source expression: "nil" for an
 // empty slice, otherwise a []string composite literal. Used to emit the
 // Scoped/Legacy fields of the per-package privilege registry.
@@ -2394,7 +2410,7 @@ var Privileges = map[string]jamfplatform.MethodPrivileges{
 
 	for _, e := range entries {
 		m := e.method
-		fmt.Fprintf(&b, "\t%s: {Method: %s, HTTPMethod: %s, Path: %s, Scopes: %s, ScopesSource: %s, Scoped: %s, Legacy: %s, Source: %s},\n",
+		fmt.Fprintf(&b, "\t%s: {Method: %s, HTTPMethod: %s, Path: %s, Scopes: %s, ScopesSource: %s, Scoped: %s,%s Legacy: %s, Source: %s},\n",
 			strconv.Quote(m.Name),
 			strconv.Quote(m.Name),
 			strconv.Quote(m.HTTPMethod),
@@ -2402,6 +2418,7 @@ var Privileges = map[string]jamfplatform.MethodPrivileges{
 			goScopeKindSliceLiteral(m.Scopes),
 			strconv.Quote(m.ScopesSource),
 			goStringSliceLiteral(m.ScopedPrivileges),
+			scopedAlternativesField(m),
 			goStringSliceLiteral(m.LegacyPrivileges),
 			strconv.Quote(m.PrivilegeSource),
 		)
@@ -3031,13 +3048,15 @@ type MethodPrivileges struct {
 	// deploy, execute. The three-part beta slug ("create:pro:buildings") is
 	// the retired form and never appears here.
 	//
-	// Where more than one identifier is present, ALL of them are required.
-	// The platform has exactly one route that accepts either of two
-	// capabilities rather than both — DELETE /proclassic/logflush takes
-	// flush-policy-logs:execute or policies:delete — and its specs declare
-	// only the first, so no entry in this registry is an alternatives set. A
-	// consumer can therefore render a multi-entry Scoped slice as "grant all
-	// of these".
+	// Where more than one identifier is present, ALL of them are required
+	// unless ScopedAlternatives is set. The platform has routes that accept
+	// either of two capabilities rather than both — DELETE /proclassic/logflush
+	// takes flush-policy-logs:execute or policies:delete, and its specs declare
+	// only the first — and one the specs do declare as a flat list while the
+	// gateway chooses among them from the request body, POST /pro/v2/mdm/commands.
+	// Only the latter is marked, because it is the only one a spec lists;
+	// ScopedAlternatives is false everywhere else, so a consumer renders a
+	// multi-entry Scoped slice as "grant all of these" unless it is true.
 	//
 	// An empty slice means nothing declares a privilege for the endpoint,
 	// which is not the same as none being required. Most such endpoints are
@@ -3046,6 +3065,12 @@ type MethodPrivileges struct {
 	// rendering a permissions table must not print an empty slice as "no
 	// permission needed"; read Source to tell the two apart.
 	Scoped []string
+	// ScopedAlternatives reports that Scoped is an alternatives set: the
+	// request selects which one applies, so a caller needs only the one its
+	// request calls for and holding all of them is never required. It is the
+	// exception — false for every entry but one — and is declared in
+	// config.json, since the spec's flat list cannot say so.
+	ScopedAlternatives bool
 	// Source names where Scoped came from:
 	//
 	//   - "spec": the operation's own x-required-privileges extension.

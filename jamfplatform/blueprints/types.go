@@ -342,9 +342,13 @@ func (m *BookmarkItem) UnmarshalJSON(data []byte) error {
 func (m BookmarkItem) MarshalJSON() ([]byte, error) {
 	switch m.Type {
 	case "BOOKMARK":
-		return json.Marshal(m.BOOKMARK)
+		if m.BOOKMARK != nil {
+			return json.Marshal(m.BOOKMARK)
+		}
 	case "FOLDER":
-		return json.Marshal(m.FOLDER)
+		if m.FOLDER != nil {
+			return json.Marshal(m.FOLDER)
+		}
 	}
 	return json.Marshal(map[string]string{"Type": m.Type})
 }
@@ -809,27 +813,49 @@ func (m *DeclarationsComponentConfigurationDeclarationsItem) UnmarshalJSON(data 
 func (m DeclarationsComponentConfigurationDeclarationsItem) MarshalJSON() ([]byte, error) {
 	switch m.Type {
 	case "com.apple.configuration.app.managed":
-		return json.Marshal(m.ManagedAppDeclaration)
+		if m.ManagedAppDeclaration != nil {
+			return json.Marshal(m.ManagedAppDeclaration)
+		}
 	case "com.apple.configuration.app.settings":
-		return json.Marshal(m.AppSettingsDeclaration)
+		if m.AppSettingsDeclaration != nil {
+			return json.Marshal(m.AppSettingsDeclaration)
+		}
 	case "com.apple.configuration.content-cache.settings":
-		return json.Marshal(m.ContentCachingDeclaration)
+		if m.ContentCachingDeclaration != nil {
+			return json.Marshal(m.ContentCachingDeclaration)
+		}
 	case "com.apple.configuration.external-intelligence.settings":
-		return json.Marshal(m.ExternalIntelligenceSettingsDeclaration)
+		if m.ExternalIntelligenceSettingsDeclaration != nil {
+			return json.Marshal(m.ExternalIntelligenceSettingsDeclaration)
+		}
 	case "com.apple.configuration.intelligence.settings":
-		return json.Marshal(m.IntelligenceSettingsDeclaration)
+		if m.IntelligenceSettingsDeclaration != nil {
+			return json.Marshal(m.IntelligenceSettingsDeclaration)
+		}
 	case "com.apple.configuration.keyboard.settings":
-		return json.Marshal(m.KeyboardSettingsDeclaration)
+		if m.KeyboardSettingsDeclaration != nil {
+			return json.Marshal(m.KeyboardSettingsDeclaration)
+		}
 	case "com.apple.configuration.package":
-		return json.Marshal(m.PackageDeclaration)
+		if m.PackageDeclaration != nil {
+			return json.Marshal(m.PackageDeclaration)
+		}
 	case "com.apple.configuration.screensharing.connection":
-		return json.Marshal(m.ScreenSharingConnectionDeclaration)
+		if m.ScreenSharingConnectionDeclaration != nil {
+			return json.Marshal(m.ScreenSharingConnectionDeclaration)
+		}
 	case "com.apple.configuration.screensharing.connection.group":
-		return json.Marshal(m.ScreenSharingConnectionGroupDeclaration)
+		if m.ScreenSharingConnectionGroupDeclaration != nil {
+			return json.Marshal(m.ScreenSharingConnectionGroupDeclaration)
+		}
 	case "com.apple.configuration.screensharing.host.settings":
-		return json.Marshal(m.ScreenSharingHostSettingsDeclaration)
+		if m.ScreenSharingHostSettingsDeclaration != nil {
+			return json.Marshal(m.ScreenSharingHostSettingsDeclaration)
+		}
 	case "com.apple.configuration.siri.settings":
-		return json.Marshal(m.SiriSettingsDeclaration)
+		if m.SiriSettingsDeclaration != nil {
+			return json.Marshal(m.SiriSettingsDeclaration)
+		}
 	}
 	return json.Marshal(map[string]string{"type": m.Type})
 }
@@ -1808,9 +1834,13 @@ func (m *SwUpdateAutomaticConfiguration) UnmarshalJSON(data []byte) error {
 func (m SwUpdateAutomaticConfiguration) MarshalJSON() ([]byte, error) {
 	switch m.Strategy {
 	case "LATEST":
-		return json.Marshal(m.LATEST)
+		if m.LATEST != nil {
+			return json.Marshal(m.LATEST)
+		}
 	case "SEMANTIC":
-		return json.Marshal(m.SEMANTIC)
+		if m.SEMANTIC != nil {
+			return json.Marshal(m.SEMANTIC)
+		}
 	}
 	return json.Marshal(map[string]string{"strategy": m.Strategy})
 }
@@ -1860,9 +1890,13 @@ func (m *SwUpdateConfiguration) UnmarshalJSON(data []byte) error {
 func (m SwUpdateConfiguration) MarshalJSON() ([]byte, error) {
 	switch m.EnforcementType {
 	case "AUTOMATIC":
-		return json.Marshal(m.AUTOMATIC)
+		if m.AUTOMATIC != nil {
+			return json.Marshal(m.AUTOMATIC)
+		}
 	case "MANUAL":
-		return json.Marshal(m.MANUAL)
+		if m.MANUAL != nil {
+			return json.Marshal(m.MANUAL)
+		}
 	}
 	return json.Marshal(map[string]string{"enforcementType": m.EnforcementType})
 }

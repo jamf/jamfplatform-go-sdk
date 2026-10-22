@@ -143,6 +143,18 @@ type SpecDef struct {
 	// entry should be deleted.
 	RequiredPrivileges map[string][]string `json:"requiredPrivileges,omitempty"`
 
+	// PrivilegeAlternatives names generated methods whose x-required-privileges
+	// list is an alternatives set rather than a conjunction: the request, not the
+	// caller, selects which one applies. The spec has no way to say so — it is one
+	// flat array either way — and the default reading, "all of them are required",
+	// is the right one for every operation but these. It flips the godoc line and
+	// sets MethodPrivileges.ScopedAlternatives.
+	//
+	// Self-expiring: generation fails on a name that is not an emitted method, and
+	// on a method carrying fewer than two privileges, where there is nothing to
+	// choose between.
+	PrivilegeAlternatives []string `json:"privilegeAlternatives,omitempty"`
+
 	// ScopeTypes overrides the scope kinds this spec's operations accept,
 	// for a spec whose published `x-scope-types` understates what the gateway
 	// serves. Values are "tenant", "environment" and "organization".
@@ -387,12 +399,19 @@ type OperationDef struct {
 	CursorField string `json:"cursorField,omitempty"`
 	// CursorParam is the query parameter the cursor is sent back in, for
 	// Pagination == "cursor". Empty defaults to "cursor".
-	CursorParam  string            `json:"cursorParam,omitempty"`
-	MaxPageSize  int               `json:"maxPageSize,omitempty"`  // page-size requested per page; defaults to 100. Only raise this once the endpoint's true server-side cap is wire-verified — see CLAUDE.md "Wire-verified pagination limits".
-	Version      string            `json:"version,omitempty"`      // override version for tenantPrefix
-	PathNames    map[string]string `json:"pathNames,omitempty"`    // spec param -> Go param name
-	Params       []string          `json:"params,omitempty"`       // "name", "name:type", "spec:type:goName"
-	HeaderParams []string          `json:"headerParams,omitempty"` // same notation as Params, for `in: header` request parameters — see parseHeaderParams
+	CursorParam string            `json:"cursorParam,omitempty"`
+	MaxPageSize int               `json:"maxPageSize,omitempty"` // page-size requested per page; defaults to 100. Only raise this once the endpoint's true server-side cap is wire-verified — see CLAUDE.md "Wire-verified pagination limits".
+	Version     string            `json:"version,omitempty"`     // override version for tenantPrefix
+	PathNames   map[string]string `json:"pathNames,omitempty"`   // spec param -> Go param name
+	Params      []string          `json:"params,omitempty"`      // "name", "name:type", "spec:type:goName"
+	// RequiredParams names query parameters the server refuses a call without
+	// although the spec declares them optional. The generated method returns an
+	// error before sending anything when one is empty, since a request without it
+	// can never succeed. Paginated operations only. Self-expiring: generation
+	// fails on a name that is not a configured query param, and on one the spec
+	// has since declared required.
+	RequiredParams []string `json:"requiredParams,omitempty"`
+	HeaderParams   []string `json:"headerParams,omitempty"` // same notation as Params, for `in: header` request parameters — see parseHeaderParams
 	// WireRequiredParams names parameters (query or header, by wire name) the
 	// server refuses the request without, although the spec marks them
 	// optional. It adds a line to the parameter's godoc and nothing else.
