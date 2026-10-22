@@ -361,12 +361,17 @@
       "docNotes": {
         "ParentApp": "`RestrictedTimes` is keyed by day of week, and the legal keys are `MONDAY`, `TUESDAY`, `WEDNESDAY`, `THURSDAY`, `FRIDAY`, `SATURDAY` and `SUNDAY`. The spec declares this as a `DayOfWeek` enum schema, but reaches it through a pseudo-property literally named `key` alongside `additionalProperties` \u2014 OpenAPI has no way to constrain a map's key type, so that construct is not a real property and no Go field ever carries the type. The enum is therefore never emitted as constants, making this godoc the only place the keys are documented. Sending an unrecognised key is silently dropped rather than rejected, as everywhere else in Pro."
       },
+      "privilegeAlternatives": [
+        "SendMdmCommandV2"
+      ],
       "methodNotes": {
         "DismissAllNotificationsV1": "Published but not routed at the gateway: every call answers `403 BAD_PERMISSIONS`, whatever privileges the credential holds. The routed item-level `DELETE /v1/notifications/{type}/{id}` answers 204 for the same `dismiss-notifications:execute`, so the gap is the route and not the grant. Until it lands there is no bulk dismiss \u2014 enumerate with `ListNotificationsV1` and call `DeleteNotificationV1` per notification. `TestAcceptance_Pro_DismissAllNotificationsUnroutedAtGateway` fails the day the route appears, which is the notification to delete this note.",
         "CreateStaticComputerGroupV3": "The server requires `Assignments`, which the spec declares optional: a request without it, or with it null, fails with a bare `500` whose `errors` array is empty. Send an empty slice for a group with no members. `TestAcceptance_Pro_StaticComputerGroupV3RequiresAssignments` fails the day the server accepts the omission, which is the notification to delete this note.",
         "UpdateStaticComputerGroupV3": "The server requires `Assignments`, which the spec declares optional: a request without it fails with a bare `500` whose `errors` array is empty. `Assignments` replaces the whole member list, so an empty slice removes every member. `GetStaticComputerGroupV3` does not return members and Jamf Pro has no static computer membership endpoint, so to keep the current members, read them first from Classic with `proclassic.GetComputerGroupByID`. `ApplyStaticComputerGroupV3`'s update path calls this method and replaces the same way. `TestAcceptance_Pro_StaticComputerGroupV3RequiresAssignments` fails the day either behaviour changes.",
         "CreateStaticMobileDeviceGroupV2": "The server requires `Assignments` and `SiteID`, which the spec declares optional. Without `Assignments` the request fails with a bare `500` whose `errors` array is empty; without `SiteID`, or with it empty, it fails with `403 INVALID_PRIVILEGE` on field `siteId`, which is not a privilege problem. Send an empty slice and `\"-1\"` (no site) when neither applies. `TestAcceptance_Pro_StaticMobileDeviceGroupV2RequiresAssignmentsAndSiteID` fails the day the server accepts the omission.",
         "PatchStaticMobileDeviceGroupV2": "The server requires `Assignments` and `SiteID` on every patch, which the spec declares optional: without `Assignments` the request fails with a bare `500`, and without `SiteID` with `400 INVALID_FIELD` \"Cannot parse null string\". `Assignments` is incremental: each entry adds (`Selected` true) or removes (`Selected` false) one device, and an empty slice leaves the members unchanged, so it is the safe value when only the name or description changes. `TestAcceptance_Pro_StaticMobileDeviceGroupV2RequiresAssignmentsAndSiteID` fails the day either behaviour changes.",
+        "ListMdmCommandsV2": "`filter` is required: the server answers `400` with an empty `errors` array without one, so the method refuses an empty filter before sending. The field name is `command`, not `commandType`, which is what the response calls it: an unrecognised filter field is silently ignored and every row comes back, and a malformed `uuid` or an out-of-vocabulary `status` is a `500`. `TestAcceptance_Pro_MdmCommandsV2FilterIsMandatory` and `TestAcceptance_Pro_MdmCommandsV2IgnoresAnUnknownFilterField` fail the day either changes.",
+        "SendMdmCommandV2": "Which privilege applies is chosen by `commandType`: `destructive-device-actions:execute` for `ERASE_DEVICE`, `DEVICE_LOCK` and `DELETE_USER`, `local-admin-passwords:execute` for `SET_AUTO_ADMIN_PASSWORD`, `recovery-lock:execute` for `SET_RECOVERY_LOCK`, and `device-actions:execute` for everything else. The gateway chooses from the body, so a credential missing one grant is refused only for that type with `403 BAD_PERMISSIONS`, as is a body whose `commandType` is not a known one. `CommandData` is a discriminated union: set `CommandType` and the matching variant field together. `DEVICE_INFORMATION` and `DECLARATIVE_MANAGEMENT` answered `500` on simulated devices. `TestAcceptance_Pro_SendMdmCommandV2UnknownDevice` fails the day the privilege selection moves out of the gateway.",
         "UpdateAccountPreferencesV3": "Requires Jamf Pro 11.32 or later. `AccountPreferencesV6.showDirectoryGroupUuidColumn` is declared required as of spec 11.32.0, so the SDK sends it on every call and cannot omit it; an 11.31 or earlier tenant rejects the whole request with `400 [INVALID_CONTENT] Unrecognized field showDirectoryGroupUuidColumn … not marked as ignorable`. Check the server with `GetJamfProVersionV1` first if the tenant version is not known. The read half, `GetAccountPreferencesV3`, is unaffected."
       },
       "specFile": "pro_api.json",
@@ -2545,9 +2550,16 @@
           ]
         },
         {
+          "op": "POST /v2/mdm/commands",
+          "name": "SendMdmCommandV2"
+        },
+        {
           "op": "GET /v2/mdm/commands",
           "name": "ListMdmCommandsV2",
           "pagination": "totalCount",
+          "requiredParams": [
+            "filter"
+          ],
           "params": [
             "sort:[]string",
             "filter"

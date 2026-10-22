@@ -99,6 +99,24 @@ func TestListMdmCommandsV1_NotFound(t *testing.T) {
 	}
 }
 
+func TestSendMdmCommandV2(t *testing.T) {
+	c, mux := testServerWithOpts(t, WithTenantID("t-test"))
+	mux.HandleFunc("/pro/v2/mdm/commands", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Errorf("method = %s, want POST", r.Method)
+		}
+		writeJSON(t, w, http.StatusCreated, []map[string]any{{}})
+	})
+
+	result, err := c.SendMdmCommandV2(context.Background(), &MDMCommandRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result == nil {
+		t.Fatal("expected non-nil result")
+	}
+}
+
 func TestListMdmCommandsV2(t *testing.T) {
 	c, mux := testServerWithOpts(t, WithTenantID("t-test"))
 	mux.HandleFunc("/pro/v2/mdm/commands", func(w http.ResponseWriter, r *http.Request) {
@@ -112,11 +130,22 @@ func TestListMdmCommandsV2(t *testing.T) {
 		})
 	})
 
-	results, err := c.ListMdmCommandsV2(context.Background(), nil, "")
+	results, err := c.ListMdmCommandsV2(context.Background(), nil, "test-value")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(results) != 1 {
 		t.Fatalf("len = %d, want 1", len(results))
+	}
+}
+
+func TestListMdmCommandsV2RefusesMissingRequiredParam(t *testing.T) {
+	c, mux := testServerWithOpts(t, WithTenantID("t-test"))
+	mux.HandleFunc("/pro/v2/mdm/commands", func(w http.ResponseWriter, r *http.Request) {
+		t.Error("request sent without a parameter the server refuses a call without")
+	})
+
+	if _, err := c.ListMdmCommandsV2(context.Background(), nil, ""); err == nil {
+		t.Fatal("want an error for a missing required parameter, got nil")
 	}
 }

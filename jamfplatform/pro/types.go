@@ -764,6 +764,27 @@ type AppTitlesResult struct {
 	TotalCount int        `json:"totalCount"`
 }
 
+// ApplicationAttributes represents a application attributes.
+type ApplicationAttributes struct {
+	Attributes *Attributes `json:"attributes,omitempty"`
+	Identifier *string     `json:"identifier,omitempty"`
+}
+
+// ApplicationConfiguration represents a application configuration.
+type ApplicationConfiguration struct {
+	Configuration *string `json:"configuration,omitempty"`
+	Identifier    *string `json:"identifier,omitempty"`
+}
+
+// ApplyRedemptionCodeCommand represents a apply redemption code command.
+type ApplyRedemptionCodeCommand struct {
+	CommandType MDMCommandType `json:"commandType"`
+	// The bundle identifier of the app.
+	Identifier *string `json:"identifier,omitempty"`
+	// The redemption code that applies to the app pending installation.
+	RedemptionCode *string `json:"redemptionCode,omitempty"`
+}
+
 // AssignRemoveProfileResponseSyncState represents a assign remove profile response sync state.
 type AssignRemoveProfileResponseSyncState struct {
 	FailureCount int    `json:"failureCount"`
@@ -785,6 +806,21 @@ type Assignment struct {
 type AssignmentDtoV1 struct {
 	DeviceID string `json:"deviceId"`
 	Selected bool   `json:"selected"`
+}
+
+// Attributes represents a attributes.
+type Attributes struct {
+	AssociatedDomains     *[]string `json:"associatedDomains,omitempty"`
+	CellularSliceUUID     *string   `json:"cellularSliceUuid,omitempty"`
+	ContentFilterUUID     *string   `json:"contentFilterUuid,omitempty"`
+	DnsProxyUUID          *string   `json:"dnsProxyUuid,omitempty"`
+	EnableDirectDownloads *bool     `json:"enableDirectDownloads,omitempty"`
+	Hideable              *bool     `json:"hideable,omitempty"`
+	Lockable              *bool     `json:"lockable,omitempty"`
+	RelayUUID             *string   `json:"relayUuid,omitempty"`
+	Removable             *bool     `json:"removable,omitempty"`
+	TapToPayScreenLock    *bool     `json:"tapToPayScreenLock,omitempty"`
+	VpnUUID               *string   `json:"vpnUuid,omitempty"`
 }
 
 // AvailableOsUpdates represents a available os updates.
@@ -953,6 +989,11 @@ type CacheSettings struct {
 	TimeToLiveSeconds          int                  `json:"timeToLiveSeconds"`
 }
 
+// CancelEnhancedLogCollectionCommand represents a cancel enhanced log collection command.
+type CancelEnhancedLogCollectionCommand struct {
+	CommandType MDMCommandType `json:"commandType"`
+}
+
 // CategoriesSearchResults represents a categories search results.
 type CategoriesSearchResults struct {
 	Results    []Category `json:"results"`
@@ -1011,6 +1052,11 @@ type CertificateKey struct {
 	Valid *bool   `json:"valid,omitempty"`
 }
 
+// CertificateListCommand represents a certificate list command.
+type CertificateListCommand struct {
+	CommandType MDMCommandType `json:"commandType"`
+}
+
 // CertificateRecord represents a certificate record.
 type CertificateRecord struct {
 	IssuerX500Principal  string     `json:"issuerX500Principal"`
@@ -1061,6 +1107,17 @@ type ClassicLdapMappings struct {
 	UserObjectMapRoomTo           string `json:"userObjectMapRoomTo"`
 	UserObjectMapUsernameTo       string `json:"userObjectMapUsernameTo"`
 	UserObjectMapUUIDTo           string `json:"userObjectMapUuidTo"`
+}
+
+// ClearPasscodeCommand represents a clear passcode command.
+type ClearPasscodeCommand struct {
+	CommandType MDMCommandType `json:"commandType"`
+	UnlockToken string         `json:"unlockToken"`
+}
+
+// ClearRestrictionsPasswordCommand represents a clear restrictions password command.
+type ClearRestrictionsPasswordCommand struct {
+	CommandType MDMCommandType `json:"commandType"`
 }
 
 // ClientCheckInV3 represents a client check in v3.
@@ -2768,6 +2825,28 @@ type DashboardSetupTask struct {
 	Error     *DashboardApiError `json:"error,omitempty"`
 }
 
+// DeclarativeManagementCommand represents a declarative management command.
+type DeclarativeManagementCommand struct {
+	CommandType MDMCommandType `json:"commandType"`
+	// Base64 encoded data to be sent with the command.
+	Data *string `json:"data,omitempty"`
+}
+
+// DefaultApplications represents a default applications.
+type DefaultApplications struct {
+	Calling    *string `json:"calling,omitempty"`
+	Messaging  *string `json:"messaging,omitempty"`
+	WebBrowser *string `json:"webBrowser,omitempty"`
+}
+
+// DeleteUserCommand represents a delete user command.
+type DeleteUserCommand struct {
+	CommandType    MDMCommandType `json:"commandType"`
+	DeleteAllUsers *bool          `json:"deleteAllUsers,omitempty"`
+	ForceDeletion  *bool          `json:"forceDeletion,omitempty"`
+	UserName       *string        `json:"userName,omitempty"`
+}
+
 // Department represents a department.
 type Department struct {
 	ID   *string `json:"id,omitempty"`
@@ -3089,6 +3168,25 @@ type DeviceGroup struct {
 	Name string `json:"name"`
 }
 
+// DeviceInformationCommand represents a device information command.
+type DeviceInformationCommand struct {
+	CommandType MDMCommandType `json:"commandType"`
+	Queries     *[]string      `json:"queries,omitempty"`
+}
+
+// DeviceLocationCommand represents a device location command.
+type DeviceLocationCommand struct {
+	CommandType MDMCommandType `json:"commandType"`
+}
+
+// DeviceLockCommand represents a device lock command.
+type DeviceLockCommand struct {
+	CommandType MDMCommandType `json:"commandType"`
+	Message     *string        `json:"message,omitempty"`
+	PhoneNumber *string        `json:"phoneNumber,omitempty"`
+	Pin         *string        `json:"pin,omitempty"`
+}
+
 // DigiCertSetting DigiCert Trust Lifecycle Manager object to create, or update with a merge-patch strategy. Certificate data must be provided in full, or not at all for update with merge-patch strategy.
 type DigiCertSetting struct {
 	CaName            *string      `json:"caName,omitempty"`
@@ -3123,6 +3221,16 @@ type DigicertDependency struct {
 	ConfigProfileName string `json:"configProfileName"`
 	// Allowed values: see the DigicertDependencyConfigProfileType constants.
 	ConfigProfileType string `json:"configProfileType"`
+}
+
+// DisableLostModeCommand represents a disable lost mode command.
+type DisableLostModeCommand struct {
+	CommandType MDMCommandType `json:"commandType"`
+}
+
+// DisableRemoteDesktopCommand represents a disable remote desktop command.
+type DisableRemoteDesktopCommand struct {
+	CommandType MDMCommandType `json:"commandType"`
 }
 
 // DistributionPoint represents a distribution point.
@@ -3281,10 +3389,28 @@ type EbookSearchResults struct {
 	TotalCount int     `json:"totalCount"`
 }
 
+// EnableLostModeCommand represents a enable lost mode command.
+type EnableLostModeCommand struct {
+	CommandType MDMCommandType `json:"commandType"`
+	// Text displayed at the bottom of the Lock Screen.
+	LostModeFootnote *string `json:"lostModeFootnote,omitempty"`
+	// Text displayed on the Lock Screen. At least one of lostModeMessage or lostModePhone must be
+	// provided.
+	LostModeMessage *string `json:"lostModeMessage,omitempty"`
+	// Phone number displayed on the Lock Screen. At least one of lostModePhone or lostModeMessage must be
+	// provided.
+	LostModePhone *string `json:"lostModePhone,omitempty"`
+}
+
 // EnablePushRequest Request body to enable push notifications for a client.
 type EnablePushRequest struct {
 	// Unique identifier for the device management record to enable push for.
 	ManagementID string `json:"managementId"`
+}
+
+// EnableRemoteDesktopCommand represents a enable remote desktop command.
+type EnableRemoteDesktopCommand struct {
+	CommandType MDMCommandType `json:"commandType"`
 }
 
 // EnrollmentAccessGroupPreview represents a enrollment access group preview.
@@ -3499,6 +3625,24 @@ type EnrollmentSettingsV4 struct {
 type EnrollmentSsoConfig struct {
 	Hosts          *[]string `json:"hosts"`
 	ManagementHint *string   `json:"managementHint"`
+}
+
+// EraseDeviceCommand represents a erase device command.
+type EraseDeviceCommand struct {
+	CommandType MDMCommandType `json:"commandType"`
+	// If true, disable Proximity Setup on the next reboot and skip the pane in Setup Assistant. This value
+	// is available in iOS 11 and later. Prior to iOS 14, don’t use this option with any other option.
+	DisallowProximitySetup *bool `json:"disallowProximitySetup,omitempty"`
+	// This key defines the fallback behavior for erasing a device.
+	// Allowed values: see the EraseDeviceCommandObliterationBehavior constants.
+	ObliterationBehavior *string `json:"obliterationBehavior,omitempty"`
+	// The six-character PIN for Find My. This value is available in macOS 10.8 and later.
+	Pin *string `json:"pin,omitempty"`
+	// If true, preserve the data plan on an iPhone or iPad with eSIM functionality, if one exists. This
+	// value is available in iOS 11 and later.
+	PreserveDataPlan *bool `json:"preserveDataPlan,omitempty"`
+	// The configuration settings for Return to Service.
+	ReturnToService *ReturnToService `json:"returnToService,omitempty"`
 }
 
 // EraseDeviceComputerRequest represents a erase device computer request.
@@ -4024,6 +4168,21 @@ type InstallPackage struct {
 	GroupID          *string         `json:"groupId,omitempty"`
 	InstallAsManaged *bool           `json:"installAsManaged,omitempty"`
 	Manifest         PackageManifest `json:"manifest"`
+}
+
+// InstalledApplicationListCommand represents a installed application list command.
+type InstalledApplicationListCommand struct {
+	CommandType MDMCommandType `json:"commandType"`
+	// Array of application bundle identifiers to query. If not provided, all installed applications are
+	// returned.
+	Identifiers *[]string `json:"identifiers,omitempty"`
+	// Array of keys to include in the response for each application. If not provided, default keys are
+	// returned.
+	// Allowed values: see the InstalledApplicationListCommandItems constants.
+	Items *[]string `json:"items,omitempty"`
+	// If true, only managed applications are returned. If false or not provided, all applications are
+	// returned.
+	ManagedAppsOnly *bool `json:"managedAppsOnly,omitempty"`
 }
 
 // InternalRecipient represents a internal recipient.
@@ -4626,6 +4785,11 @@ type LogFlushingV1 struct {
 	RetentionPolicies []RetentionPolicyV1 `json:"retentionPolicies"`
 }
 
+// LogOutUserCommand represents a log out user command.
+type LogOutUserCommand struct {
+	CommandType MDMCommandType `json:"commandType"`
+}
+
 // LoginContent represents a login content.
 type LoginContent struct {
 	ActionText              string `json:"actionText"`
@@ -4705,6 +4869,18 @@ type MacOsManagedSoftwareUpdate struct {
 type MacOsManagedSoftwareUpdateResponse struct {
 	Errors              []ApiErrorCause `json:"errors"`
 	ProcessManagerUuids []string        `json:"processManagerUuids"`
+}
+
+// ManagedApplicationListCommand represents a managed application list command.
+type ManagedApplicationListCommand struct {
+	CommandType MDMCommandType `json:"commandType"`
+	// Array of application identifiers to manage.
+	Identifiers *[]string `json:"identifiers,omitempty"`
+}
+
+// ManagedMediaListCommand represents a managed media list command.
+type ManagedMediaListCommand struct {
+	CommandType MDMCommandType `json:"commandType"`
 }
 
 // ManagedSoftwareUpdatePlan represents a managed software update plan.
@@ -4854,10 +5030,20 @@ type MDMCommand struct {
 	UUID          string            `json:"uuid"`
 }
 
+// MDMCommandBase represents a m d m command base.
+type MDMCommandBase struct {
+	CommandType MDMCommandType `json:"commandType"`
+}
+
 // MDMCommandClient represents a m d m command client.
 type MDMCommandClient struct {
 	ClientType   *MDMClientType `json:"clientType,omitempty"`
 	ManagementID string         `json:"managementId"`
+}
+
+// MDMCommandClientRequest represents a m d m command client request.
+type MDMCommandClientRequest struct {
+	ManagementID *string `json:"managementId,omitempty"`
 }
 
 // MDMCommandError represents a m d m command error.
@@ -4866,6 +5052,322 @@ type MDMCommandError struct {
 	ErrorDomain               string `json:"errorDomain"`
 	ErrorEnglishDescription   string `json:"errorEnglishDescription"`
 	ErrorLocalizedDescription string `json:"errorLocalizedDescription"`
+}
+
+// MDMCommandRequest represents a m d m command request.
+type MDMCommandRequest struct {
+	ClientData  *[]MDMCommandClientRequest    `json:"clientData,omitempty"`
+	CommandData *MDMCommandRequestCommandData `json:"commandData,omitempty"`
+}
+
+// MDMCommandRequestCommandData is a polymorphic response keyed by commandType. Exactly one variant pointer is populated after unmarshaling.
+type MDMCommandRequestCommandData struct {
+	// Allowed values: see the MDMCommandRequestCommandDataCommandType constants.
+	CommandType                  string                               `json:"commandType"`
+	APPLYREDEMPTIONCODE          *ApplyRedemptionCodeCommand          `json:"-"`
+	CANCELENHANCEDLOGCOLLECTION  *CancelEnhancedLogCollectionCommand  `json:"-"`
+	CERTIFICATELIST              *CertificateListCommand              `json:"-"`
+	CLEARPASSCODE                *ClearPasscodeCommand                `json:"-"`
+	CLEARRESTRICTIONSPASSWORD    *ClearRestrictionsPasswordCommand    `json:"-"`
+	DECLARATIVEMANAGEMENT        *DeclarativeManagementCommand        `json:"-"`
+	DELETEUSER                   *DeleteUserCommand                   `json:"-"`
+	DEVICEINFORMATION            *DeviceInformationCommand            `json:"-"`
+	DEVICELOCATION               *DeviceLocationCommand               `json:"-"`
+	DEVICELOCK                   *DeviceLockCommand                   `json:"-"`
+	DISABLELOSTMODE              *DisableLostModeCommand              `json:"-"`
+	DISABLEREMOTEDESKTOP         *DisableRemoteDesktopCommand         `json:"-"`
+	ENABLELOSTMODE               *EnableLostModeCommand               `json:"-"`
+	ENABLEREMOTEDESKTOP          *EnableRemoteDesktopCommand          `json:"-"`
+	ERASEDEVICE                  *EraseDeviceCommand                  `json:"-"`
+	INSTALLEDAPPLICATIONLIST     *InstalledApplicationListCommand     `json:"-"`
+	LOGOUTUSER                   *LogOutUserCommand                   `json:"-"`
+	MANAGEDAPPLICATIONLIST       *ManagedApplicationListCommand       `json:"-"`
+	MANAGEDMEDIALIST             *ManagedMediaListCommand             `json:"-"`
+	PLAYLOSTMODESOUND            *PlayLostModeSoundCommand            `json:"-"`
+	PROFILELIST                  *ProfileListCommand                  `json:"-"`
+	PROVISIONINGPROFILELIST      *ProvisioningProfileListCommand      `json:"-"`
+	REFRESHCELLULARPLANS         *RefreshCellularPlansCommand         `json:"-"`
+	REQUESTMIRRORING             *RequestMirroringCommand             `json:"-"`
+	RESTARTDEVICE                *RestartDeviceCommand                `json:"-"`
+	SECURITYINFO                 *SecurityInfoCommand                 `json:"-"`
+	SETTINGS                     *SettingsCommand                     `json:"-"`
+	SETAUTOADMINPASSWORD         *SetAutoAdminPasswordCommand         `json:"-"`
+	SETRECOVERYLOCK              *SetRecoveryLockCommand              `json:"-"`
+	SHUTDOWNDEVICE               *ShutDownDeviceCommand               `json:"-"`
+	STOPMIRRORING                *StopMirroringCommand                `json:"-"`
+	TRIGGERENHANCEDLOGCOLLECTION *TriggerEnhancedLogCollectionCommand `json:"-"`
+	UNLOCKUSERACCOUNT            *UnlockUserAccountCommand            `json:"-"`
+	VALIDATEAPPLICATIONS         *ValidateApplicationsCommand         `json:"-"`
+	VERIFYRECOVERYLOCK           *VerifyRecoveryLockCommand           `json:"-"`
+}
+
+// UnmarshalJSON dispatches the payload to the variant matching the
+// commandType discriminator. Unknown values leave the variant
+// pointers nil but preserve the discriminator string.
+func (m *MDMCommandRequestCommandData) UnmarshalJSON(data []byte) error {
+	var d struct {
+		CommandType string `json:"commandType"`
+	}
+	if err := json.Unmarshal(data, &d); err != nil {
+		return err
+	}
+	m.CommandType = d.CommandType
+	switch d.CommandType {
+	case "APPLY_REDEMPTION_CODE":
+		m.APPLYREDEMPTIONCODE = new(ApplyRedemptionCodeCommand)
+		return json.Unmarshal(data, m.APPLYREDEMPTIONCODE)
+	case "CANCEL_ENHANCED_LOG_COLLECTION":
+		m.CANCELENHANCEDLOGCOLLECTION = new(CancelEnhancedLogCollectionCommand)
+		return json.Unmarshal(data, m.CANCELENHANCEDLOGCOLLECTION)
+	case "CERTIFICATE_LIST":
+		m.CERTIFICATELIST = new(CertificateListCommand)
+		return json.Unmarshal(data, m.CERTIFICATELIST)
+	case "CLEAR_PASSCODE":
+		m.CLEARPASSCODE = new(ClearPasscodeCommand)
+		return json.Unmarshal(data, m.CLEARPASSCODE)
+	case "CLEAR_RESTRICTIONS_PASSWORD":
+		m.CLEARRESTRICTIONSPASSWORD = new(ClearRestrictionsPasswordCommand)
+		return json.Unmarshal(data, m.CLEARRESTRICTIONSPASSWORD)
+	case "DECLARATIVE_MANAGEMENT":
+		m.DECLARATIVEMANAGEMENT = new(DeclarativeManagementCommand)
+		return json.Unmarshal(data, m.DECLARATIVEMANAGEMENT)
+	case "DELETE_USER":
+		m.DELETEUSER = new(DeleteUserCommand)
+		return json.Unmarshal(data, m.DELETEUSER)
+	case "DEVICE_INFORMATION":
+		m.DEVICEINFORMATION = new(DeviceInformationCommand)
+		return json.Unmarshal(data, m.DEVICEINFORMATION)
+	case "DEVICE_LOCATION":
+		m.DEVICELOCATION = new(DeviceLocationCommand)
+		return json.Unmarshal(data, m.DEVICELOCATION)
+	case "DEVICE_LOCK":
+		m.DEVICELOCK = new(DeviceLockCommand)
+		return json.Unmarshal(data, m.DEVICELOCK)
+	case "DISABLE_LOST_MODE":
+		m.DISABLELOSTMODE = new(DisableLostModeCommand)
+		return json.Unmarshal(data, m.DISABLELOSTMODE)
+	case "DISABLE_REMOTE_DESKTOP":
+		m.DISABLEREMOTEDESKTOP = new(DisableRemoteDesktopCommand)
+		return json.Unmarshal(data, m.DISABLEREMOTEDESKTOP)
+	case "ENABLE_LOST_MODE":
+		m.ENABLELOSTMODE = new(EnableLostModeCommand)
+		return json.Unmarshal(data, m.ENABLELOSTMODE)
+	case "ENABLE_REMOTE_DESKTOP":
+		m.ENABLEREMOTEDESKTOP = new(EnableRemoteDesktopCommand)
+		return json.Unmarshal(data, m.ENABLEREMOTEDESKTOP)
+	case "ERASE_DEVICE":
+		m.ERASEDEVICE = new(EraseDeviceCommand)
+		return json.Unmarshal(data, m.ERASEDEVICE)
+	case "INSTALLED_APPLICATION_LIST":
+		m.INSTALLEDAPPLICATIONLIST = new(InstalledApplicationListCommand)
+		return json.Unmarshal(data, m.INSTALLEDAPPLICATIONLIST)
+	case "LOG_OUT_USER":
+		m.LOGOUTUSER = new(LogOutUserCommand)
+		return json.Unmarshal(data, m.LOGOUTUSER)
+	case "MANAGED_APPLICATION_LIST":
+		m.MANAGEDAPPLICATIONLIST = new(ManagedApplicationListCommand)
+		return json.Unmarshal(data, m.MANAGEDAPPLICATIONLIST)
+	case "MANAGED_MEDIA_LIST":
+		m.MANAGEDMEDIALIST = new(ManagedMediaListCommand)
+		return json.Unmarshal(data, m.MANAGEDMEDIALIST)
+	case "PLAY_LOST_MODE_SOUND":
+		m.PLAYLOSTMODESOUND = new(PlayLostModeSoundCommand)
+		return json.Unmarshal(data, m.PLAYLOSTMODESOUND)
+	case "PROFILE_LIST":
+		m.PROFILELIST = new(ProfileListCommand)
+		return json.Unmarshal(data, m.PROFILELIST)
+	case "PROVISIONING_PROFILE_LIST":
+		m.PROVISIONINGPROFILELIST = new(ProvisioningProfileListCommand)
+		return json.Unmarshal(data, m.PROVISIONINGPROFILELIST)
+	case "REFRESH_CELLULAR_PLANS":
+		m.REFRESHCELLULARPLANS = new(RefreshCellularPlansCommand)
+		return json.Unmarshal(data, m.REFRESHCELLULARPLANS)
+	case "REQUEST_MIRRORING":
+		m.REQUESTMIRRORING = new(RequestMirroringCommand)
+		return json.Unmarshal(data, m.REQUESTMIRRORING)
+	case "RESTART_DEVICE":
+		m.RESTARTDEVICE = new(RestartDeviceCommand)
+		return json.Unmarshal(data, m.RESTARTDEVICE)
+	case "SECURITY_INFO":
+		m.SECURITYINFO = new(SecurityInfoCommand)
+		return json.Unmarshal(data, m.SECURITYINFO)
+	case "SETTINGS":
+		m.SETTINGS = new(SettingsCommand)
+		return json.Unmarshal(data, m.SETTINGS)
+	case "SET_AUTO_ADMIN_PASSWORD":
+		m.SETAUTOADMINPASSWORD = new(SetAutoAdminPasswordCommand)
+		return json.Unmarshal(data, m.SETAUTOADMINPASSWORD)
+	case "SET_RECOVERY_LOCK":
+		m.SETRECOVERYLOCK = new(SetRecoveryLockCommand)
+		return json.Unmarshal(data, m.SETRECOVERYLOCK)
+	case "SHUT_DOWN_DEVICE":
+		m.SHUTDOWNDEVICE = new(ShutDownDeviceCommand)
+		return json.Unmarshal(data, m.SHUTDOWNDEVICE)
+	case "STOP_MIRRORING":
+		m.STOPMIRRORING = new(StopMirroringCommand)
+		return json.Unmarshal(data, m.STOPMIRRORING)
+	case "TRIGGER_ENHANCED_LOG_COLLECTION":
+		m.TRIGGERENHANCEDLOGCOLLECTION = new(TriggerEnhancedLogCollectionCommand)
+		return json.Unmarshal(data, m.TRIGGERENHANCEDLOGCOLLECTION)
+	case "UNLOCK_USER_ACCOUNT":
+		m.UNLOCKUSERACCOUNT = new(UnlockUserAccountCommand)
+		return json.Unmarshal(data, m.UNLOCKUSERACCOUNT)
+	case "VALIDATE_APPLICATIONS":
+		m.VALIDATEAPPLICATIONS = new(ValidateApplicationsCommand)
+		return json.Unmarshal(data, m.VALIDATEAPPLICATIONS)
+	case "VERIFY_RECOVERY_LOCK":
+		m.VERIFYRECOVERYLOCK = new(VerifyRecoveryLockCommand)
+		return json.Unmarshal(data, m.VERIFYRECOVERYLOCK)
+	}
+	return nil
+}
+
+// MarshalJSON emits the active variant's JSON. If the matching variant
+// pointer is nil, emits a minimal object carrying only the discriminator.
+func (m MDMCommandRequestCommandData) MarshalJSON() ([]byte, error) {
+	switch m.CommandType {
+	case "APPLY_REDEMPTION_CODE":
+		if m.APPLYREDEMPTIONCODE != nil {
+			return json.Marshal(m.APPLYREDEMPTIONCODE)
+		}
+	case "CANCEL_ENHANCED_LOG_COLLECTION":
+		if m.CANCELENHANCEDLOGCOLLECTION != nil {
+			return json.Marshal(m.CANCELENHANCEDLOGCOLLECTION)
+		}
+	case "CERTIFICATE_LIST":
+		if m.CERTIFICATELIST != nil {
+			return json.Marshal(m.CERTIFICATELIST)
+		}
+	case "CLEAR_PASSCODE":
+		if m.CLEARPASSCODE != nil {
+			return json.Marshal(m.CLEARPASSCODE)
+		}
+	case "CLEAR_RESTRICTIONS_PASSWORD":
+		if m.CLEARRESTRICTIONSPASSWORD != nil {
+			return json.Marshal(m.CLEARRESTRICTIONSPASSWORD)
+		}
+	case "DECLARATIVE_MANAGEMENT":
+		if m.DECLARATIVEMANAGEMENT != nil {
+			return json.Marshal(m.DECLARATIVEMANAGEMENT)
+		}
+	case "DELETE_USER":
+		if m.DELETEUSER != nil {
+			return json.Marshal(m.DELETEUSER)
+		}
+	case "DEVICE_INFORMATION":
+		if m.DEVICEINFORMATION != nil {
+			return json.Marshal(m.DEVICEINFORMATION)
+		}
+	case "DEVICE_LOCATION":
+		if m.DEVICELOCATION != nil {
+			return json.Marshal(m.DEVICELOCATION)
+		}
+	case "DEVICE_LOCK":
+		if m.DEVICELOCK != nil {
+			return json.Marshal(m.DEVICELOCK)
+		}
+	case "DISABLE_LOST_MODE":
+		if m.DISABLELOSTMODE != nil {
+			return json.Marshal(m.DISABLELOSTMODE)
+		}
+	case "DISABLE_REMOTE_DESKTOP":
+		if m.DISABLEREMOTEDESKTOP != nil {
+			return json.Marshal(m.DISABLEREMOTEDESKTOP)
+		}
+	case "ENABLE_LOST_MODE":
+		if m.ENABLELOSTMODE != nil {
+			return json.Marshal(m.ENABLELOSTMODE)
+		}
+	case "ENABLE_REMOTE_DESKTOP":
+		if m.ENABLEREMOTEDESKTOP != nil {
+			return json.Marshal(m.ENABLEREMOTEDESKTOP)
+		}
+	case "ERASE_DEVICE":
+		if m.ERASEDEVICE != nil {
+			return json.Marshal(m.ERASEDEVICE)
+		}
+	case "INSTALLED_APPLICATION_LIST":
+		if m.INSTALLEDAPPLICATIONLIST != nil {
+			return json.Marshal(m.INSTALLEDAPPLICATIONLIST)
+		}
+	case "LOG_OUT_USER":
+		if m.LOGOUTUSER != nil {
+			return json.Marshal(m.LOGOUTUSER)
+		}
+	case "MANAGED_APPLICATION_LIST":
+		if m.MANAGEDAPPLICATIONLIST != nil {
+			return json.Marshal(m.MANAGEDAPPLICATIONLIST)
+		}
+	case "MANAGED_MEDIA_LIST":
+		if m.MANAGEDMEDIALIST != nil {
+			return json.Marshal(m.MANAGEDMEDIALIST)
+		}
+	case "PLAY_LOST_MODE_SOUND":
+		if m.PLAYLOSTMODESOUND != nil {
+			return json.Marshal(m.PLAYLOSTMODESOUND)
+		}
+	case "PROFILE_LIST":
+		if m.PROFILELIST != nil {
+			return json.Marshal(m.PROFILELIST)
+		}
+	case "PROVISIONING_PROFILE_LIST":
+		if m.PROVISIONINGPROFILELIST != nil {
+			return json.Marshal(m.PROVISIONINGPROFILELIST)
+		}
+	case "REFRESH_CELLULAR_PLANS":
+		if m.REFRESHCELLULARPLANS != nil {
+			return json.Marshal(m.REFRESHCELLULARPLANS)
+		}
+	case "REQUEST_MIRRORING":
+		if m.REQUESTMIRRORING != nil {
+			return json.Marshal(m.REQUESTMIRRORING)
+		}
+	case "RESTART_DEVICE":
+		if m.RESTARTDEVICE != nil {
+			return json.Marshal(m.RESTARTDEVICE)
+		}
+	case "SECURITY_INFO":
+		if m.SECURITYINFO != nil {
+			return json.Marshal(m.SECURITYINFO)
+		}
+	case "SETTINGS":
+		if m.SETTINGS != nil {
+			return json.Marshal(m.SETTINGS)
+		}
+	case "SET_AUTO_ADMIN_PASSWORD":
+		if m.SETAUTOADMINPASSWORD != nil {
+			return json.Marshal(m.SETAUTOADMINPASSWORD)
+		}
+	case "SET_RECOVERY_LOCK":
+		if m.SETRECOVERYLOCK != nil {
+			return json.Marshal(m.SETRECOVERYLOCK)
+		}
+	case "SHUT_DOWN_DEVICE":
+		if m.SHUTDOWNDEVICE != nil {
+			return json.Marshal(m.SHUTDOWNDEVICE)
+		}
+	case "STOP_MIRRORING":
+		if m.STOPMIRRORING != nil {
+			return json.Marshal(m.STOPMIRRORING)
+		}
+	case "TRIGGER_ENHANCED_LOG_COLLECTION":
+		if m.TRIGGERENHANCEDLOGCOLLECTION != nil {
+			return json.Marshal(m.TRIGGERENHANCEDLOGCOLLECTION)
+		}
+	case "UNLOCK_USER_ACCOUNT":
+		if m.UNLOCKUSERACCOUNT != nil {
+			return json.Marshal(m.UNLOCKUSERACCOUNT)
+		}
+	case "VALIDATE_APPLICATIONS":
+		if m.VALIDATEAPPLICATIONS != nil {
+			return json.Marshal(m.VALIDATEAPPLICATIONS)
+		}
+	case "VERIFY_RECOVERY_LOCK":
+		if m.VERIFYRECOVERYLOCK != nil {
+			return json.Marshal(m.VERIFYRECOVERYLOCK)
+		}
+	}
+	return json.Marshal(map[string]string{"commandType": m.CommandType})
 }
 
 // MDMCommandResults represents a m d m command results.
@@ -6482,6 +6984,11 @@ type PlanStatus struct {
 	State string `json:"state"`
 }
 
+// PlayLostModeSoundCommand represents a play lost mode sound command.
+type PlayLostModeSoundCommand struct {
+	CommandType MDMCommandType `json:"commandType"`
+}
+
 // PolicyPropertiesV1 represents a policy properties v1.
 type PolicyPropertiesV1 struct {
 	AllowNetworkStateChangeTriggers *bool `json:"allowNetworkStateChangeTriggers,omitempty"`
@@ -6644,6 +7151,14 @@ type ProcessTextsSearchResults struct {
 	TotalCount int                           `json:"totalCount"`
 }
 
+// ProfileListCommand represents a profile list command.
+type ProfileListCommand struct {
+	CommandType MDMCommandType `json:"commandType"`
+	// If true, only managed configuration profiles are returned. If false, all configuration profiles are
+	// returned. The default value is false.
+	ManagedOnly *bool `json:"managedOnly,omitempty"`
+}
+
 // ProtectRegistrationRequest Create an API Client in the Jamf Protect web console to obtain these values.
 type ProtectRegistrationRequest struct {
 	ClientID string `json:"clientId"`
@@ -6675,6 +7190,14 @@ type ProtectSettingsResponse struct {
 type ProtectUpdatableSettingsRequest struct {
 	// determines whether the Jamf Protect agent will be automatically installed on client computers.
 	AutoInstall *bool `json:"autoInstall,omitempty"`
+}
+
+// ProvisioningProfileListCommand represents a provisioning profile list command.
+type ProvisioningProfileListCommand struct {
+	CommandType MDMCommandType `json:"commandType"`
+	// If true, only managed provisioning profiles are returned. If false, all provisioning profiles are
+	// returned. The default value is false.
+	ManagedOnly *bool `json:"managedOnly,omitempty"`
 }
 
 // PurchasingV2 represents a purchasing v2.
@@ -6837,6 +7360,13 @@ type Reenrollment struct {
 	IsFlushSoftwareUpdatePlansEnabled        *bool  `json:"isFlushSoftwareUpdatePlansEnabled,omitempty"`
 }
 
+// RefreshCellularPlansCommand represents a refresh cellular plans command.
+type RefreshCellularPlansCommand struct {
+	CommandType MDMCommandType `json:"commandType"`
+	// The URL of the eSIM server that the device should contact to refresh cellular plans.
+	EsimServerURL string `json:"esimServerUrl"`
+}
+
 // RemoteAdministrationResponse A Remote administration response.
 type RemoteAdministrationResponse struct {
 	DisplayName string `json:"displayName"`
@@ -6865,6 +7395,32 @@ type RenewMDMProfileResponse struct {
 	UdidsNotProcessed *Udids `json:"udidsNotProcessed,omitempty"`
 }
 
+// RequestMirroringCommand represents a request mirroring command.
+type RequestMirroringCommand struct {
+	CommandType MDMCommandType `json:"commandType"`
+	// The hardware address of the destination device to which the screen will be mirrored. This value
+	// isn’t case-sensitive. Required if destinationName is not provided.
+	DestinationDeviceID *string `json:"destinationDeviceId,omitempty"`
+	// The name of the destination device to which the screen will be mirrored. Required if
+	// destinationDeviceId is not provided.
+	DestinationName *string `json:"destinationName,omitempty"`
+	// The screen-sharing password used to connect to the destination device.
+	// Write-only. Servers MUST NOT return this field in responses; the SDK preserves it only so the caller
+	// can supply a value on update.
+	Password *string `json:"password,omitempty"`
+	// The scan time which device spends in seconds to find the destination device.
+	ScanTime *int `json:"scanTime,omitempty"`
+}
+
+// RestartDeviceCommand represents a restart device command.
+type RestartDeviceCommand struct {
+	CommandType MDMCommandType `json:"commandType"`
+	// Only used if RebuildKernelCache is true.
+	KextPaths          *[]string `json:"kextPaths,omitempty"`
+	NotifyUser         *bool     `json:"notifyUser,omitempty"`
+	RebuildKernelCache *bool     `json:"rebuildKernelCache,omitempty"`
+}
+
 // RetentionPolicyV1 represents a retention policy v1.
 type RetentionPolicyV1 struct {
 	DisplayName     string `json:"displayName"`
@@ -6872,6 +7428,17 @@ type RetentionPolicyV1 struct {
 	RetentionPeriod int    `json:"retentionPeriod"`
 	// The unit of the retention period (eg: DAY, WEEK, MONTH, YEAR).
 	RetentionPeriodUnit string `json:"retentionPeriodUnit"`
+}
+
+// ReturnToService The configuration settings for Return to Service.
+type ReturnToService struct {
+	// Base64 encoded bootstrap token for the device.
+	BootstrapToken *string `json:"bootstrapToken,omitempty"`
+	Enabled        bool    `json:"enabled"`
+	// Base64 encoded mdm profile.
+	MDMProfileData *string `json:"mdmProfileData,omitempty"`
+	// Base64 encoded wifi profile.
+	WifiProfileData *string `json:"wifiProfileData,omitempty"`
 }
 
 // ReturnToServiceConfiguration represents a return to service configuration.
@@ -6976,6 +7543,11 @@ type Script struct {
 type ScriptsSearchResults struct {
 	Results    []Script `json:"results"`
 	TotalCount int      `json:"totalCount"`
+}
+
+// SecurityInfoCommand represents a security info command.
+type SecurityInfoCommand struct {
+	CommandType MDMCommandType `json:"commandType"`
 }
 
 // SecurityV2 represents a security v2.
@@ -7158,9 +7730,69 @@ type SessionStatus struct {
 	SessionState string `json:"sessionState"`
 }
 
+// SetAutoAdminPasswordCommand represents a set auto admin password command.
+type SetAutoAdminPasswordCommand struct {
+	CommandType MDMCommandType `json:"commandType"`
+	// The unique identifier of the local administrator account. Must match the GUID of an administrator
+	// account that MDM created during Device Enrollment Program (DEP) enrollment.
+	Guid *string `json:"guid,omitempty"`
+	// The new password for the local administrator account.
+	// Write-only. Servers MUST NOT return this field in responses; the SDK preserves it only so the caller
+	// can supply a value on update.
+	Password *string `json:"password,omitempty"`
+}
+
+// SetRecoveryLockCommand represents a set recovery lock command.
+type SetRecoveryLockCommand struct {
+	CommandType MDMCommandType `json:"commandType"`
+	// The new password for Recovery Lock. Set as an empty string to clear the Recovery Lock password.
+	// Write-only. Servers MUST NOT return this field in responses; the SDK preserves it only so the caller
+	// can supply a value on update.
+	NewPassword *string `json:"newPassword,omitempty"`
+}
+
+// SettingsCommand represents a settings command.
+type SettingsCommand struct {
+	// If true, a supervised device registers itself with Activation Lock when the user enables Find My.
+	// This setting is available for supervised devices in iOS 7 and later, and macOS 10.15 and later.
+	ActivationLockAllowedWhileSupervised *bool                     `json:"activationLockAllowedWhileSupervised,omitempty"`
+	AppAnalytics                         *AppAnalyticsSetting      `json:"appAnalytics,omitempty"`
+	ApplicationAttributes                *ApplicationAttributes    `json:"applicationAttributes,omitempty"`
+	ApplicationConfiguration             *ApplicationConfiguration `json:"applicationConfiguration,omitempty"`
+	Bluetooth                            *bool                     `json:"bluetooth,omitempty"`
+	// Deprecated - BootstrapTokenAllowed is automatically managed by macOS 11 and later. This field will
+	// continue to function but is no longer necessary.
+	BootstrapTokenAllowed *bool                        `json:"bootstrapTokenAllowed,omitempty"`
+	CommandType           MDMCommandType               `json:"commandType"`
+	DataRoaming           *DataRoamingSetting          `json:"dataRoaming,omitempty"`
+	DefaultApplications   *DefaultApplications         `json:"defaultApplications,omitempty"`
+	DeviceName            *string                      `json:"deviceName,omitempty"`
+	DiagnosticSubmission  *DiagnosticSubmissionSetting `json:"diagnosticSubmission,omitempty"`
+	MaximumResidentUsers  *int                         `json:"maximumResidentUsers,omitempty"`
+	// The number of seconds before a locked screen requires the user to enter the device passcode to
+	// unlock it. (Shared iPad Only).
+	PasscodeLockGracePeriod   *int                       `json:"passcodeLockGracePeriod,omitempty"`
+	PersonalHotspot           *PersonalHotspotSetting    `json:"personalHotspot,omitempty"`
+	SharedDeviceConfiguration *SharedDeviceConfiguration `json:"sharedDeviceConfiguration,omitempty"`
+	SoftwareUpdateSettings    *SoftwareUpdateSettings    `json:"softwareUpdateSettings,omitempty"`
+	TimeZone                  *string                    `json:"timeZone,omitempty"`
+	VoiceRoaming              *VoiceRoamingSetting       `json:"voiceRoaming,omitempty"`
+}
+
 // SharedDeviceComplianceFeatureToggle represents a shared device compliance feature toggle.
 type SharedDeviceComplianceFeatureToggle struct {
 	SharedDeviceFeatureEnabled bool `json:"sharedDeviceFeatureEnabled"`
+}
+
+// SharedDeviceConfiguration represents a shared device configuration.
+type SharedDeviceConfiguration struct {
+	QuotaSize     *int `json:"quotaSize,omitempty"`
+	ResidentUsers *int `json:"residentUsers,omitempty"`
+}
+
+// ShutDownDeviceCommand represents a shut down device command.
+type ShutDownDeviceCommand struct {
+	CommandType MDMCommandType `json:"commandType"`
 }
 
 // Signature represents a signature.
@@ -7358,6 +7990,12 @@ type SoftwareTitleConfigurationOnDashboard struct {
 	OnDashboard bool `json:"onDashboard"`
 }
 
+// SoftwareUpdateSettings represents a software update settings.
+type SoftwareUpdateSettings struct {
+	// Allowed values: see the SoftwareUpdateSettingsRecommendationCadence constants.
+	RecommendationCadence *string `json:"recommendationCadence,omitempty"`
+}
+
 // SsoFailoverData represents a sso failover data.
 type SsoFailoverData struct {
 	FailoverURL string `json:"failoverUrl"`
@@ -7543,6 +8181,11 @@ type StatusItems struct {
 	StatusItems []StatusItem `json:"statusItems"`
 }
 
+// StopMirroringCommand represents a stop mirroring command.
+type StopMirroringCommand struct {
+	CommandType MDMCommandType `json:"commandType"`
+}
+
 // SupervisionIdentity represents a supervision identity.
 type SupervisionIdentity struct {
 	CommonName     string `json:"commonName"`
@@ -7634,6 +8277,13 @@ type TimeZone struct {
 	ZoneID string `json:"zoneId"`
 }
 
+// TriggerEnhancedLogCollectionCommand represents a trigger enhanced log collection command.
+type TriggerEnhancedLogCollectionCommand struct {
+	// The AppleCare token the device uses for authenticating the enhanced log collection session.
+	AppleCareToken string         `json:"appleCareToken"`
+	CommandType    MDMCommandType `json:"commandType"`
+}
+
 // TvOsDetails will be populated if the type is appleTv.
 type TvOsDetails struct {
 	// Write-only. Servers MUST NOT return this field in responses; the SDK preserves it only so the caller
@@ -7674,6 +8324,13 @@ type UnifiedSmartGroupCriteriaV2 struct {
 	SearchType string `json:"searchType"`
 	// The value to search for.
 	Value string `json:"value"`
+}
+
+// UnlockUserAccountCommand represents a unlock user account command.
+type UnlockUserAccountCommand struct {
+	CommandType MDMCommandType `json:"commandType"`
+	// The username of the user account to unlock.
+	UserName *string `json:"userName,omitempty"`
 }
 
 // UnmanageMobileDeviceResponse represents a unmanage mobile device response.
@@ -7864,6 +8521,11 @@ type V1SiteBase struct {
 	Name       string  `json:"name"`
 }
 
+// ValidateApplicationsCommand represents a validate applications command.
+type ValidateApplicationsCommand struct {
+	CommandType MDMCommandType `json:"commandType"`
+}
+
 // VenafiCaRecord represents a venafi ca record.
 type VenafiCaRecord struct {
 	ClientID     *string `json:"clientId,omitempty"`
@@ -7911,6 +8573,15 @@ type VerbosePackageDeploymentResponseErrorsItem struct {
 type VerbosePackageDeploymentResponseQueuedCommandsItem struct {
 	CommandUUID string `json:"commandUuid"`
 	Device      int    `json:"device"`
+}
+
+// VerifyRecoveryLockCommand represents a verify recovery lock command.
+type VerifyRecoveryLockCommand struct {
+	CommandType MDMCommandType `json:"commandType"`
+	// The password to verify.
+	// Write-only. Servers MUST NOT return this field in responses; the SDK preserves it only so the caller
+	// can supply a value on update.
+	Password *string `json:"password,omitempty"`
 }
 
 // VolumePurchasingContent represents a volume purchasing content.

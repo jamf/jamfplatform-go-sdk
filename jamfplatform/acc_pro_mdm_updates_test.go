@@ -7,6 +7,7 @@ package jamfplatform_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -14,6 +15,7 @@ import (
 	"testing"
 
 	"github.com/jamf/jamfplatform-go-sdk/jamfplatform"
+	"github.com/jamf/jamfplatform-go-sdk/jamfplatform/devices"
 	"github.com/jamf/jamfplatform-go-sdk/jamfplatform/pro"
 	"github.com/jamf/jamfplatform-go-sdk/jamfplatform/proclassic"
 )
@@ -457,14 +459,26 @@ func assertMdmCommandsV1Status(t *testing.T, err error, want int, label string) 
 // plus one of four. Nothing structural carries it, so a caller reading only the
 // signature writes a call that always 400s.
 //
-// Asserted rather than tolerated, so this fails the day the server stops
-// requiring it or the spec starts declaring it required. Either way the fix is
-// to re-read the parameter and correct the method godoc, not to relax this.
+// The method now refuses an empty filter before sending (config
+// `requiredParams`), so the server's own 400 is observed through the raw
+// transport, which is the only way left to reach it. Asserted rather than
+// tolerated, so this fails the day the server stops requiring the filter or the
+// spec starts declaring it required. Either way the fix is to re-read the
+// parameter, delete the `requiredParams` entry and correct the godoc, not to
+// relax this.
 func TestAcceptance_Pro_MdmCommandsV2FilterIsMandatory(t *testing.T) {
 	ctx := context.Background()
-	p := pro.New(accClient(t))
+	c := accClient(t)
+	p := pro.New(c)
 
-	_, err := p.ListMdmCommandsV2(ctx, nil, "")
+	// The SDK refuses locally, before any request.
+	if _, err := p.ListMdmCommandsV2(ctx, nil, ""); err == nil {
+		t.Fatal("ListMdmCommandsV2 with an empty filter: want a local refusal, got nil")
+	}
+
+	// The server's own answer, with the same call sent raw.
+	tr := c.Transport()
+	err := tr.Do(ctx, http.MethodGet, tr.APIPrefix("pro", "v2")+"/mdm/commands?page=0&page-size=1", nil, nil)
 	assertMdmCommandsV2Status(t, err, 400, "no filter")
 
 	// The control: the identical call with a filter succeeds, so the 400 is the
@@ -642,29 +656,208 @@ func assertMdmCommandsV2Status(t *testing.T, err error, want int, label string) 
 	t.Logf("ListMdmCommandsV2 (%s): HTTP %d as expected", label, want)
 }
 
-// POST /api/pro/v2/mdm/commands is no longer covered. Jamf withdrew it from
-// the published spec in the GA cleanup (upstream's spec change; the GET is
-// retained), so the SDK no longer generates SendMdmCommandV2 and the request
-// types MDMCommandRequest / MDMCommandClientRequest are gone with it.
+// mdmCommandsWriteGate names the opt-in for queuing a real MDM command. Its own
+// gate: the operation reaches managed devices, and the request type can carry
+// ERASE_DEVICE, which no test here ever sends.
+const mdmCommandsWriteGate = "JAMFPLATFORM_ACC_PRO_MDM_COMMANDS_WRITE_OK"
+
+// TestAcceptance_Pro_SendMdmCommandV2UnknownDevice pins the routing and the
+// request encoding of POST /v2/mdm/commands without queuing anything.
 //
-// The gateway agrees, which is worth recording because a withdrawn-from-spec
-// operation is often still served (v1942's 146 removals all were). Probed
-// 2026-09-14: POST, PUT, PATCH and DELETE on /pro/v2/mdm/commands all answer
-// the unrouted 403 BAD_PERMISSIONS with no Allow header, against GET on the
-// same path at 200 and a bogus path in the same namespace also 403 as controls
-// in the same invocation. The path declares GET alone in external,
-// internal/stage AND internal/dev, so this is not the publishing filter hiding
-// a write. The only MDM writes any spec declares are POST /v2/mdm/blank-push
-// and POST /v1/mdm/renew-profile.
+// The operation was withdrawn at v1872 (JSC-73265) and every verb on the path
+// answered the unrouted 403 BAD_PERMISSIONS on 2026-09-14. v2508 published it
+// again with its privileges split per commandType, and the gateway serves it
+// (2026-10-22): a well-formed body for a management id that does not exist
+// answers a service-level 404 NOT_FOUND, so the request reached the service and
+// the typed union marshalled a commandType the server resolved. A body whose
+// commandType the gateway cannot map to a privilege is refused at the gateway
+// with the same 403 an unrouted path gives, which is why the second assertion
+// uses a type that is not in the enum: it pins that the privilege is chosen from
+// the body, and fails the day that moves into the service.
+func TestAcceptance_Pro_SendMdmCommandV2UnknownDevice(t *testing.T) {
+	ctx := context.Background()
+	p := pro.New(accClient(t))
+
+	// The control: a read on the same namespace succeeds, so the 404 below is
+	// the missing device and not a rejected credential.
+	if _, err := p.ListMdmCommandsV2(ctx, nil, "active==true"); err != nil {
+		skipOnServerError(t, err)
+		t.Fatalf("ListMdmCommandsV2 control: %v", err)
+	}
+
+	noSuchDevice := "00000000-0000-0000-0000-000000000000"
+	clients := []pro.MDMCommandClientRequest{{ManagementID: &noSuchDevice}}
+
+	_, err := p.SendMdmCommandV2(ctx, &pro.MDMCommandRequest{
+		ClientData: &clients,
+		CommandData: &pro.MDMCommandRequestCommandData{
+			CommandType:     "CERTIFICATE_LIST",
+			CERTIFICATELIST: &pro.CertificateListCommand{CommandType: "CERTIFICATE_LIST"},
+		},
+	})
+	var apiErr *jamfplatform.APIResponseError
+	if !errors.As(err, &apiErr) || !apiErr.HasStatus(http.StatusNotFound) {
+		t.Fatalf("SendMdmCommandV2(CERTIFICATE_LIST, unknown device): want HTTP 404, got %v", err)
+	}
+
+	_, err = p.SendMdmCommandV2(ctx, &pro.MDMCommandRequest{
+		ClientData:  &clients,
+		CommandData: &pro.MDMCommandRequestCommandData{CommandType: "NOT_A_COMMAND_TYPE"},
+	})
+	if !errors.As(err, &apiErr) || !apiErr.HasStatus(http.StatusForbidden) {
+		t.Fatalf("SendMdmCommandV2(unknown commandType): want HTTP 403, got %v", err)
+	}
+}
+
+// TestAcceptance_Pro_SendMdmCommandV2QueuesCommand queues one CERTIFICATE_LIST,
+// a read-only query, on the first device of the instance and finds it again by
+// uuid. Gated, because it reaches a managed device.
 //
-// Three tests went with it, and one is a real loss worth restoring if a
-// successor appears: CommandTypeEnumMatchesServer used the server's own type
-// resolution failure ("known type ids = [A, B, …]") as an oracle for the
-// MDMCommandType enum, which is the only wire confirmation that the generated
-// constants match what the server accepts. MDMCommandType itself survives, from
-// MDMCommand on the read side, so the enum is still emitted — just unverified.
-// The other two (SendMdmCommandV2, EnhancedLogCollectionCommands) only probed
-// the withdrawn path.
+// The 201 body is []HrefResponse; the href is not callable by this SDK, so the
+// id is what is read back. The read-back goes through ListMdmCommandsV2 with a
+// uuid filter, the only way to see a queued command.
+//
+// DEVICE_INFORMATION and DECLARATIVE_MANAGEMENT answered a deterministic 500
+// "Unable to perform MDM operation" on simulated sandbox devices while
+// twenty-two other types queued (2026-10-22); that is fixture behaviour, not
+// pinned here. See WIRE-FACTS.md.
+func TestAcceptance_Pro_SendMdmCommandV2QueuesCommand(t *testing.T) {
+	requireWriteOptIn(t, mdmCommandsWriteGate,
+		"Queues a CERTIFICATE_LIST command on a managed device. It only asks the device to report, but it "+
+			"reaches a real device and cannot be withdrawn once queued.")
+
+	ctx := context.Background()
+	c := accClient(t)
+	p := pro.New(c)
+
+	devs, err := devices.New(c).ListDevices(ctx, nil, "")
+	if err != nil {
+		skipOnServerError(t, err)
+		t.Fatalf("ListDevices: %v", err)
+	}
+	if len(devs) == 0 {
+		t.Skip("no device on this instance to queue a command on")
+	}
+
+	clients := []pro.MDMCommandClientRequest{{ManagementID: &devs[0].ID}}
+	refs, err := p.SendMdmCommandV2(ctx, &pro.MDMCommandRequest{
+		ClientData: &clients,
+		CommandData: &pro.MDMCommandRequestCommandData{
+			CommandType:     "CERTIFICATE_LIST",
+			CERTIFICATELIST: &pro.CertificateListCommand{CommandType: "CERTIFICATE_LIST"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("SendMdmCommandV2(CERTIFICATE_LIST, %s): %v", devs[0].ID, err)
+	}
+	if len(refs) != 1 || refs[0].ID == "" {
+		t.Fatalf("SendMdmCommandV2: want one {id, href}, got %+v", refs)
+	}
+
+	got, err := p.ListMdmCommandsV2(ctx, nil, "uuid=="+refs[0].ID)
+	if err != nil {
+		t.Fatalf("ListMdmCommandsV2(uuid==%s): %v", refs[0].ID, err)
+	}
+	if len(got) != 1 || got[0].UUID != refs[0].ID {
+		t.Fatalf("queued command %s not found by uuid: %+v", refs[0].ID, got)
+	}
+}
+
+// commandDataOf builds the typed union for one commandType by decoding the
+// minimal body, which is what populates the matching variant. A value the
+// union does not know leaves no variant, so the caller must not send it.
+func commandDataOf(t *testing.T, ct string) *pro.MDMCommandRequestCommandData {
+	t.Helper()
+	var cd pro.MDMCommandRequestCommandData
+	if err := json.Unmarshal([]byte(`{"commandType":"`+ct+`"}`), &cd); err != nil {
+		t.Fatalf("decode %s: %v", ct, err)
+	}
+	return &cd
+}
+
+// TestAcceptance_Pro_MdmUpdates_CommandTypeEnumMatchesServer restores the check
+// the v1872 withdrawal took away, with a different oracle. The old one was the
+// server's own type-resolution failure ("known type ids = [...]"), which is gone:
+// an unknown commandType is now refused by the gateway with a bare 403, the same
+// answer a missing grant gives.
+//
+// What distinguishes the two is the target. Every enum value is sent at a
+// management id that cannot exist; a type the service resolves answers 404
+// NOT_FOUND (device lookup precedes field validation, so a type that needs
+// fields still answers 404, wire-checked for all 35 on 2026-10-22), and anything
+// else is the gateway. So a 403 is ambiguous between "not a
+// type" and "this credential lacks the grant" and is reported, not failed: a
+// credential without recovery-lock:execute legitimately gets one for
+// SET_RECOVERY_LOCK. Any other status fails.
+//
+// Nothing is queued: no device holds the id.
+func TestAcceptance_Pro_MdmUpdates_CommandTypeEnumMatchesServer(t *testing.T) {
+	ctx := context.Background()
+	p := pro.New(accClient(t))
+	if _, err := p.ListMdmCommandsV2(ctx, nil, "active==true"); err != nil {
+		skipOnServerError(t, err)
+		t.Fatalf("ListMdmCommandsV2 control: %v", err)
+	}
+
+	noSuchDevice := "00000000-0000-0000-0000-000000000000"
+	clients := []pro.MDMCommandClientRequest{{ManagementID: &noSuchDevice}}
+	var refused []string
+	for _, v := range pro.MDMCommandTypeValues() {
+		ct := string(v)
+		_, err := p.SendMdmCommandV2(ctx, &pro.MDMCommandRequest{ClientData: &clients, CommandData: commandDataOf(t, ct)})
+		var apiErr *jamfplatform.APIResponseError
+		switch {
+		case !errors.As(err, &apiErr):
+			t.Errorf("%s: want an API error, got %v", ct, err)
+		case apiErr.HasStatus(http.StatusNotFound):
+		case apiErr.HasStatus(http.StatusForbidden):
+			refused = append(refused, ct)
+		default:
+			t.Errorf("%s: unexpected %v", ct, err)
+		}
+	}
+	t.Logf("SDK emits %d command types; refused with 403 (unknown to the gateway, or ungranted to this credential): %v",
+		len(pro.MDMCommandTypeValues()), refused)
+}
+
+// TestAcceptance_Pro_MdmUpdates_EnhancedLogCollectionCommands covers the two
+// command payloads added in Jamf Pro 11.30 without triggering anything: the
+// target management id cannot exist, so the request fails at the device lookup.
+// What it verifies is that both commandType values resolve and the generated
+// payload shapes marshal into a body the service accepts — a 404 and not a 403.
+func TestAcceptance_Pro_MdmUpdates_EnhancedLogCollectionCommands(t *testing.T) {
+	p := pro.New(accClient(t))
+	noSuchDevice := "00000000-0000-0000-0000-000000000000"
+	clients := []pro.MDMCommandClientRequest{{ManagementID: &noSuchDevice}}
+
+	cases := []struct {
+		name string
+		data pro.MDMCommandRequestCommandData
+	}{
+		{"trigger", pro.MDMCommandRequestCommandData{
+			CommandType: "TRIGGER_ENHANCED_LOG_COLLECTION",
+			TRIGGERENHANCEDLOGCOLLECTION: &pro.TriggerEnhancedLogCollectionCommand{
+				CommandType:    pro.MDMCommandTypeTriggerEnhancedLogCollection,
+				AppleCareToken: "sdk-acc-not-a-real-applecare-token",
+			},
+		}},
+		{"cancel", pro.MDMCommandRequestCommandData{
+			CommandType: "CANCEL_ENHANCED_LOG_COLLECTION",
+			CANCELENHANCEDLOGCOLLECTION: &pro.CancelEnhancedLogCollectionCommand{
+				CommandType: pro.MDMCommandTypeCancelEnhancedLogCollection,
+			},
+		}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := p.SendMdmCommandV2(context.Background(), &pro.MDMCommandRequest{ClientData: &clients, CommandData: &tc.data})
+			var apiErr *jamfplatform.APIResponseError
+			if !errors.As(err, &apiErr) || !apiErr.HasStatus(http.StatusNotFound) {
+				t.Fatalf("SendMdmCommandV2(%s, unknown device): want HTTP 404, got %v", tc.name, err)
+			}
+		})
+	}
+}
 
 func TestAcceptance_Pro_MdmUpdates_SendMdmBlankPushV2(t *testing.T) {
 	t.Skip("blank push to a real enrolled device — manual curl only")
