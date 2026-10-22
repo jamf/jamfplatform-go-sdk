@@ -1113,7 +1113,13 @@ func hoistInlineObjectsInSchema(parentName string, schema *openapi3.Schema, doc 
 			}
 			return false
 		}
-		inlineObject := hasObjShape(v) || isRefUnion(v)
+		// An inline oneOf-of-refs *with* a discriminator is hoisted too. A
+		// property cannot carry one in a union struct, so left inline it reached
+		// schemaRefToGoType's default branch and became `any` — jpapi's
+		// MdmCommandRequest.commandData (v2508), thirty-four command types.
+		// isRefUnion refuses a discriminator on purpose (the promoted type must
+		// still be built as a union), so this is the discriminated case only.
+		inlineObject := hasObjShape(v) || isRefUnion(v) || (v.Discriminator != nil && isInlineItemUnion(v))
 		// An inline oneOf-of-refs as array items is hoisted like an inline
 		// object, so the element gets a name extractTypes can build a union
 		// from. Left inline it reaches schemaRefToGoType's default branch and
@@ -2366,7 +2372,16 @@ func flattenAllOf(schema *openapi3.Schema) (map[string]*openapi3.SchemaRef, []st
 		if s == nil {
 			return
 		}
-		maps.Copy(props, s.Properties)
+		for k, v := range s.Properties {
+			// A later member that only annotates a property (an example, a
+			// nullable flag) is not a redefinition: it declares no type, so
+			// letting it win replaces the base's real type with `any`. jpapi's
+			// DisableRemoteDesktopCommand narrows commandType this way (v2508).
+			if _, ok := props[k]; ok && isAnnotationOnly(v) {
+				continue
+			}
+			props[k] = v
+		}
 		for _, r := range s.Required {
 			reqSet[r] = true
 		}
@@ -2383,6 +2398,27 @@ func flattenAllOf(schema *openapi3.Schema) (map[string]*openapi3.SchemaRef, []st
 	}
 	sort.Strings(required)
 	return props, required
+}
+
+// isAnnotationOnly reports whether an inline property schema carries no type
+// information at all — no $ref, type, format, enum, shape or composition — so
+// that it can only be restating metadata of a property declared elsewhere.
+//
+// nullable, writeOnly and readOnly are not metadata here: the generator reads
+// all three off the winning property (pointer-ness, the write-only doc line), so
+// an overlay carrying one is not skipped. It wins as it did before, which for a
+// type-less overlay reaches validateNoUntypedFields and fails generation loudly
+// rather than dropping the flag.
+func isAnnotationOnly(r *openapi3.SchemaRef) bool {
+	if r == nil || r.Ref != "" || r.Value == nil {
+		return false
+	}
+	v := r.Value
+	return (v.Type == nil || len(*v.Type) == 0) && v.Format == "" && len(v.Enum) == 0 &&
+		!v.Nullable && !v.WriteOnly && !v.ReadOnly &&
+		len(v.Properties) == 0 && v.Items == nil && len(v.AllOf) == 0 &&
+		len(v.OneOf) == 0 && len(v.AnyOf) == 0 && v.AdditionalProperties.Schema == nil &&
+		v.AdditionalProperties.Has == nil
 }
 
 // isRefUnion reports whether an inline schema is nothing but a

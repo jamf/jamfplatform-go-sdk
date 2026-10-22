@@ -142,6 +142,12 @@ type GoMethod struct {
 	MultipartFields []GoMultipartField
 	PathParams      []GoPathParam
 	QueryParams     []ExtraParam
+	// RequiredParams are the query params the method refuses to send without;
+	// see OperationDef.RequiredParams.
+	RequiredParams []ExtraParam
+	// PrivilegeAlternatives marks ScopedPrivileges as an alternatives set; see
+	// SpecDef.PrivilegeAlternatives.
+	PrivilegeAlternatives bool
 	// ProducesMediaTypes are the content types the success response declares,
 	// sorted. Only godoc reads them, and only to document an Accept header
 	// param — see parameterComment.

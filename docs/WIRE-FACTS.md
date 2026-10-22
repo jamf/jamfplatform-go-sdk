@@ -213,8 +213,9 @@ agree, and the 8 with no matching rule, are each one of five things:
   either capability still admits the caller. This is the platform's **only**
   cross-capability OR — every other multi-capability route uses
   `has_all_permissions` — and because the spec declares only
-  `flush-policy-logs:execute`, no registry entry is an alternatives set. That is
-  what licenses the godoc's "all of them are required".
+  `flush-policy-logs:execute`, no registry entry was an alternatives set when this
+  was probed. That licensed the godoc's "all of them are required"; the one entry
+  since marked `ScopedAlternatives` is `SendMdmCommandV2`, below.
 - **4 `audit` operations, 1 `proclassic` file upload: matched by hand, agree.**
   Not parser gaps in the policy. The audit policy gates on a path *predicate*
   rather than a literal array, requiring `audit:read` on `environmentPermissions`
@@ -5202,3 +5203,32 @@ the same run. The captured bodies are `appstore/testdata/`.
   20/s and 400 at 36/s and 44/s (25 concurrent) all answered `200`, p50 0.48s,
   with no `429` and no latency growth. The limit is undocumented.
 - **Not probed:** the `itvt` sToken cookie that exposes custom (B2B) apps.
+
+### `POST /v2/mdm/commands` is routed again and authorizes per `commandType` (2026-10-22)
+
+Withdrawn at v1872 and unrouted on 2026-09-14; published again at v2508 and
+served. Probed on the EU gateway with controls in the same invocation
+(`GET /pro/v2/mdm/commands?filter=active==true` 200; a bogus `/pro/v2/mdm/bogus`
+repeated `403 BAD_PERMISSIONS`).
+
+- **The gateway picks the privilege from the body.** `{}`, an unknown
+  `commandType` and a body for a type the credential lacks all answer the
+  unrouted-looking `403 BAD_PERMISSIONS`; a known type for a missing device
+  answers the service's `404 NOT_FOUND "No managed device found for the
+  supplied management id."` Credential A (no `recovery-lock:execute`): 403 for
+  `SET_RECOVERY_LOCK`, 404 for every other type. Credential B: 404 for all 35.
+  So the spec's four privileges are alternatives, not a conjunction.
+- **Device lookup precedes field validation**: all 35 types answer 404 for a
+  zero id, including those that need fields.
+- **Real sandbox devices** (a Mac and an iPad, simulated): 19 types `201`
+  on both; `ENABLE/DISABLE_REMOTE_DESKTOP` `201` on the Mac and
+  `400 "…only supported for computers"` on the iPad; `ERASE_DEVICE` `201` on the
+  iPad and `400 PIN cannot be null` on the Mac; `DEVICE_INFORMATION` and
+  `DECLARATIVE_MANAGEMENT` `500 SYSTEM_EXCEPTION "Unable to perform MDM
+  operation"` on both and on two tenant-scope computers, which looks like
+  fixture behaviour; the rest `400` naming a missing field. A 201 body is
+  `[{id, href}]`.
+- **`GET /v2/mdm/commands` needs a filter** (`400` with empty `errors` without
+  one — already pinned); with `uuid==<id>` it finds a queued command.
+- **Reported, not a bug here:** `recovery-lock:execute` is enforced but absent
+  from the published permissions map.

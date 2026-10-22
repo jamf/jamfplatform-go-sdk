@@ -15,6 +15,57 @@ at the top.
 
 ## Builds
 
+**v2508 (bundle dated 2026-10-21) ingested: only jpapi changed, and its one
+structural change is `POST /v2/mdm/commands` returning to the spec.** Archive
+SHA-256 `8d111835257284b9e85e60da027476ae58e090dd078aabdc47f2232a421ff36a`.
+The other nineteen specs are `unchanged (since v2495)`; jpapi stays `11.33.0`;
+`_permissions` gains `recovery-lock:execute` (and `execute` in `scopes.yaml`).
+`ai-visibility`, `declarative-asset-service`, `inventory-api` and `users` are
+still unmounted/ungrantable and still not carried.
+
+- **The op is the second un-withdrawal of an MDM path** (`GET /v1/mdm/commands`
+  was the first, v2121). `SendMdmCommandV2` left at v1872 (JSC-73265); it is
+  back with `x-required-privileges` split four ways by `commandType`. It is
+  routed on the EU gateway under both tenant and environment scope.
+- **Generator work, not config.** Whitelisting it failed `validateNoUntypedFields`
+  on three fields, two distinct constructs: (1) an inline `oneOf` **with a
+  discriminator** as a *property* (`commandData`, 35 variants), which
+  `hoistInlineObjects` only handled for `discriminator`-less refs and array
+  items — it now hoists it so `extractTypes` builds the union; (2)
+  `allOf [MdmCommandBase, {properties: {commandType: {nullable: false,
+  example}}}]` on `Enable/DisableRemoteDesktopCommand`, where the later,
+  type-less overlay won and replaced the base's `$ref` with `any` —
+  `flattenAllOf` now keeps the earlier definition when the later one is
+  annotation-only (`isAnnotationOnly`). Neither needs an expiry: both are
+  general constructs, and no existing output changed.
+- **Privileges.** `TestScopedPrivilegesUseGAVocabulary` failed on
+  `recovery-lock:execute` (the map declares `recovery-lock` `{read}`);
+  `make permmap` did not change the snapshot, so it is a real disagreement and
+  is carried in `permissionsMapExceptions`. The spec's four privileges are one
+  flat array and read as a conjunction; the wire says alternatives, so
+  `config.privilegeAlternatives` marks the method: the registry gains
+  `ScopedAlternatives` and the godoc says "any one of them suffices". Consumers
+  of the permissions table must read the new field.
+- **Two more generator mechanisms, from the follow-up fixes.** (1) Every
+  discriminated union's `MarshalJSON` returned `null` when the matching variant
+  pointer was nil, against its own comment promising a minimal object; it now
+  falls through to `{"<discriminator>": value}`, which also changed the unions in
+  `blueprints` and `securitycloud` (nil-variant case only). (2)
+  `config.requiredParams` makes a list method refuse an empty parameter the
+  server 400s on — `ListMdmCommandsV2`'s `filter` — before sending;
+  `TestAcceptance_Pro_MdmCommandsV2FilterIsMandatory` now reads the server's own
+  400 through the raw transport.
+- **Wire**: see [WIRE-FACTS](WIRE-FACTS.md#post-v2mdmcommands-is-routed-again-and-authorizes-per-commandtype-2026-10-22).
+- **Acceptance.** The three withdrawn tests are back in new form
+  (`CommandTypeEnumMatchesServer` with a 404-versus-403 oracle, since the
+  "known type ids" error is gone; `EnhancedLogCollectionCommands`), plus
+  `SendMdmCommandV2UnknownDevice` and a gated `SendMdmCommandV2QueuesCommand`
+  (`JAMFPLATFORM_ACC_PRO_MDM_COMMANDS_WRITE_OK`).
+- **Open upstream.** The permissions map omits `recovery-lock:execute`; the
+  spec's four-privilege list reads as a conjunction; `DEVICE_INFORMATION` and
+  `DECLARATIVE_MANAGEMENT` answer a deterministic 500 on the simulated sandbox
+  devices.
+
 **v2495 (bundle dated 2026-10-19) ingested: `account-sso` 1.0.0 → 1.1.0 is the
 only changed spec bar the newly carried `account-organization`, and its six new operations are published and unrouted.**
 Archive SHA-256

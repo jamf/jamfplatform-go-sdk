@@ -97,6 +97,31 @@ func (c *Client) ListMdmCommandsV1(ctx context.Context, uuids []string, clientMa
 	return result, nil
 }
 
+// SendMdmCommandV2 post a command for creation and queuing.
+//
+// Required privileges: destructive-device-actions:execute, local-admin-passwords:execute, recovery-lock:execute, device-actions:execute. Legacy Jamf Pro privilege name(s): View MDM command information in Jamf Pro API.
+// Any one of them suffices: the request selects which, so a caller needs only the one its request calls for.
+// The scoped and legacy lists are independent sets, not pairs: do not match them by position.
+//
+// Which privilege applies is chosen by `commandType`: `destructive-device-actions:execute` for
+// `ERASE_DEVICE`, `DEVICE_LOCK` and `DELETE_USER`, `local-admin-passwords:execute` for
+// `SET_AUTO_ADMIN_PASSWORD`, `recovery-lock:execute` for `SET_RECOVERY_LOCK`, and
+// `device-actions:execute` for everything else. The gateway chooses from the body, so a credential
+// missing one grant is refused only for that type with `403 BAD_PERMISSIONS`, as is a body whose
+// `commandType` is not a known one. `CommandData` is a discriminated union: set `CommandType` and the
+// matching variant field together. `DEVICE_INFORMATION` and `DECLARATIVE_MANAGEMENT` answered `500` on
+// simulated devices. `TestAcceptance_Pro_SendMdmCommandV2UnknownDevice` fails the day the privilege
+// selection moves out of the gateway.
+func (c *Client) SendMdmCommandV2(ctx context.Context, request *MDMCommandRequest) ([]HrefResponse, error) {
+	prefix := c.transport.APIPrefix("pro", "v2")
+	var result []HrefResponse
+	endpoint := prefix + "/mdm/commands"
+	if err := c.transport.DoWithContentType(ctx, http.MethodPost, endpoint, request, "application/json", http.StatusCreated, &result); err != nil {
+		return nil, fmt.Errorf("SendMdmCommandV2: %w", err)
+	}
+	return result, nil
+}
+
 // ListMdmCommandsV2 get information about mdm commands made by Jamf Pro.
 //
 // Required privileges: device-actions:read. Legacy Jamf Pro privilege name(s): View MDM command information in Jamf Pro API.
@@ -110,7 +135,17 @@ func (c *Client) ListMdmCommandsV1(ctx context.Context, uuids []string, clientMa
 //     param can be combined with paging. Please note that any date filters must be used with gt, lt, ge,
 //     le Example:
 //     clientManagementId==fb511aae-c557-474f-a9c1-5dc845b90d0f;status==Pending;command==INSTALL_PROFILE;uuid==9e18f849-e689-4f2d-b616-a99d3da7db42;clientType==COMPUTER_USER;profileId==1;profileIdentifier==18cc61c2-01fc-11ed-b939-0242ac120002;dateCompleted=ge=2021-08-04T14:25:18.26Z;dateCompleted=le=2021-08-04T14:25:18.26Z;validAfter=ge=2021-08-05T14:25:18.26Z;active==true.
+//
+// `filter` is required: the server answers `400` with an empty `errors` array without one, so the
+// method refuses an empty filter before sending. The field name is `command`, not `commandType`, which
+// is what the response calls it: an unrecognised filter field is silently ignored and every row comes
+// back, and a malformed `uuid` or an out-of-vocabulary `status` is a `500`.
+// `TestAcceptance_Pro_MdmCommandsV2FilterIsMandatory` and
+// `TestAcceptance_Pro_MdmCommandsV2IgnoresAnUnknownFilterField` fail the day either changes.
 func (c *Client) ListMdmCommandsV2(ctx context.Context, sort []string, filter string) ([]MDMCommand, error) {
+	if filter == "" {
+		return nil, fmt.Errorf("ListMdmCommandsV2: filter is required: the server answers 400 without it")
+	}
 	prefix := c.transport.APIPrefix("pro", "v2")
 	return client.ListAllPages(ctx, 2000, func(ctx context.Context, page, pageSize int) ([]MDMCommand, bool, error) {
 		params := url.Values{}

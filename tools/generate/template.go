@@ -15,6 +15,44 @@ import (
 // Templates — parsed once at init
 // ---------------------------------------------------------------------------
 
+// testQueryArgs renders a generated unit test's trailing query-param arguments.
+// Zero values throughout, except that with satisfyRequired a parameter the
+// method refuses to send without (OperationDef.RequiredParams) gets a non-zero
+// one, so the happy-path test reaches the wire.
+func testQueryArgs(m GoMethod, satisfyRequired bool) string {
+	if len(m.QueryParams) == 0 {
+		return ""
+	}
+	required := make(map[string]bool, len(m.RequiredParams))
+	for _, qp := range m.RequiredParams {
+		required[qp.Spec] = satisfyRequired
+	}
+	args := make([]string, len(m.QueryParams))
+	for i, qp := range m.QueryParams {
+		set := required[qp.Spec]
+		switch qp.Type {
+		case "[]string":
+			args[i] = "nil"
+			if set {
+				args[i] = `[]string{"test-value"}`
+			}
+		case "bool":
+			args[i] = fmt.Sprint(set)
+		case "int", "int64":
+			args[i] = "0"
+			if set {
+				args[i] = "1"
+			}
+		default:
+			args[i] = `""`
+			if set {
+				args[i] = `"test-value"`
+			}
+		}
+	}
+	return ", " + strings.Join(args, ", ")
+}
+
 var funcMap = template.FuncMap{
 	"httpConst":   httpConstName,
 	"statusConst": statusConstName,
@@ -49,26 +87,11 @@ var funcMap = template.FuncMap{
 		}
 		return ", " + strings.Join(args, ", ")
 	},
-	"testExtraArgs": func(m GoMethod) string {
-		if len(m.QueryParams) == 0 {
-			return ""
-		}
-		args := make([]string, len(m.QueryParams))
-		for i, qp := range m.QueryParams {
-			switch qp.Type {
-			case "[]string":
-				args[i] = "nil"
-			case "bool":
-				args[i] = "false"
-			case "int", "int64":
-				args[i] = "0"
-			default:
-				args[i] = `""`
-			}
-		}
-		return ", " + strings.Join(args, ", ")
-	},
-	"isStringSlice": func(s string) bool { return s == "[]string" },
+	"testExtraArgs": func(m GoMethod) string { return testQueryArgs(m, true) },
+	// testZeroExtraArgs is testExtraArgs with every parameter at its zero value,
+	// required ones included — the call a requiredParams method must refuse.
+	"testZeroExtraArgs": func(m GoMethod) string { return testQueryArgs(m, false) },
+	"isStringSlice":     func(s string) bool { return s == "[]string" },
 	// sliceElem is the element type of an "[]T" config value, for the
 	// generic call in the unwrap template. UnwrapResults is parameterised on
 	// the element, while unwrapResults is declared as the slice the method
@@ -104,6 +127,19 @@ var funcMap = template.FuncMap{
 			return "strconv.FormatInt(" + qp.Go + ", 10)"
 		}
 		return qp.Go
+	},
+	// queryMissing is the negation of queryGuard, written out rather than
+	// wrapped in `!(...)`, for the requiredParams pre-flight check.
+	"queryMissing": func(qp ExtraParam) string {
+		switch qp.Type {
+		case "[]string":
+			return "len(" + qp.Go + ") == 0"
+		case "bool":
+			return "!" + qp.Go
+		case "int", "int64":
+			return qp.Go + " == 0"
+		}
+		return qp.Go + ` == ""`
 	},
 	"queryGuard": func(qp ExtraParam) string {
 		switch qp.Type {
@@ -385,6 +421,7 @@ type {{ .Name }} = {{ .AliasTarget }}
 // {{ .Comment }}
 type {{ .Name }} = json.RawMessage
 {{- else if .Discriminator }}
+{{- $u := . }}
 // {{ .Comment }}
 type {{ .Name }} struct {
 {{- if .Discriminator.EnumTypeName }}
@@ -417,14 +454,37 @@ func (m *{{ .Name }}) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// MarshalJSON emits the active variant's JSON. If the matching variant
-// pointer is nil, emits a minimal object carrying only the discriminator.
+// MarshalJSON emits the active variant's JSON.
+//
+// A discriminator that names a variant must be accompanied by exactly that
+// variant: a nil one, or a different one set beside it, is an error rather than
+// a body the caller did not write. Where the request carries a destructive
+// command, a bare discriminator is a well-formed request with every option
+// defaulted, and dropping a populated variant is how a caller ships it. An
+// empty or unrecognised discriminator with no variant set is the one case that
+// still emits the discriminator alone, so the zero value and an unknown value
+// read from a response stay marshalable.
 func (m {{ .Name }}) MarshalJSON() ([]byte, error) {
+	var set []string
+{{- range .Discriminator.Variants }}
+	if m.{{ .FieldName }} != nil {
+		set = append(set, "{{ .FieldName }}")
+	}
+{{- end }}
 	switch m.{{ .Discriminator.GoFieldName }} {
 {{- range .Discriminator.Variants }}
 	case {{ range $i, $v := .Values }}{{ if $i }}, {{ end }}"{{ $v }}"{{ end }}:
+		if m.{{ .FieldName }} == nil {
+			return nil, fmt.Errorf("{{ $u.Name }}: {{ $u.Discriminator.PropertyName }} %q set but {{ .FieldName }} is nil", m.{{ $u.Discriminator.GoFieldName }})
+		}
+		if len(set) > 1 {
+			return nil, fmt.Errorf("{{ $u.Name }}: {{ $u.Discriminator.PropertyName }} %q selects {{ .FieldName }}, but %s are set", m.{{ $u.Discriminator.GoFieldName }}, strings.Join(set, ", "))
+		}
 		return json.Marshal(m.{{ .FieldName }})
 {{- end }}
+	}
+	if len(set) > 0 {
+		return nil, fmt.Errorf("{{ .Name }}: {{ .Discriminator.PropertyName }} %q selects no variant, but %s set", m.{{ .Discriminator.GoFieldName }}, strings.Join(set, ", "))
 	}
 	return json.Marshal(map[string]string{"{{ .Discriminator.PropertyName }}": m.{{ .Discriminator.GoFieldName }}})
 }
@@ -836,6 +896,11 @@ func (c *Client) {{ .Name }}(ctx context.Context{{ range .PathParams }}, {{ .GoN
 {{- define "paginated" }}
 // {{ .Comment }}
 func (c *Client) {{ .Name }}(ctx context.Context{{ range .PathParams }}, {{ .GoName }} string{{ end }}{{ range .QueryParams }}, {{ .Go }} {{ .Type }}{{ end }}) ([]{{ .ItemType }}, error) {
+{{- range .RequiredParams }}
+	if {{ queryMissing . }} {
+		return nil, fmt.Errorf("{{ $.Name }}: {{ .Go }} is required: the server answers 400 without it")
+	}
+{{- end }}
 	prefix := c.transport.APIPrefix("{{ .Namespace }}", "{{ .Version }}")
 	return client.ListAllPages(ctx, {{ .MaxPageSize }}, func(ctx context.Context, page, pageSize int) ([]{{ .ItemType }}, bool, error) {
 		params := url.Values{}
@@ -898,6 +963,11 @@ func (c *Client) {{ .Name }}(ctx context.Context{{ range .PathParams }}, {{ .GoN
 {{- define "paginatedCursor" }}
 // {{ .Comment }}
 func (c *Client) {{ .Name }}(ctx context.Context{{ range .PathParams }}, {{ .GoName }} string{{ end }}{{ range .QueryParams }}, {{ .Go }} {{ .Type }}{{ end }}) ([]{{ .ItemType }}, error) {
+{{- range .RequiredParams }}
+	if {{ queryMissing . }} {
+		return nil, fmt.Errorf("{{ $.Name }}: {{ .Go }} is required: the server answers 400 without it")
+	}
+{{- end }}
 	prefix := c.transport.APIPrefix("{{ .Namespace }}", "{{ .Version }}")
 	return client.ListAllCursorPages(ctx, {{ .MaxPageSize }}, func(ctx context.Context, cursor string, pageSize int) ([]{{ .ItemType }}, string, error) {
 		params := url.Values{}
@@ -1471,6 +1541,22 @@ func Test<% .Name %>(t *testing.T) {
 }
 <% end %>
 
+<%- define "testRequiredRefusal" %>
+<%- if .RequiredParams %>
+
+func Test<% .Name %>RefusesMissingRequiredParam(t *testing.T) {
+	c, mux := testServerWithOpts(t, WithTenantID("t-test"))
+	mux.HandleFunc("<% testPath . %>", func(w http.ResponseWriter, r *http.Request) {
+		t.Error("request sent without a parameter the server refuses a call without")
+	})
+
+	if _, err := c.<% .Name %>(context.Background()<% testCallArgs . %><% testZeroExtraArgs . %><% testHeaderArgs . %>); err == nil {
+		t.Fatal("want an error for a missing required parameter, got nil")
+	}
+}
+<%- end %>
+<%- end %>
+
 <%- define "testPaginated" %>
 func Test<% .Name %>(t *testing.T) {
 	c, mux := testServerWithOpts(t, WithTenantID("t-test"))
@@ -1497,7 +1583,7 @@ func Test<% .Name %>(t *testing.T) {
 		t.Fatalf("len = %d, want 1", len(results))
 	}
 }
-<% end %>
+<% template "testRequiredRefusal" . %><% end %>
 
 <%- define "testPaginatedCursor" %>
 func Test<% .Name %>(t *testing.T) {
@@ -1532,7 +1618,7 @@ func Test<% .Name %>(t *testing.T) {
 		t.Fatalf("len = %d, want 2", len(results))
 	}
 }
-<% end %>
+<% template "testRequiredRefusal" . %><% end %>
 
 <%- define "testResolverID" %>
 func Test<% .Name %>(t *testing.T) {

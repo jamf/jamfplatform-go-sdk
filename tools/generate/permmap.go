@@ -117,6 +117,7 @@ var permissionsMapExceptions = []permissionsMapException{
 	{Permission: "platform-environments:create", Why: platformEnvironmentsWhy},
 	{Permission: "platform-environments:update", Why: platformEnvironmentsWhy},
 	{Permission: "platform-environments:delete", Why: platformEnvironmentsWhy},
+	{Permission: "recovery-lock:execute", Why: recoveryLockExecuteWhy},
 }
 
 // platformEnvironmentsWhy is the evidence for the account-organization
@@ -128,6 +129,15 @@ var permissionsMapExceptions = []permissionsMapException{
 // /organization/v1/environments and /tenants at 200 on the wire. Report the map's omission upstream; the entries expire the day the map
 // declares the capability.
 const platformEnvironmentsWhy = "gateway policy gates /organization/v1/{environments,tenants} on it; absent from the published map"
+
+// recoveryLockExecuteWhy is the evidence for POST /v2/mdm/commands (GitOps
+// v2508). The published map declares `recovery-lock` with {read} only, but the
+// gateway authorizes SET_RECOVERY_LOCK on `recovery-lock:execute`: a credential
+// without it answers 403 BAD_PERMISSIONS for that commandType while the same
+// body with DEVICE_LOCK is accepted, and a credential granted it reaches the
+// service (404 for an unknown management id, 2026-10-22). Report the map's
+// omission upstream; the entry expires the day the map declares the action.
+const recoveryLockExecuteWhy = "gateway authorizes SET_RECOVERY_LOCK on it; the published map declares recovery-lock with read only"
 
 var capCellRe = regexp.MustCompile("^`([a-z0-9-]+)(?::\\{([a-z,\\s]+)\\})?`$")
 

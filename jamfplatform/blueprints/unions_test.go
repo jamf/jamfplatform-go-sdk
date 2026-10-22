@@ -79,6 +79,38 @@ func TestBookmarkItem_Marshal(t *testing.T) {
 			t.Error("FOLDER was populated for an unrecognised discriminator")
 		}
 	})
+	t.Run("known discriminator, no variant", func(t *testing.T) {
+		if _, err := json.Marshal(BookmarkItem{Type: "BOOKMARK"}); err == nil {
+			t.Fatal("marshalling BOOKMARK with BOOKMARK nil succeeded; want an error, not a bare discriminator")
+		}
+	})
+	t.Run("unrecognised discriminator, variant set", func(t *testing.T) {
+		if _, err := json.Marshal(BookmarkItem{Type: "NOT_A_Type_VALUE", BOOKMARK: &URLBookmarkItem{}}); err == nil {
+			t.Fatal("marshalling a variant under an unrecognised discriminator succeeded; the payload would be dropped")
+		}
+	})
+	t.Run("unrecognised discriminator, no variant", func(t *testing.T) {
+		got, err := json.Marshal(BookmarkItem{Type: "NOT_A_Type_VALUE"})
+		if err != nil {
+			t.Fatalf("marshal: %v", err)
+		}
+		if want := `{"Type":"NOT_A_Type_VALUE"}`; string(got) != want {
+			t.Fatalf("marshalled to %s, want %s", got, want)
+		}
+	})
+	t.Run("zero value", func(t *testing.T) {
+		if _, err := json.Marshal(BookmarkItem{}); err != nil {
+			t.Fatalf("the zero union must stay marshalable: %v", err)
+		}
+	})
+	t.Run("variant that does not match the discriminator", func(t *testing.T) {
+		if _, err := json.Marshal(BookmarkItem{Type: "BOOKMARK", BOOKMARK: &URLBookmarkItem{}, FOLDER: &FolderBookmarkItem{}}); err == nil {
+			t.Fatal("marshalling two variants succeeded; the second would be dropped")
+		}
+		if _, err := json.Marshal(BookmarkItem{Type: "BOOKMARK", FOLDER: &FolderBookmarkItem{}}); err == nil {
+			t.Fatal("marshalling BOOKMARK with only FOLDER set succeeded; that payload would be dropped")
+		}
+	})
 }
 
 // TestDeclarationsComponentConfigurationDeclarationsItem_Marshal asserts that each "type" value marshals to exactly the bytes
@@ -392,6 +424,38 @@ func TestDeclarationsComponentConfigurationDeclarationsItem_Marshal(t *testing.T
 			t.Error("SiriSettingsDeclaration was populated for an unrecognised discriminator")
 		}
 	})
+	t.Run("known discriminator, no variant", func(t *testing.T) {
+		if _, err := json.Marshal(DeclarationsComponentConfigurationDeclarationsItem{Type: "com.apple.configuration.app.managed"}); err == nil {
+			t.Fatal("marshalling com.apple.configuration.app.managed with ManagedAppDeclaration nil succeeded; want an error, not a bare discriminator")
+		}
+	})
+	t.Run("unrecognised discriminator, variant set", func(t *testing.T) {
+		if _, err := json.Marshal(DeclarationsComponentConfigurationDeclarationsItem{Type: "NOT_A_Type_VALUE", ManagedAppDeclaration: &ManagedAppDeclaration{}}); err == nil {
+			t.Fatal("marshalling a variant under an unrecognised discriminator succeeded; the payload would be dropped")
+		}
+	})
+	t.Run("unrecognised discriminator, no variant", func(t *testing.T) {
+		got, err := json.Marshal(DeclarationsComponentConfigurationDeclarationsItem{Type: "NOT_A_Type_VALUE"})
+		if err != nil {
+			t.Fatalf("marshal: %v", err)
+		}
+		if want := `{"type":"NOT_A_Type_VALUE"}`; string(got) != want {
+			t.Fatalf("marshalled to %s, want %s", got, want)
+		}
+	})
+	t.Run("zero value", func(t *testing.T) {
+		if _, err := json.Marshal(DeclarationsComponentConfigurationDeclarationsItem{}); err != nil {
+			t.Fatalf("the zero union must stay marshalable: %v", err)
+		}
+	})
+	t.Run("variant that does not match the discriminator", func(t *testing.T) {
+		if _, err := json.Marshal(DeclarationsComponentConfigurationDeclarationsItem{Type: "com.apple.configuration.app.managed", ManagedAppDeclaration: &ManagedAppDeclaration{}, AppSettingsDeclaration: &AppSettingsDeclaration{}}); err == nil {
+			t.Fatal("marshalling two variants succeeded; the second would be dropped")
+		}
+		if _, err := json.Marshal(DeclarationsComponentConfigurationDeclarationsItem{Type: "com.apple.configuration.app.managed", AppSettingsDeclaration: &AppSettingsDeclaration{}}); err == nil {
+			t.Fatal("marshalling com.apple.configuration.app.managed with only AppSettingsDeclaration set succeeded; that payload would be dropped")
+		}
+	})
 }
 
 // TestSwUpdateAutomaticConfiguration_Marshal asserts that each "strategy" value marshals to exactly the bytes
@@ -462,6 +526,38 @@ func TestSwUpdateAutomaticConfiguration_Marshal(t *testing.T) {
 			t.Error("SEMANTIC was populated for an unrecognised discriminator")
 		}
 	})
+	t.Run("known discriminator, no variant", func(t *testing.T) {
+		if _, err := json.Marshal(SwUpdateAutomaticConfiguration{Strategy: "LATEST"}); err == nil {
+			t.Fatal("marshalling LATEST with LATEST nil succeeded; want an error, not a bare discriminator")
+		}
+	})
+	t.Run("unrecognised discriminator, variant set", func(t *testing.T) {
+		if _, err := json.Marshal(SwUpdateAutomaticConfiguration{Strategy: "NOT_A_Strategy_VALUE", LATEST: &SwUpdateLatestConfiguration{}}); err == nil {
+			t.Fatal("marshalling a variant under an unrecognised discriminator succeeded; the payload would be dropped")
+		}
+	})
+	t.Run("unrecognised discriminator, no variant", func(t *testing.T) {
+		got, err := json.Marshal(SwUpdateAutomaticConfiguration{Strategy: "NOT_A_Strategy_VALUE"})
+		if err != nil {
+			t.Fatalf("marshal: %v", err)
+		}
+		if want := `{"strategy":"NOT_A_Strategy_VALUE"}`; string(got) != want {
+			t.Fatalf("marshalled to %s, want %s", got, want)
+		}
+	})
+	t.Run("zero value", func(t *testing.T) {
+		if _, err := json.Marshal(SwUpdateAutomaticConfiguration{}); err != nil {
+			t.Fatalf("the zero union must stay marshalable: %v", err)
+		}
+	})
+	t.Run("variant that does not match the discriminator", func(t *testing.T) {
+		if _, err := json.Marshal(SwUpdateAutomaticConfiguration{Strategy: "LATEST", LATEST: &SwUpdateLatestConfiguration{}, SEMANTIC: &SwUpdateSemanticConfiguration{}}); err == nil {
+			t.Fatal("marshalling two variants succeeded; the second would be dropped")
+		}
+		if _, err := json.Marshal(SwUpdateAutomaticConfiguration{Strategy: "LATEST", SEMANTIC: &SwUpdateSemanticConfiguration{}}); err == nil {
+			t.Fatal("marshalling LATEST with only SEMANTIC set succeeded; that payload would be dropped")
+		}
+	})
 }
 
 // TestSwUpdateConfiguration_Marshal asserts that each "enforcementType" value marshals to exactly the bytes
@@ -530,6 +626,38 @@ func TestSwUpdateConfiguration_Marshal(t *testing.T) {
 		}
 		if back.MANUAL != nil {
 			t.Error("MANUAL was populated for an unrecognised discriminator")
+		}
+	})
+	t.Run("known discriminator, no variant", func(t *testing.T) {
+		if _, err := json.Marshal(SwUpdateConfiguration{EnforcementType: "AUTOMATIC"}); err == nil {
+			t.Fatal("marshalling AUTOMATIC with AUTOMATIC nil succeeded; want an error, not a bare discriminator")
+		}
+	})
+	t.Run("unrecognised discriminator, variant set", func(t *testing.T) {
+		if _, err := json.Marshal(SwUpdateConfiguration{EnforcementType: "NOT_A_EnforcementType_VALUE", AUTOMATIC: &SwUpdateAutomaticConfiguration{}}); err == nil {
+			t.Fatal("marshalling a variant under an unrecognised discriminator succeeded; the payload would be dropped")
+		}
+	})
+	t.Run("unrecognised discriminator, no variant", func(t *testing.T) {
+		got, err := json.Marshal(SwUpdateConfiguration{EnforcementType: "NOT_A_EnforcementType_VALUE"})
+		if err != nil {
+			t.Fatalf("marshal: %v", err)
+		}
+		if want := `{"enforcementType":"NOT_A_EnforcementType_VALUE"}`; string(got) != want {
+			t.Fatalf("marshalled to %s, want %s", got, want)
+		}
+	})
+	t.Run("zero value", func(t *testing.T) {
+		if _, err := json.Marshal(SwUpdateConfiguration{}); err != nil {
+			t.Fatalf("the zero union must stay marshalable: %v", err)
+		}
+	})
+	t.Run("variant that does not match the discriminator", func(t *testing.T) {
+		if _, err := json.Marshal(SwUpdateConfiguration{EnforcementType: "AUTOMATIC", AUTOMATIC: &SwUpdateAutomaticConfiguration{}, MANUAL: &SwUpdateManualConfiguration{}}); err == nil {
+			t.Fatal("marshalling two variants succeeded; the second would be dropped")
+		}
+		if _, err := json.Marshal(SwUpdateConfiguration{EnforcementType: "AUTOMATIC", MANUAL: &SwUpdateManualConfiguration{}}); err == nil {
+			t.Fatal("marshalling AUTOMATIC with only MANUAL set succeeded; that payload would be dropped")
 		}
 	})
 }

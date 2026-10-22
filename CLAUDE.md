@@ -81,9 +81,10 @@ generated `{capability}:{action}` identifiers against its parsed capability
 tables. The specs are where the values come from and `_permissions/routes.yaml`
 cannot corroborate them — it is generated from the same extensions, so its
 agreement is tautological — whereas the published map is authored from the
-gateway's capability model. It currently agrees on **every one**, including
-the `account` privileges that no published spec carries, so
-`permissionsMapExceptions` is empty. `make permmap` refreshes the snapshot; a
+gateway's capability model. It agrees on every one but five, including the
+`account` privileges that no published spec carries; the five are carried in
+`permissionsMapExceptions` (`platform-environments:{read,create,update,delete}`
+and `recovery-lock:execute`), each expiring the day the map declares it. `make permmap` refreshes the snapshot; a
 new capability upstream makes the test fail, which is the notification to
 refresh, not an accusation. Mechanism, the two guards that keep the parse
 honest, and why the *path* dimension is deliberately not checked:
@@ -512,7 +513,7 @@ agree.** A held row is marked `(**held**)` in its last column.
 
 | `testing/` file | bundle source | at |
 |---|---|---|
-| `openapi-jpapi.yaml` | `external/jpapi` | **v2414** |
+| `openapi-jpapi.yaml` | `external/jpapi` | **v2508** |
 | `Classic-openapi.yaml` | `external/capi` | **v2362** |
 | `blueprints-api.yaml` | `external/blueprints` | **v2362** |
 | `device-groups-api.yaml` | `external/device-groups` | **v2362** |
@@ -555,7 +556,9 @@ published permissions map (above) and the gateway's authorization policy; see
 **`MethodPrivileges` carries `Scopes []ScopeKind` beside `Scoped`**, so one
 registry lookup answers both "what privileges" and "what scope". The two are
 opposites and the godoc says so: `Scoped` is a conjunction (grant all of
-these), `Scopes` an alternatives set (a client carries exactly one scope).
+these) unless `ScopedAlternatives` is set — one method, `SendMdmCommandV2`, where
+the request body selects which — and `Scopes` an alternatives set (a client
+carries exactly one scope).
 
 - **It is per-method although scope is declared per-spec**, because two specs
   in one package can disagree — `securitycloud` did while one of its specs was
@@ -577,7 +580,7 @@ these), `Scopes` an alternatives set (a client carries exactly one scope).
 
 ### Current position and holds
 
-**At v2495 (2026-10-21): all twenty specs, nothing held.** `account-sso` is at v2495 (six `/v1/users` operations published, unrouted, not whitelisted); `account-organization` is newly carried (six operations, now mounted).
+**At v2508 (2026-10-22): all twenty specs, nothing held.** jpapi is at v2508 (`POST /v2/mdm/commands` published again, whitelisted as `SendMdmCommandV2`); the other nineteen are byte-identical since v2495 or earlier. **Previously, at v2495 (2026-10-21):** `account-sso` is at v2495 (six `/v1/users` operations published, unrouted, not whitelisted); `account-organization` is newly carried (six operations, now mounted).
 
 **Previously, at v2414 (2026-10-02):** jpapi and
 compliance-benchmarks are at v2414, the other seventeen byte-identical since
@@ -627,6 +630,7 @@ recorded**, unless noted.
 | `account` distributor surface | `400 UPSTREAM_ERROR` "… via Skyway distributor service"; `500 UPSTREAM_ERROR` since 2026-10-08 | `TestAcceptance_AccountDistributorReads` |
 | `account` organization unknown ids | spec declares `404` for an unknown environment on PUT, DELETE and the tenants PUT; wire answers a deterministic `500 UPSTREAM_ERROR` for a zero UUID, a non-UUID and an already-deleted id | `TestAcceptance_AccountEnvironmentUnknownIDIs500` |
 | `account` organization privileges | `platform-environments:*` is gated by the gateway policy but absent from the published permissions map; carried in `permissionsMapExceptions` (expires when the map declares it) | `TestScopedPrivilegesUseGAVocabulary` |
+| `pro` `SendMdmCommandV2` privileges | spec lists four `x-required-privileges` as one flat array; the gateway selects one **per `commandType`** from the body (a credential without `recovery-lock:execute` is refused only for `SET_RECOVERY_LOCK`), so they are alternatives — marked by `config.privilegeAlternatives` (`MethodPrivileges.ScopedAlternatives`, godoc corrected). `recovery-lock:execute` is absent from the published map (`recovery-lock` is `{read}`); carried in `permissionsMapExceptions` | `TestAcceptance_Pro_SendMdmCommandV2UnknownDevice`, `TestScopedPrivilegesUseGAVocabulary` |
 | `account` privileges | stripped from the published specs by the pipeline; supplied by `config.requiredPrivileges` (see Packages) | `TestAccountRegistryPrivilegesComeFromGatewayPolicy` |
 | `aigovernance` | every 2xx carries `Jamf-Preview: true`, invisible to the generated surface | `TestAcceptance_AiGovernancePreviewHeader` |
 | `aigovernance` `GetPolicyDeployment` | reports 0 blueprints for policies that blueprints reference | `TestAcceptance_AiGovernanceDeploymentReportsReferencingBlueprints` |
@@ -764,7 +768,7 @@ Layer-by-layer diagnosis of a refusal, per-package findings and the full evidenc
 
 | package | namespace(s) | scope | notes |
 |---|---|---|---|
-| `pro` | `pro` | tenant **or** environment | 702 ops — the whole published spec |
+| `pro` | `pro` | tenant **or** environment | 703 ops — the whole published spec |
 | `proclassic` | `proclassic` | tenant **or** environment | 589 ops, XML end-to-end — the whole published spec. Untagged `XMLName` decodes a wrong root element to a zero struct with a nil error, so **probe a Classic response's shape, not just its status** |
 | `devices`, `devicegroups`, `deviceactions` | as named | **environment** per the spec; tenant still served | Platform APIs |
 | `blueprints`, `compliancebenchmarks`, `ddmreport` | as named | **environment** | `ddmreport` still answers under tenant scope and is pinned; the other two refuse a tenant credential. Blueprints have no site or division support — `PATCH` refuses `divisionId`, `POST` silently ignores unknown fields, so a 201 is not evidence and the read-back is the oracle |

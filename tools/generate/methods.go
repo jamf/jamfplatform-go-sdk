@@ -870,6 +870,85 @@ func resolveQueryParams(m *GoMethod, specParams map[string]*openapi3.Parameter) 
 	return nil
 }
 
+// resolveRequiredParams binds config's requiredParams to the method's resolved
+// query params. It runs after resolveQueryParams, which is what sets AlwaysSend,
+// so a parameter the spec has since declared required is caught here and the
+// config entry reported as expired rather than guarding twice.
+//
+// Paginated operations only: the guard's return statement is the one a list
+// method has, and widening it to every category would need a return form per
+// template for no operation that wants it.
+func resolveRequiredParams(m *GoMethod, opDef OperationDef) error {
+	if len(opDef.RequiredParams) == 0 {
+		return nil
+	}
+	if opDef.Pagination == "" {
+		return fmt.Errorf("requiredParams is supported on paginated operations only")
+	}
+	for _, name := range opDef.RequiredParams {
+		var found *ExtraParam
+		for i := range m.QueryParams {
+			if m.QueryParams[i].Spec == name {
+				found = &m.QueryParams[i]
+				break
+			}
+		}
+		switch {
+		case found == nil:
+			return fmt.Errorf("requiredParams names %q, which is not one of the operation's configured query params", name)
+		case found.AlwaysSend:
+			return fmt.Errorf("requiredParams names %q, which the spec now declares required — delete the config entry so the spec is the only source", name)
+		}
+		m.RequiredParams = append(m.RequiredParams, *found)
+	}
+	return nil
+}
+
+// applyPrivilegeAlternatives marks the named methods' privileges as an
+// alternatives set and rewrites the godoc line that said the opposite.
+//
+// The line is replaced rather than never emitted because privilegeComment runs
+// at extraction, before this config is consulted, and has no other way to know.
+// A comment that no longer contains it means privilegeComment changed shape, so
+// that fails loudly instead of leaving a method with both claims.
+func applyPrivilegeAlternatives(methods []GoMethod, names []string) error {
+	if len(names) == 0 {
+		return nil
+	}
+	const conjunction = "All of them are required, not alternatives."
+	const alternatives = "Any one of them suffices: the request selects which, so a caller needs only the one its request calls for."
+	want := make(map[string]bool, len(names))
+	for _, n := range names {
+		want[n] = true
+	}
+	applied := make(map[string]bool, len(names))
+	for i := range methods {
+		m := &methods[i]
+		if !want[m.Name] {
+			continue
+		}
+		applied[m.Name] = true
+		if len(m.ScopedPrivileges) < 2 {
+			return fmt.Errorf("privilegeAlternatives names %s, which carries %d privilege(s) — there is nothing to choose between, delete the entry", m.Name, len(m.ScopedPrivileges))
+		}
+		if !strings.Contains(m.Comment, conjunction) {
+			return fmt.Errorf("privilegeAlternatives names %s, but its godoc has no %q line to correct", m.Name, conjunction)
+		}
+		m.Comment = strings.Replace(m.Comment, conjunction, alternatives, 1)
+		m.PrivilegeAlternatives = true
+	}
+	var missing []string
+	for _, n := range sortedKeys(want) {
+		if !applied[n] {
+			missing = append(missing, n)
+		}
+	}
+	if len(missing) > 0 {
+		return fmt.Errorf("privilegeAlternatives names no emitted method: %s", strings.Join(missing, ", "))
+	}
+	return nil
+}
+
 // generatorReservedHeaders are request headers the transport owns, which a
 // generated method must never take as an argument.
 //
@@ -1376,6 +1455,9 @@ func buildMethod(doc *openapi3.T, spec SpecDef, opDef OperationDef, enumTypes ma
 	// required-ness the templates emit against and the godoc below.
 	specParams := collectSpecParams(pathItem, op)
 	if err := resolveQueryParams(&m, specParams); err != nil {
+		return GoMethod{}, fmt.Errorf("%s: %w", opDef.Name, err)
+	}
+	if err := resolveRequiredParams(&m, opDef); err != nil {
 		return GoMethod{}, fmt.Errorf("%s: %w", opDef.Name, err)
 	}
 	if err := resolveHeaderParams(&m, specParams); err != nil {

@@ -125,6 +125,7 @@ deliberately kept three of them for exactly that reason.
 | `scopeTypes` | 3 | spec → the scope kinds its operations accept (`tenant`, `environment`, `organization`), overriding a published `x-scope-types` that understates what the gateway serves. Carried to each method's `Scopes` in the Privileges registry, never into `api/`, with `ScopesSource` recording that the value is a config correction rather than the spec's own claim. Self-expiring in both directions: generation fails once the spec declares the same set, and also once the spec declares anything the override omits — an override widens an understated spec, so a spec that has moved past it is about to lose a declared scope, which the equality check alone cannot see. The account trio is the only user: no account spec declares the extension at all. `securitycloud-devices` was the second until 2026-09-04, when its hold lifted and the entry self-expired |
 | `schemaPatches` | 3 | schema → dotted property path → raw OpenAPI 3 Schema. Adds or replaces at that path |
 | `requiredPrivileges` | 3 | `"METHOD /path"` → GA capability permissions, for an operation the **published spec declares none for** but an authoritative out-of-band source does. Carried straight to the generated registry with `Source: "gateway-policy"`, never into the spec document, so `api/` stays faithful to upstream. **Fails generation if the operation now declares `x-required-privileges`** — that means upstream published them and the entry must go. All three users are the `account` specs; see [Required privileges](#required-privileges) |
+| `privilegeAlternatives` | 1 | spec-level list of generated method names whose `x-required-privileges` array is an **alternatives set**, the request choosing which applies, where every other operation's is a conjunction. The spec's flat array cannot say so. Sets `MethodPrivileges.ScopedAlternatives` in the registry and swaps the godoc's "All of them are required, not alternatives." for "Any one of them suffices…". **Fails generation** on a name no method carries, on a method with fewer than two privileges, and on a godoc that no longer carries the line to correct. One user: `jpapi`'s `SendMdmCommandV2`, where the gateway picks among four capabilities from `commandData.commandType` |
 | `lenientScalarRoots` | 1 | component schema names whose **reachable subtree** decodes leniently: every number and boolean under them also accepts a JSON string carrying the same value. Emitted as one `UnmarshalJSON` per affected type in `lenient_scalars.go`; field types, marshalling and `api/` are untouched. For a store that serves back the JSON its *writer* sent rather than re-serialising from its own model — blueprints is that store and `Component` is the only user, covering 67 types — the ones that declare a coerced scalar, plus every ancestor, which carries the field name into a child's decode error. Self-expiring on the spec side only, and **per root**: generation fails when a root names no declared schema, and when *that root's* subtree reaches no scalar. It cannot expire on the server being fixed, so the acceptance test carries that half. See [Lenient scalar decoding](#lenient-scalar-decoding) |
 | `enumAdditions` | 1 | schema name → wire values to append to its `enum`, for a value the server produces or accepts that the spec omits. Applied with the other schema patches, so the value reaches `api/` too. **Panics when the value is already declared**, when the schema declares no enum, or when the schema is missing — a duplicated enum member would emit two identical constants and compile, so nothing else would ever notice. One user: `Region` gaining `RAMP` |
 | `emitNullForOptional` | 2 | schema names whose optional pointer fields must marshal as explicit `null` when nil rather than being omitted. For servers that distinguish "omitted" (keep) from "present and null" (clear). Accepts snake_case or PascalCase; JSON marshalling only |
@@ -156,6 +157,7 @@ deliberately kept three of them for exactly that reason.
 | `requestType` | 229 | explicit request schema name |
 | `params` | 161 | query params, compact: `"name"`, `"name:type"`, `"spec:type:goName"`, plus a trailing `:undocumented` to opt out of the spec name-match check. **Required-ness is not declarable here** — it is derived from the spec, see [query parameter emission](#query-parameter-emission-a-required-param-carries-no-guard) |
 | `headerParams` | 4 | request headers the spec declares `in: header`, same compact notation as `params`. Refuses the scope headers, a non-`string` type, and a parameter the spec declares anywhere but `in: header` — see [header parameters](#header-parameters) |
+| `requiredParams` | 1 | per-operation list of query params the **server refuses a call without although the spec declares them optional**. The generated method returns an error before sending when one is empty, and the unit test passes a non-zero value to the happy path plus a `…RefusesMissingRequiredParam` test. Paginated operations only. **Fails generation** on a name that is not a configured query param and on one the spec now declares required, which is the self-expiry. One user: `ListMdmCommandsV2`'s `filter` |
 | `wireRequiredParams` | 1 | parameter wire names the server refuses the request without although the spec marks them optional. **Godoc only** — it must never flip `AlwaysSend`, because sending the parameter empty is not better than omitting it. Self-expiring: fails generation once the spec marks the parameter required — see [header parameters](#header-parameters) |
 | `pagination` | 127 | one of the five styles below |
 | `resolver` | 108 | one name→ID resolver, optionally with `apply` |
@@ -1323,7 +1325,8 @@ that honest:
   spec carries. Note the rego accepts *either* the GA capability or a
   retired `read:org:*`/`update:org:*` permission
   (`lib.has_any_of_permissions`), and only the GA form is carried: `Scoped` is a
-  conjunction, so listing the alternative would read as "both required".
+  conjunction outside the one request-selected case, so listing the alternative
+  would read as "both required".
 
 `undocumented: true` on a spec skips the privilege name-match check and stamps an
 "Unofficial:" godoc line — it marks a spec whose operations are in no spec Jamf
@@ -1337,8 +1340,11 @@ lookup answers both *"what privileges does this method need"* and *"what kind of
 credential must I hold to call it"*. The two fields sit next to each other in one
 struct and **mean opposite things**:
 
-- **`Scoped` is a conjunction.** More than one entry means every identifier is
-  required. Render it as *"grant all of these"*.
+- **`Scoped` is a conjunction unless `ScopedAlternatives` is true.** More than
+  one entry means every identifier is required. Render it as *"grant all of
+  these"*. When the flag is set the request selects which one applies (today only
+  `SendMdmCommandV2`, by `commandType`), so render it as *"one of these, chosen by
+  the request"*; the per-type mapping is in the method's godoc, not the registry.
 - **`Scopes` is an alternatives set.** A client carries exactly one scope, so
   more than one entry means the endpoint is published under each of them and the
   caller picks one. Render it as *"use a credential of one of these kinds"*.

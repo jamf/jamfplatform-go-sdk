@@ -55,6 +55,29 @@ func AccountPreferencesUserInterfaceDisplayThemeValues() []AccountPreferencesUse
 	}
 }
 
+// AppAnalyticsSetting represents a app analytics setting value.
+type AppAnalyticsSetting = string
+
+// AppAnalyticsSetting values accepted by the Jamf API. The alias above is a string, so
+// these constants pass to any parameter or field declared as a plain string.
+const (
+	AppAnalyticsSettingEnableAppAnalytics  AppAnalyticsSetting = "ENABLE_APP_ANALYTICS"
+	AppAnalyticsSettingDisableAppAnalytics AppAnalyticsSetting = "DISABLE_APP_ANALYTICS"
+)
+
+// AppAnalyticsSettingValues returns every value the Jamf API accepts for AppAnalyticsSetting,
+// in the order the spec declares them. Returns a fresh slice per call, so no
+// caller can corrupt the set for the rest of the process — which a package
+// level var would allow. Suits attribute validation (Terraform's
+// stringvalidator.OneOf, say) and anything that needs to enumerate the set
+// rather than name one member.
+func AppAnalyticsSettingValues() []AppAnalyticsSetting {
+	return []AppAnalyticsSetting{
+		AppAnalyticsSettingEnableAppAnalytics,
+		AppAnalyticsSettingDisableAppAnalytics,
+	}
+}
+
 // ComputerPartitionFileVault2State represents a computer partition file vault2 state value.
 type ComputerPartitionFileVault2State = string
 
@@ -219,6 +242,52 @@ func ComputerSectionV4Values() []ComputerSectionV4 {
 		ComputerSectionV4ExtensionAttributes,
 		ComputerSectionV4ContentCaching,
 		ComputerSectionV4GroupMemberships,
+	}
+}
+
+// DataRoamingSetting represents a data roaming setting value.
+type DataRoamingSetting = string
+
+// DataRoamingSetting values accepted by the Jamf API. The alias above is a string, so
+// these constants pass to any parameter or field declared as a plain string.
+const (
+	DataRoamingSettingEnableDataRoaming  DataRoamingSetting = "ENABLE_DATA_ROAMING"
+	DataRoamingSettingDisableDataRoaming DataRoamingSetting = "DISABLE_DATA_ROAMING"
+)
+
+// DataRoamingSettingValues returns every value the Jamf API accepts for DataRoamingSetting,
+// in the order the spec declares them. Returns a fresh slice per call, so no
+// caller can corrupt the set for the rest of the process — which a package
+// level var would allow. Suits attribute validation (Terraform's
+// stringvalidator.OneOf, say) and anything that needs to enumerate the set
+// rather than name one member.
+func DataRoamingSettingValues() []DataRoamingSetting {
+	return []DataRoamingSetting{
+		DataRoamingSettingEnableDataRoaming,
+		DataRoamingSettingDisableDataRoaming,
+	}
+}
+
+// DiagnosticSubmissionSetting represents a diagnostic submission setting value.
+type DiagnosticSubmissionSetting = string
+
+// DiagnosticSubmissionSetting values accepted by the Jamf API. The alias above is a string, so
+// these constants pass to any parameter or field declared as a plain string.
+const (
+	DiagnosticSubmissionSettingEnableDiagnosticSubmission  DiagnosticSubmissionSetting = "ENABLE_DIAGNOSTIC_SUBMISSION"
+	DiagnosticSubmissionSettingDisableDiagnosticSubmission DiagnosticSubmissionSetting = "DISABLE_DIAGNOSTIC_SUBMISSION"
+)
+
+// DiagnosticSubmissionSettingValues returns every value the Jamf API accepts for DiagnosticSubmissionSetting,
+// in the order the spec declares them. Returns a fresh slice per call, so no
+// caller can corrupt the set for the rest of the process — which a package
+// level var would allow. Suits attribute validation (Terraform's
+// stringvalidator.OneOf, say) and anything that needs to enumerate the set
+// rather than name one member.
+func DiagnosticSubmissionSettingValues() []DiagnosticSubmissionSetting {
+	return []DiagnosticSubmissionSetting{
+		DiagnosticSubmissionSettingEnableDiagnosticSubmission,
+		DiagnosticSubmissionSettingDisableDiagnosticSubmission,
 	}
 }
 
@@ -631,6 +700,29 @@ func NotificationTypeValues() []NotificationType {
 	}
 }
 
+// PersonalHotspotSetting represents a personal hotspot setting value.
+type PersonalHotspotSetting = string
+
+// PersonalHotspotSetting values accepted by the Jamf API. The alias above is a string, so
+// these constants pass to any parameter or field declared as a plain string.
+const (
+	PersonalHotspotSettingEnablePersonalHotspot  PersonalHotspotSetting = "ENABLE_PERSONAL_HOTSPOT"
+	PersonalHotspotSettingDisablePersonalHotspot PersonalHotspotSetting = "DISABLE_PERSONAL_HOTSPOT"
+)
+
+// PersonalHotspotSettingValues returns every value the Jamf API accepts for PersonalHotspotSetting,
+// in the order the spec declares them. Returns a fresh slice per call, so no
+// caller can corrupt the set for the rest of the process — which a package
+// level var would allow. Suits attribute validation (Terraform's
+// stringvalidator.OneOf, say) and anything that needs to enumerate the set
+// rather than name one member.
+func PersonalHotspotSettingValues() []PersonalHotspotSetting {
+	return []PersonalHotspotSetting{
+		PersonalHotspotSettingEnablePersonalHotspot,
+		PersonalHotspotSettingDisablePersonalHotspot,
+	}
+}
+
 // ServiceDiscoveryVersion represents a service discovery version value.
 type ServiceDiscoveryVersion = string
 
@@ -653,6 +745,29 @@ func ServiceDiscoveryVersionValues() []ServiceDiscoveryVersion {
 		ServiceDiscoveryVersionNone,
 		ServiceDiscoveryVersionMDMByod,
 		ServiceDiscoveryVersionMDMAdde,
+	}
+}
+
+// VoiceRoamingSetting represents a voice roaming setting value.
+type VoiceRoamingSetting = string
+
+// VoiceRoamingSetting values accepted by the Jamf API. The alias above is a string, so
+// these constants pass to any parameter or field declared as a plain string.
+const (
+	VoiceRoamingSettingEnableVoiceRoaming  VoiceRoamingSetting = "ENABLE_VOICE_ROAMING"
+	VoiceRoamingSettingDisableVoiceRoaming VoiceRoamingSetting = "DISABLE_VOICE_ROAMING"
+)
+
+// VoiceRoamingSettingValues returns every value the Jamf API accepts for VoiceRoamingSetting,
+// in the order the spec declares them. Returns a fresh slice per call, so no
+// caller can corrupt the set for the rest of the process — which a package
+// level var would allow. Suits attribute validation (Terraform's
+// stringvalidator.OneOf, say) and anything that needs to enumerate the set
+// rather than name one member.
+func VoiceRoamingSettingValues() []VoiceRoamingSetting {
+	return []VoiceRoamingSetting{
+		VoiceRoamingSettingEnableVoiceRoaming,
+		VoiceRoamingSettingDisableVoiceRoaming,
 	}
 }
 
@@ -3002,6 +3117,33 @@ func EnrollmentSettingsV4FlushMDMCommandsOnReenrollValues() []EnrollmentSettings
 	}
 }
 
+// EraseDeviceCommandObliterationBehavior is the set of values accepted by EraseDeviceCommand.ObliterationBehavior.
+type EraseDeviceCommandObliterationBehavior = string
+
+// EraseDeviceCommandObliterationBehavior values accepted by the Jamf API. The alias above is a string, so
+// these constants pass to any parameter or field declared as a plain string.
+const (
+	EraseDeviceCommandObliterationBehaviorDefault               EraseDeviceCommandObliterationBehavior = "Default"
+	EraseDeviceCommandObliterationBehaviorDoNotObliterate       EraseDeviceCommandObliterationBehavior = "DoNotObliterate"
+	EraseDeviceCommandObliterationBehaviorObliterateWithWarning EraseDeviceCommandObliterationBehavior = "ObliterateWithWarning"
+	EraseDeviceCommandObliterationBehaviorAlways                EraseDeviceCommandObliterationBehavior = "Always"
+)
+
+// EraseDeviceCommandObliterationBehaviorValues returns every value the Jamf API accepts for EraseDeviceCommandObliterationBehavior,
+// in the order the spec declares them. Returns a fresh slice per call, so no
+// caller can corrupt the set for the rest of the process — which a package
+// level var would allow. Suits attribute validation (Terraform's
+// stringvalidator.OneOf, say) and anything that needs to enumerate the set
+// rather than name one member.
+func EraseDeviceCommandObliterationBehaviorValues() []EraseDeviceCommandObliterationBehavior {
+	return []EraseDeviceCommandObliterationBehavior{
+		EraseDeviceCommandObliterationBehaviorDefault,
+		EraseDeviceCommandObliterationBehaviorDoNotObliterate,
+		EraseDeviceCommandObliterationBehaviorObliterateWithWarning,
+		EraseDeviceCommandObliterationBehaviorAlways,
+	}
+}
+
 // ExtensionAttributeV2Type is the set of values accepted by ExtensionAttributeV2.Type.
 type ExtensionAttributeV2Type = string
 
@@ -3277,6 +3419,57 @@ func GroupWithCriteriaDtoV1GroupTypeValues() []GroupWithCriteriaDtoV1GroupType {
 	}
 }
 
+// InstalledApplicationListCommandItems is the set of values accepted by InstalledApplicationListCommand.Items.
+type InstalledApplicationListCommandItems = string
+
+// InstalledApplicationListCommandItems values accepted by the Jamf API. The alias above is a string, so
+// these constants pass to any parameter or field declared as a plain string.
+const (
+	InstalledApplicationListCommandItemsAdHocCodeSigned           InstalledApplicationListCommandItems = "AdHocCodeSigned"
+	InstalledApplicationListCommandItemsAppStoreVendable          InstalledApplicationListCommandItems = "AppStoreVendable"
+	InstalledApplicationListCommandItemsBetaApp                   InstalledApplicationListCommandItems = "BetaApp"
+	InstalledApplicationListCommandItemsBundleSize                InstalledApplicationListCommandItems = "BundleSize"
+	InstalledApplicationListCommandItemsDeviceBasedVpp            InstalledApplicationListCommandItems = "DeviceBasedVpp"
+	InstalledApplicationListCommandItemsDistributorIdentifier     InstalledApplicationListCommandItems = "DistributorIdentifier"
+	InstalledApplicationListCommandItemsDynamicSize               InstalledApplicationListCommandItems = "DynamicSize"
+	InstalledApplicationListCommandItemsExternalVersionIdentifier InstalledApplicationListCommandItems = "ExternalVersionIdentifier"
+	InstalledApplicationListCommandItemsHasUpdateAvailable        InstalledApplicationListCommandItems = "HasUpdateAvailable"
+	InstalledApplicationListCommandItemsIdentifier                InstalledApplicationListCommandItems = "Identifier"
+	InstalledApplicationListCommandItemsInstalling                InstalledApplicationListCommandItems = "Installing"
+	InstalledApplicationListCommandItemsAppClip                   InstalledApplicationListCommandItems = "AppClip"
+	InstalledApplicationListCommandItemsValidated                 InstalledApplicationListCommandItems = "Validated"
+	InstalledApplicationListCommandItemsName                      InstalledApplicationListCommandItems = "Name"
+	InstalledApplicationListCommandItemsShortVersion              InstalledApplicationListCommandItems = "ShortVersion"
+	InstalledApplicationListCommandItemsVersion                   InstalledApplicationListCommandItems = "Version"
+)
+
+// InstalledApplicationListCommandItemsValues returns every value the Jamf API accepts for InstalledApplicationListCommandItems,
+// in the order the spec declares them. Returns a fresh slice per call, so no
+// caller can corrupt the set for the rest of the process — which a package
+// level var would allow. Suits attribute validation (Terraform's
+// stringvalidator.OneOf, say) and anything that needs to enumerate the set
+// rather than name one member.
+func InstalledApplicationListCommandItemsValues() []InstalledApplicationListCommandItems {
+	return []InstalledApplicationListCommandItems{
+		InstalledApplicationListCommandItemsAdHocCodeSigned,
+		InstalledApplicationListCommandItemsAppStoreVendable,
+		InstalledApplicationListCommandItemsBetaApp,
+		InstalledApplicationListCommandItemsBundleSize,
+		InstalledApplicationListCommandItemsDeviceBasedVpp,
+		InstalledApplicationListCommandItemsDistributorIdentifier,
+		InstalledApplicationListCommandItemsDynamicSize,
+		InstalledApplicationListCommandItemsExternalVersionIdentifier,
+		InstalledApplicationListCommandItemsHasUpdateAvailable,
+		InstalledApplicationListCommandItemsIdentifier,
+		InstalledApplicationListCommandItemsInstalling,
+		InstalledApplicationListCommandItemsAppClip,
+		InstalledApplicationListCommandItemsValidated,
+		InstalledApplicationListCommandItemsName,
+		InstalledApplicationListCommandItemsShortVersion,
+		InstalledApplicationListCommandItemsVersion,
+	}
+}
+
 // InternalRecipientFrequency is the set of values accepted by InternalRecipient.Frequency.
 type InternalRecipientFrequency = string
 
@@ -3509,6 +3702,95 @@ func LinkedConnectProfileAutoDeploymentTypeValues() []LinkedConnectProfileAutoDe
 		LinkedConnectProfileAutoDeploymentTypeMinorAndPatchUpdates,
 		LinkedConnectProfileAutoDeploymentTypeInitialInstallationOnly,
 		LinkedConnectProfileAutoDeploymentTypeNone,
+	}
+}
+
+// MDMCommandRequestCommandDataCommandType is the set of values accepted by MDMCommandRequestCommandData.CommandType.
+type MDMCommandRequestCommandDataCommandType = string
+
+// MDMCommandRequestCommandDataCommandType values accepted by the Jamf API. The alias above is a string, so
+// these constants pass to any parameter or field declared as a plain string.
+const (
+	MDMCommandRequestCommandDataCommandTypeApplyRedemptionCode          MDMCommandRequestCommandDataCommandType = "APPLY_REDEMPTION_CODE"
+	MDMCommandRequestCommandDataCommandTypeCancelEnhancedLogCollection  MDMCommandRequestCommandDataCommandType = "CANCEL_ENHANCED_LOG_COLLECTION"
+	MDMCommandRequestCommandDataCommandTypeCertificateList              MDMCommandRequestCommandDataCommandType = "CERTIFICATE_LIST"
+	MDMCommandRequestCommandDataCommandTypeClearPasscode                MDMCommandRequestCommandDataCommandType = "CLEAR_PASSCODE"
+	MDMCommandRequestCommandDataCommandTypeClearRestrictionsPassword    MDMCommandRequestCommandDataCommandType = "CLEAR_RESTRICTIONS_PASSWORD"
+	MDMCommandRequestCommandDataCommandTypeDeclarativeManagement        MDMCommandRequestCommandDataCommandType = "DECLARATIVE_MANAGEMENT"
+	MDMCommandRequestCommandDataCommandTypeDeleteUser                   MDMCommandRequestCommandDataCommandType = "DELETE_USER"
+	MDMCommandRequestCommandDataCommandTypeDeviceInformation            MDMCommandRequestCommandDataCommandType = "DEVICE_INFORMATION"
+	MDMCommandRequestCommandDataCommandTypeDeviceLocation               MDMCommandRequestCommandDataCommandType = "DEVICE_LOCATION"
+	MDMCommandRequestCommandDataCommandTypeDeviceLock                   MDMCommandRequestCommandDataCommandType = "DEVICE_LOCK"
+	MDMCommandRequestCommandDataCommandTypeDisableLostMode              MDMCommandRequestCommandDataCommandType = "DISABLE_LOST_MODE"
+	MDMCommandRequestCommandDataCommandTypeDisableRemoteDesktop         MDMCommandRequestCommandDataCommandType = "DISABLE_REMOTE_DESKTOP"
+	MDMCommandRequestCommandDataCommandTypeEnableLostMode               MDMCommandRequestCommandDataCommandType = "ENABLE_LOST_MODE"
+	MDMCommandRequestCommandDataCommandTypeEnableRemoteDesktop          MDMCommandRequestCommandDataCommandType = "ENABLE_REMOTE_DESKTOP"
+	MDMCommandRequestCommandDataCommandTypeEraseDevice                  MDMCommandRequestCommandDataCommandType = "ERASE_DEVICE"
+	MDMCommandRequestCommandDataCommandTypeInstalledApplicationList     MDMCommandRequestCommandDataCommandType = "INSTALLED_APPLICATION_LIST"
+	MDMCommandRequestCommandDataCommandTypeLogOutUser                   MDMCommandRequestCommandDataCommandType = "LOG_OUT_USER"
+	MDMCommandRequestCommandDataCommandTypeManagedApplicationList       MDMCommandRequestCommandDataCommandType = "MANAGED_APPLICATION_LIST"
+	MDMCommandRequestCommandDataCommandTypeManagedMediaList             MDMCommandRequestCommandDataCommandType = "MANAGED_MEDIA_LIST"
+	MDMCommandRequestCommandDataCommandTypePlayLostModeSound            MDMCommandRequestCommandDataCommandType = "PLAY_LOST_MODE_SOUND"
+	MDMCommandRequestCommandDataCommandTypeProfileList                  MDMCommandRequestCommandDataCommandType = "PROFILE_LIST"
+	MDMCommandRequestCommandDataCommandTypeProvisioningProfileList      MDMCommandRequestCommandDataCommandType = "PROVISIONING_PROFILE_LIST"
+	MDMCommandRequestCommandDataCommandTypeRefreshCellularPlans         MDMCommandRequestCommandDataCommandType = "REFRESH_CELLULAR_PLANS"
+	MDMCommandRequestCommandDataCommandTypeRequestMirroring             MDMCommandRequestCommandDataCommandType = "REQUEST_MIRRORING"
+	MDMCommandRequestCommandDataCommandTypeRestartDevice                MDMCommandRequestCommandDataCommandType = "RESTART_DEVICE"
+	MDMCommandRequestCommandDataCommandTypeSecurityInfo                 MDMCommandRequestCommandDataCommandType = "SECURITY_INFO"
+	MDMCommandRequestCommandDataCommandTypeSettings                     MDMCommandRequestCommandDataCommandType = "SETTINGS"
+	MDMCommandRequestCommandDataCommandTypeSetAutoAdminPassword         MDMCommandRequestCommandDataCommandType = "SET_AUTO_ADMIN_PASSWORD"
+	MDMCommandRequestCommandDataCommandTypeSetRecoveryLock              MDMCommandRequestCommandDataCommandType = "SET_RECOVERY_LOCK"
+	MDMCommandRequestCommandDataCommandTypeShutDownDevice               MDMCommandRequestCommandDataCommandType = "SHUT_DOWN_DEVICE"
+	MDMCommandRequestCommandDataCommandTypeStopMirroring                MDMCommandRequestCommandDataCommandType = "STOP_MIRRORING"
+	MDMCommandRequestCommandDataCommandTypeTriggerEnhancedLogCollection MDMCommandRequestCommandDataCommandType = "TRIGGER_ENHANCED_LOG_COLLECTION"
+	MDMCommandRequestCommandDataCommandTypeUnlockUserAccount            MDMCommandRequestCommandDataCommandType = "UNLOCK_USER_ACCOUNT"
+	MDMCommandRequestCommandDataCommandTypeValidateApplications         MDMCommandRequestCommandDataCommandType = "VALIDATE_APPLICATIONS"
+	MDMCommandRequestCommandDataCommandTypeVerifyRecoveryLock           MDMCommandRequestCommandDataCommandType = "VERIFY_RECOVERY_LOCK"
+)
+
+// MDMCommandRequestCommandDataCommandTypeValues returns every value the Jamf API accepts for MDMCommandRequestCommandDataCommandType,
+// in the order the spec declares them. Returns a fresh slice per call, so no
+// caller can corrupt the set for the rest of the process — which a package
+// level var would allow. Suits attribute validation (Terraform's
+// stringvalidator.OneOf, say) and anything that needs to enumerate the set
+// rather than name one member.
+func MDMCommandRequestCommandDataCommandTypeValues() []MDMCommandRequestCommandDataCommandType {
+	return []MDMCommandRequestCommandDataCommandType{
+		MDMCommandRequestCommandDataCommandTypeApplyRedemptionCode,
+		MDMCommandRequestCommandDataCommandTypeCancelEnhancedLogCollection,
+		MDMCommandRequestCommandDataCommandTypeCertificateList,
+		MDMCommandRequestCommandDataCommandTypeClearPasscode,
+		MDMCommandRequestCommandDataCommandTypeClearRestrictionsPassword,
+		MDMCommandRequestCommandDataCommandTypeDeclarativeManagement,
+		MDMCommandRequestCommandDataCommandTypeDeleteUser,
+		MDMCommandRequestCommandDataCommandTypeDeviceInformation,
+		MDMCommandRequestCommandDataCommandTypeDeviceLocation,
+		MDMCommandRequestCommandDataCommandTypeDeviceLock,
+		MDMCommandRequestCommandDataCommandTypeDisableLostMode,
+		MDMCommandRequestCommandDataCommandTypeDisableRemoteDesktop,
+		MDMCommandRequestCommandDataCommandTypeEnableLostMode,
+		MDMCommandRequestCommandDataCommandTypeEnableRemoteDesktop,
+		MDMCommandRequestCommandDataCommandTypeEraseDevice,
+		MDMCommandRequestCommandDataCommandTypeInstalledApplicationList,
+		MDMCommandRequestCommandDataCommandTypeLogOutUser,
+		MDMCommandRequestCommandDataCommandTypeManagedApplicationList,
+		MDMCommandRequestCommandDataCommandTypeManagedMediaList,
+		MDMCommandRequestCommandDataCommandTypePlayLostModeSound,
+		MDMCommandRequestCommandDataCommandTypeProfileList,
+		MDMCommandRequestCommandDataCommandTypeProvisioningProfileList,
+		MDMCommandRequestCommandDataCommandTypeRefreshCellularPlans,
+		MDMCommandRequestCommandDataCommandTypeRequestMirroring,
+		MDMCommandRequestCommandDataCommandTypeRestartDevice,
+		MDMCommandRequestCommandDataCommandTypeSecurityInfo,
+		MDMCommandRequestCommandDataCommandTypeSettings,
+		MDMCommandRequestCommandDataCommandTypeSetAutoAdminPassword,
+		MDMCommandRequestCommandDataCommandTypeSetRecoveryLock,
+		MDMCommandRequestCommandDataCommandTypeShutDownDevice,
+		MDMCommandRequestCommandDataCommandTypeStopMirroring,
+		MDMCommandRequestCommandDataCommandTypeTriggerEnhancedLogCollection,
+		MDMCommandRequestCommandDataCommandTypeUnlockUserAccount,
+		MDMCommandRequestCommandDataCommandTypeValidateApplications,
+		MDMCommandRequestCommandDataCommandTypeVerifyRecoveryLock,
 	}
 }
 
@@ -5910,6 +6192,31 @@ func SmtpServerV2AuthenticationTypeValues() []SmtpServerV2AuthenticationType {
 		SmtpServerV2AuthenticationTypeBasic,
 		SmtpServerV2AuthenticationTypeGraphApi,
 		SmtpServerV2AuthenticationTypeGoogleMail,
+	}
+}
+
+// SoftwareUpdateSettingsRecommendationCadence is the set of values accepted by SoftwareUpdateSettings.RecommendationCadence.
+type SoftwareUpdateSettingsRecommendationCadence = string
+
+// SoftwareUpdateSettingsRecommendationCadence values accepted by the Jamf API. The alias above is a string, so
+// these constants pass to any parameter or field declared as a plain string.
+const (
+	SoftwareUpdateSettingsRecommendationCadenceAllowAllUpdates             SoftwareUpdateSettingsRecommendationCadence = "ALLOW_ALL_UPDATES"
+	SoftwareUpdateSettingsRecommendationCadenceOnlyAllowLeastCurrentUpdate SoftwareUpdateSettingsRecommendationCadence = "ONLY_ALLOW_LEAST_CURRENT_UPDATE"
+	SoftwareUpdateSettingsRecommendationCadenceOnlyAllowMostCurrentUpdate  SoftwareUpdateSettingsRecommendationCadence = "ONLY_ALLOW_MOST_CURRENT_UPDATE"
+)
+
+// SoftwareUpdateSettingsRecommendationCadenceValues returns every value the Jamf API accepts for SoftwareUpdateSettingsRecommendationCadence,
+// in the order the spec declares them. Returns a fresh slice per call, so no
+// caller can corrupt the set for the rest of the process — which a package
+// level var would allow. Suits attribute validation (Terraform's
+// stringvalidator.OneOf, say) and anything that needs to enumerate the set
+// rather than name one member.
+func SoftwareUpdateSettingsRecommendationCadenceValues() []SoftwareUpdateSettingsRecommendationCadence {
+	return []SoftwareUpdateSettingsRecommendationCadence{
+		SoftwareUpdateSettingsRecommendationCadenceAllowAllUpdates,
+		SoftwareUpdateSettingsRecommendationCadenceOnlyAllowLeastCurrentUpdate,
+		SoftwareUpdateSettingsRecommendationCadenceOnlyAllowMostCurrentUpdate,
 	}
 }
 

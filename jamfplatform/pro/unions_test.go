@@ -11,6 +11,999 @@ import (
 	"testing"
 )
 
+// TestMDMCommandRequestCommandData_Marshal asserts that each "commandType" value marshals to exactly the bytes
+// its variant alone produces, that a payload carrying the value decodes into
+// that variant, and that an unrecognised value leaves every variant nil while
+// preserving the discriminator rather than guessing.
+func TestMDMCommandRequestCommandData_Marshal(t *testing.T) {
+	t.Run("APPLY_REDEMPTION_CODE", func(t *testing.T) {
+		variant := &ApplyRedemptionCodeCommand{}
+		got, err := json.Marshal(MDMCommandRequestCommandData{CommandType: "APPLY_REDEMPTION_CODE", APPLYREDEMPTIONCODE: variant})
+		if err != nil {
+			t.Fatalf("marshal union: %v", err)
+		}
+		want, err := json.Marshal(variant)
+		if err != nil {
+			t.Fatalf("marshal variant: %v", err)
+		}
+		if !bytes.Equal(got, want) {
+			t.Fatalf("union marshalled to %s, want the bare variant %s", got, want)
+		}
+		var back MDMCommandRequestCommandData
+		if err := json.Unmarshal([]byte(`{"commandType":"APPLY_REDEMPTION_CODE"}`), &back); err != nil {
+			t.Fatalf("unmarshal union: %v", err)
+		}
+		if back.CommandType != "APPLY_REDEMPTION_CODE" {
+			t.Fatalf("CommandType = %q after decode, want %q", back.CommandType, "APPLY_REDEMPTION_CODE")
+		}
+		if back.APPLYREDEMPTIONCODE == nil {
+			t.Fatal("APPLY_REDEMPTION_CODE decoded with APPLYREDEMPTIONCODE nil — the value is mapped to no variant")
+		}
+	})
+	t.Run("CANCEL_ENHANCED_LOG_COLLECTION", func(t *testing.T) {
+		variant := &CancelEnhancedLogCollectionCommand{}
+		got, err := json.Marshal(MDMCommandRequestCommandData{CommandType: "CANCEL_ENHANCED_LOG_COLLECTION", CANCELENHANCEDLOGCOLLECTION: variant})
+		if err != nil {
+			t.Fatalf("marshal union: %v", err)
+		}
+		want, err := json.Marshal(variant)
+		if err != nil {
+			t.Fatalf("marshal variant: %v", err)
+		}
+		if !bytes.Equal(got, want) {
+			t.Fatalf("union marshalled to %s, want the bare variant %s", got, want)
+		}
+		var back MDMCommandRequestCommandData
+		if err := json.Unmarshal([]byte(`{"commandType":"CANCEL_ENHANCED_LOG_COLLECTION"}`), &back); err != nil {
+			t.Fatalf("unmarshal union: %v", err)
+		}
+		if back.CommandType != "CANCEL_ENHANCED_LOG_COLLECTION" {
+			t.Fatalf("CommandType = %q after decode, want %q", back.CommandType, "CANCEL_ENHANCED_LOG_COLLECTION")
+		}
+		if back.CANCELENHANCEDLOGCOLLECTION == nil {
+			t.Fatal("CANCEL_ENHANCED_LOG_COLLECTION decoded with CANCELENHANCEDLOGCOLLECTION nil — the value is mapped to no variant")
+		}
+	})
+	t.Run("CERTIFICATE_LIST", func(t *testing.T) {
+		variant := &CertificateListCommand{}
+		got, err := json.Marshal(MDMCommandRequestCommandData{CommandType: "CERTIFICATE_LIST", CERTIFICATELIST: variant})
+		if err != nil {
+			t.Fatalf("marshal union: %v", err)
+		}
+		want, err := json.Marshal(variant)
+		if err != nil {
+			t.Fatalf("marshal variant: %v", err)
+		}
+		if !bytes.Equal(got, want) {
+			t.Fatalf("union marshalled to %s, want the bare variant %s", got, want)
+		}
+		var back MDMCommandRequestCommandData
+		if err := json.Unmarshal([]byte(`{"commandType":"CERTIFICATE_LIST"}`), &back); err != nil {
+			t.Fatalf("unmarshal union: %v", err)
+		}
+		if back.CommandType != "CERTIFICATE_LIST" {
+			t.Fatalf("CommandType = %q after decode, want %q", back.CommandType, "CERTIFICATE_LIST")
+		}
+		if back.CERTIFICATELIST == nil {
+			t.Fatal("CERTIFICATE_LIST decoded with CERTIFICATELIST nil — the value is mapped to no variant")
+		}
+	})
+	t.Run("CLEAR_PASSCODE", func(t *testing.T) {
+		variant := &ClearPasscodeCommand{}
+		got, err := json.Marshal(MDMCommandRequestCommandData{CommandType: "CLEAR_PASSCODE", CLEARPASSCODE: variant})
+		if err != nil {
+			t.Fatalf("marshal union: %v", err)
+		}
+		want, err := json.Marshal(variant)
+		if err != nil {
+			t.Fatalf("marshal variant: %v", err)
+		}
+		if !bytes.Equal(got, want) {
+			t.Fatalf("union marshalled to %s, want the bare variant %s", got, want)
+		}
+		var back MDMCommandRequestCommandData
+		if err := json.Unmarshal([]byte(`{"commandType":"CLEAR_PASSCODE"}`), &back); err != nil {
+			t.Fatalf("unmarshal union: %v", err)
+		}
+		if back.CommandType != "CLEAR_PASSCODE" {
+			t.Fatalf("CommandType = %q after decode, want %q", back.CommandType, "CLEAR_PASSCODE")
+		}
+		if back.CLEARPASSCODE == nil {
+			t.Fatal("CLEAR_PASSCODE decoded with CLEARPASSCODE nil — the value is mapped to no variant")
+		}
+	})
+	t.Run("CLEAR_RESTRICTIONS_PASSWORD", func(t *testing.T) {
+		variant := &ClearRestrictionsPasswordCommand{}
+		got, err := json.Marshal(MDMCommandRequestCommandData{CommandType: "CLEAR_RESTRICTIONS_PASSWORD", CLEARRESTRICTIONSPASSWORD: variant})
+		if err != nil {
+			t.Fatalf("marshal union: %v", err)
+		}
+		want, err := json.Marshal(variant)
+		if err != nil {
+			t.Fatalf("marshal variant: %v", err)
+		}
+		if !bytes.Equal(got, want) {
+			t.Fatalf("union marshalled to %s, want the bare variant %s", got, want)
+		}
+		var back MDMCommandRequestCommandData
+		if err := json.Unmarshal([]byte(`{"commandType":"CLEAR_RESTRICTIONS_PASSWORD"}`), &back); err != nil {
+			t.Fatalf("unmarshal union: %v", err)
+		}
+		if back.CommandType != "CLEAR_RESTRICTIONS_PASSWORD" {
+			t.Fatalf("CommandType = %q after decode, want %q", back.CommandType, "CLEAR_RESTRICTIONS_PASSWORD")
+		}
+		if back.CLEARRESTRICTIONSPASSWORD == nil {
+			t.Fatal("CLEAR_RESTRICTIONS_PASSWORD decoded with CLEARRESTRICTIONSPASSWORD nil — the value is mapped to no variant")
+		}
+	})
+	t.Run("DECLARATIVE_MANAGEMENT", func(t *testing.T) {
+		variant := &DeclarativeManagementCommand{}
+		got, err := json.Marshal(MDMCommandRequestCommandData{CommandType: "DECLARATIVE_MANAGEMENT", DECLARATIVEMANAGEMENT: variant})
+		if err != nil {
+			t.Fatalf("marshal union: %v", err)
+		}
+		want, err := json.Marshal(variant)
+		if err != nil {
+			t.Fatalf("marshal variant: %v", err)
+		}
+		if !bytes.Equal(got, want) {
+			t.Fatalf("union marshalled to %s, want the bare variant %s", got, want)
+		}
+		var back MDMCommandRequestCommandData
+		if err := json.Unmarshal([]byte(`{"commandType":"DECLARATIVE_MANAGEMENT"}`), &back); err != nil {
+			t.Fatalf("unmarshal union: %v", err)
+		}
+		if back.CommandType != "DECLARATIVE_MANAGEMENT" {
+			t.Fatalf("CommandType = %q after decode, want %q", back.CommandType, "DECLARATIVE_MANAGEMENT")
+		}
+		if back.DECLARATIVEMANAGEMENT == nil {
+			t.Fatal("DECLARATIVE_MANAGEMENT decoded with DECLARATIVEMANAGEMENT nil — the value is mapped to no variant")
+		}
+	})
+	t.Run("DELETE_USER", func(t *testing.T) {
+		variant := &DeleteUserCommand{}
+		got, err := json.Marshal(MDMCommandRequestCommandData{CommandType: "DELETE_USER", DELETEUSER: variant})
+		if err != nil {
+			t.Fatalf("marshal union: %v", err)
+		}
+		want, err := json.Marshal(variant)
+		if err != nil {
+			t.Fatalf("marshal variant: %v", err)
+		}
+		if !bytes.Equal(got, want) {
+			t.Fatalf("union marshalled to %s, want the bare variant %s", got, want)
+		}
+		var back MDMCommandRequestCommandData
+		if err := json.Unmarshal([]byte(`{"commandType":"DELETE_USER"}`), &back); err != nil {
+			t.Fatalf("unmarshal union: %v", err)
+		}
+		if back.CommandType != "DELETE_USER" {
+			t.Fatalf("CommandType = %q after decode, want %q", back.CommandType, "DELETE_USER")
+		}
+		if back.DELETEUSER == nil {
+			t.Fatal("DELETE_USER decoded with DELETEUSER nil — the value is mapped to no variant")
+		}
+	})
+	t.Run("DEVICE_INFORMATION", func(t *testing.T) {
+		variant := &DeviceInformationCommand{}
+		got, err := json.Marshal(MDMCommandRequestCommandData{CommandType: "DEVICE_INFORMATION", DEVICEINFORMATION: variant})
+		if err != nil {
+			t.Fatalf("marshal union: %v", err)
+		}
+		want, err := json.Marshal(variant)
+		if err != nil {
+			t.Fatalf("marshal variant: %v", err)
+		}
+		if !bytes.Equal(got, want) {
+			t.Fatalf("union marshalled to %s, want the bare variant %s", got, want)
+		}
+		var back MDMCommandRequestCommandData
+		if err := json.Unmarshal([]byte(`{"commandType":"DEVICE_INFORMATION"}`), &back); err != nil {
+			t.Fatalf("unmarshal union: %v", err)
+		}
+		if back.CommandType != "DEVICE_INFORMATION" {
+			t.Fatalf("CommandType = %q after decode, want %q", back.CommandType, "DEVICE_INFORMATION")
+		}
+		if back.DEVICEINFORMATION == nil {
+			t.Fatal("DEVICE_INFORMATION decoded with DEVICEINFORMATION nil — the value is mapped to no variant")
+		}
+	})
+	t.Run("DEVICE_LOCATION", func(t *testing.T) {
+		variant := &DeviceLocationCommand{}
+		got, err := json.Marshal(MDMCommandRequestCommandData{CommandType: "DEVICE_LOCATION", DEVICELOCATION: variant})
+		if err != nil {
+			t.Fatalf("marshal union: %v", err)
+		}
+		want, err := json.Marshal(variant)
+		if err != nil {
+			t.Fatalf("marshal variant: %v", err)
+		}
+		if !bytes.Equal(got, want) {
+			t.Fatalf("union marshalled to %s, want the bare variant %s", got, want)
+		}
+		var back MDMCommandRequestCommandData
+		if err := json.Unmarshal([]byte(`{"commandType":"DEVICE_LOCATION"}`), &back); err != nil {
+			t.Fatalf("unmarshal union: %v", err)
+		}
+		if back.CommandType != "DEVICE_LOCATION" {
+			t.Fatalf("CommandType = %q after decode, want %q", back.CommandType, "DEVICE_LOCATION")
+		}
+		if back.DEVICELOCATION == nil {
+			t.Fatal("DEVICE_LOCATION decoded with DEVICELOCATION nil — the value is mapped to no variant")
+		}
+	})
+	t.Run("DEVICE_LOCK", func(t *testing.T) {
+		variant := &DeviceLockCommand{}
+		got, err := json.Marshal(MDMCommandRequestCommandData{CommandType: "DEVICE_LOCK", DEVICELOCK: variant})
+		if err != nil {
+			t.Fatalf("marshal union: %v", err)
+		}
+		want, err := json.Marshal(variant)
+		if err != nil {
+			t.Fatalf("marshal variant: %v", err)
+		}
+		if !bytes.Equal(got, want) {
+			t.Fatalf("union marshalled to %s, want the bare variant %s", got, want)
+		}
+		var back MDMCommandRequestCommandData
+		if err := json.Unmarshal([]byte(`{"commandType":"DEVICE_LOCK"}`), &back); err != nil {
+			t.Fatalf("unmarshal union: %v", err)
+		}
+		if back.CommandType != "DEVICE_LOCK" {
+			t.Fatalf("CommandType = %q after decode, want %q", back.CommandType, "DEVICE_LOCK")
+		}
+		if back.DEVICELOCK == nil {
+			t.Fatal("DEVICE_LOCK decoded with DEVICELOCK nil — the value is mapped to no variant")
+		}
+	})
+	t.Run("DISABLE_LOST_MODE", func(t *testing.T) {
+		variant := &DisableLostModeCommand{}
+		got, err := json.Marshal(MDMCommandRequestCommandData{CommandType: "DISABLE_LOST_MODE", DISABLELOSTMODE: variant})
+		if err != nil {
+			t.Fatalf("marshal union: %v", err)
+		}
+		want, err := json.Marshal(variant)
+		if err != nil {
+			t.Fatalf("marshal variant: %v", err)
+		}
+		if !bytes.Equal(got, want) {
+			t.Fatalf("union marshalled to %s, want the bare variant %s", got, want)
+		}
+		var back MDMCommandRequestCommandData
+		if err := json.Unmarshal([]byte(`{"commandType":"DISABLE_LOST_MODE"}`), &back); err != nil {
+			t.Fatalf("unmarshal union: %v", err)
+		}
+		if back.CommandType != "DISABLE_LOST_MODE" {
+			t.Fatalf("CommandType = %q after decode, want %q", back.CommandType, "DISABLE_LOST_MODE")
+		}
+		if back.DISABLELOSTMODE == nil {
+			t.Fatal("DISABLE_LOST_MODE decoded with DISABLELOSTMODE nil — the value is mapped to no variant")
+		}
+	})
+	t.Run("DISABLE_REMOTE_DESKTOP", func(t *testing.T) {
+		variant := &DisableRemoteDesktopCommand{}
+		got, err := json.Marshal(MDMCommandRequestCommandData{CommandType: "DISABLE_REMOTE_DESKTOP", DISABLEREMOTEDESKTOP: variant})
+		if err != nil {
+			t.Fatalf("marshal union: %v", err)
+		}
+		want, err := json.Marshal(variant)
+		if err != nil {
+			t.Fatalf("marshal variant: %v", err)
+		}
+		if !bytes.Equal(got, want) {
+			t.Fatalf("union marshalled to %s, want the bare variant %s", got, want)
+		}
+		var back MDMCommandRequestCommandData
+		if err := json.Unmarshal([]byte(`{"commandType":"DISABLE_REMOTE_DESKTOP"}`), &back); err != nil {
+			t.Fatalf("unmarshal union: %v", err)
+		}
+		if back.CommandType != "DISABLE_REMOTE_DESKTOP" {
+			t.Fatalf("CommandType = %q after decode, want %q", back.CommandType, "DISABLE_REMOTE_DESKTOP")
+		}
+		if back.DISABLEREMOTEDESKTOP == nil {
+			t.Fatal("DISABLE_REMOTE_DESKTOP decoded with DISABLEREMOTEDESKTOP nil — the value is mapped to no variant")
+		}
+	})
+	t.Run("ENABLE_LOST_MODE", func(t *testing.T) {
+		variant := &EnableLostModeCommand{}
+		got, err := json.Marshal(MDMCommandRequestCommandData{CommandType: "ENABLE_LOST_MODE", ENABLELOSTMODE: variant})
+		if err != nil {
+			t.Fatalf("marshal union: %v", err)
+		}
+		want, err := json.Marshal(variant)
+		if err != nil {
+			t.Fatalf("marshal variant: %v", err)
+		}
+		if !bytes.Equal(got, want) {
+			t.Fatalf("union marshalled to %s, want the bare variant %s", got, want)
+		}
+		var back MDMCommandRequestCommandData
+		if err := json.Unmarshal([]byte(`{"commandType":"ENABLE_LOST_MODE"}`), &back); err != nil {
+			t.Fatalf("unmarshal union: %v", err)
+		}
+		if back.CommandType != "ENABLE_LOST_MODE" {
+			t.Fatalf("CommandType = %q after decode, want %q", back.CommandType, "ENABLE_LOST_MODE")
+		}
+		if back.ENABLELOSTMODE == nil {
+			t.Fatal("ENABLE_LOST_MODE decoded with ENABLELOSTMODE nil — the value is mapped to no variant")
+		}
+	})
+	t.Run("ENABLE_REMOTE_DESKTOP", func(t *testing.T) {
+		variant := &EnableRemoteDesktopCommand{}
+		got, err := json.Marshal(MDMCommandRequestCommandData{CommandType: "ENABLE_REMOTE_DESKTOP", ENABLEREMOTEDESKTOP: variant})
+		if err != nil {
+			t.Fatalf("marshal union: %v", err)
+		}
+		want, err := json.Marshal(variant)
+		if err != nil {
+			t.Fatalf("marshal variant: %v", err)
+		}
+		if !bytes.Equal(got, want) {
+			t.Fatalf("union marshalled to %s, want the bare variant %s", got, want)
+		}
+		var back MDMCommandRequestCommandData
+		if err := json.Unmarshal([]byte(`{"commandType":"ENABLE_REMOTE_DESKTOP"}`), &back); err != nil {
+			t.Fatalf("unmarshal union: %v", err)
+		}
+		if back.CommandType != "ENABLE_REMOTE_DESKTOP" {
+			t.Fatalf("CommandType = %q after decode, want %q", back.CommandType, "ENABLE_REMOTE_DESKTOP")
+		}
+		if back.ENABLEREMOTEDESKTOP == nil {
+			t.Fatal("ENABLE_REMOTE_DESKTOP decoded with ENABLEREMOTEDESKTOP nil — the value is mapped to no variant")
+		}
+	})
+	t.Run("ERASE_DEVICE", func(t *testing.T) {
+		variant := &EraseDeviceCommand{}
+		got, err := json.Marshal(MDMCommandRequestCommandData{CommandType: "ERASE_DEVICE", ERASEDEVICE: variant})
+		if err != nil {
+			t.Fatalf("marshal union: %v", err)
+		}
+		want, err := json.Marshal(variant)
+		if err != nil {
+			t.Fatalf("marshal variant: %v", err)
+		}
+		if !bytes.Equal(got, want) {
+			t.Fatalf("union marshalled to %s, want the bare variant %s", got, want)
+		}
+		var back MDMCommandRequestCommandData
+		if err := json.Unmarshal([]byte(`{"commandType":"ERASE_DEVICE"}`), &back); err != nil {
+			t.Fatalf("unmarshal union: %v", err)
+		}
+		if back.CommandType != "ERASE_DEVICE" {
+			t.Fatalf("CommandType = %q after decode, want %q", back.CommandType, "ERASE_DEVICE")
+		}
+		if back.ERASEDEVICE == nil {
+			t.Fatal("ERASE_DEVICE decoded with ERASEDEVICE nil — the value is mapped to no variant")
+		}
+	})
+	t.Run("INSTALLED_APPLICATION_LIST", func(t *testing.T) {
+		variant := &InstalledApplicationListCommand{}
+		got, err := json.Marshal(MDMCommandRequestCommandData{CommandType: "INSTALLED_APPLICATION_LIST", INSTALLEDAPPLICATIONLIST: variant})
+		if err != nil {
+			t.Fatalf("marshal union: %v", err)
+		}
+		want, err := json.Marshal(variant)
+		if err != nil {
+			t.Fatalf("marshal variant: %v", err)
+		}
+		if !bytes.Equal(got, want) {
+			t.Fatalf("union marshalled to %s, want the bare variant %s", got, want)
+		}
+		var back MDMCommandRequestCommandData
+		if err := json.Unmarshal([]byte(`{"commandType":"INSTALLED_APPLICATION_LIST"}`), &back); err != nil {
+			t.Fatalf("unmarshal union: %v", err)
+		}
+		if back.CommandType != "INSTALLED_APPLICATION_LIST" {
+			t.Fatalf("CommandType = %q after decode, want %q", back.CommandType, "INSTALLED_APPLICATION_LIST")
+		}
+		if back.INSTALLEDAPPLICATIONLIST == nil {
+			t.Fatal("INSTALLED_APPLICATION_LIST decoded with INSTALLEDAPPLICATIONLIST nil — the value is mapped to no variant")
+		}
+	})
+	t.Run("LOG_OUT_USER", func(t *testing.T) {
+		variant := &LogOutUserCommand{}
+		got, err := json.Marshal(MDMCommandRequestCommandData{CommandType: "LOG_OUT_USER", LOGOUTUSER: variant})
+		if err != nil {
+			t.Fatalf("marshal union: %v", err)
+		}
+		want, err := json.Marshal(variant)
+		if err != nil {
+			t.Fatalf("marshal variant: %v", err)
+		}
+		if !bytes.Equal(got, want) {
+			t.Fatalf("union marshalled to %s, want the bare variant %s", got, want)
+		}
+		var back MDMCommandRequestCommandData
+		if err := json.Unmarshal([]byte(`{"commandType":"LOG_OUT_USER"}`), &back); err != nil {
+			t.Fatalf("unmarshal union: %v", err)
+		}
+		if back.CommandType != "LOG_OUT_USER" {
+			t.Fatalf("CommandType = %q after decode, want %q", back.CommandType, "LOG_OUT_USER")
+		}
+		if back.LOGOUTUSER == nil {
+			t.Fatal("LOG_OUT_USER decoded with LOGOUTUSER nil — the value is mapped to no variant")
+		}
+	})
+	t.Run("MANAGED_APPLICATION_LIST", func(t *testing.T) {
+		variant := &ManagedApplicationListCommand{}
+		got, err := json.Marshal(MDMCommandRequestCommandData{CommandType: "MANAGED_APPLICATION_LIST", MANAGEDAPPLICATIONLIST: variant})
+		if err != nil {
+			t.Fatalf("marshal union: %v", err)
+		}
+		want, err := json.Marshal(variant)
+		if err != nil {
+			t.Fatalf("marshal variant: %v", err)
+		}
+		if !bytes.Equal(got, want) {
+			t.Fatalf("union marshalled to %s, want the bare variant %s", got, want)
+		}
+		var back MDMCommandRequestCommandData
+		if err := json.Unmarshal([]byte(`{"commandType":"MANAGED_APPLICATION_LIST"}`), &back); err != nil {
+			t.Fatalf("unmarshal union: %v", err)
+		}
+		if back.CommandType != "MANAGED_APPLICATION_LIST" {
+			t.Fatalf("CommandType = %q after decode, want %q", back.CommandType, "MANAGED_APPLICATION_LIST")
+		}
+		if back.MANAGEDAPPLICATIONLIST == nil {
+			t.Fatal("MANAGED_APPLICATION_LIST decoded with MANAGEDAPPLICATIONLIST nil — the value is mapped to no variant")
+		}
+	})
+	t.Run("MANAGED_MEDIA_LIST", func(t *testing.T) {
+		variant := &ManagedMediaListCommand{}
+		got, err := json.Marshal(MDMCommandRequestCommandData{CommandType: "MANAGED_MEDIA_LIST", MANAGEDMEDIALIST: variant})
+		if err != nil {
+			t.Fatalf("marshal union: %v", err)
+		}
+		want, err := json.Marshal(variant)
+		if err != nil {
+			t.Fatalf("marshal variant: %v", err)
+		}
+		if !bytes.Equal(got, want) {
+			t.Fatalf("union marshalled to %s, want the bare variant %s", got, want)
+		}
+		var back MDMCommandRequestCommandData
+		if err := json.Unmarshal([]byte(`{"commandType":"MANAGED_MEDIA_LIST"}`), &back); err != nil {
+			t.Fatalf("unmarshal union: %v", err)
+		}
+		if back.CommandType != "MANAGED_MEDIA_LIST" {
+			t.Fatalf("CommandType = %q after decode, want %q", back.CommandType, "MANAGED_MEDIA_LIST")
+		}
+		if back.MANAGEDMEDIALIST == nil {
+			t.Fatal("MANAGED_MEDIA_LIST decoded with MANAGEDMEDIALIST nil — the value is mapped to no variant")
+		}
+	})
+	t.Run("PLAY_LOST_MODE_SOUND", func(t *testing.T) {
+		variant := &PlayLostModeSoundCommand{}
+		got, err := json.Marshal(MDMCommandRequestCommandData{CommandType: "PLAY_LOST_MODE_SOUND", PLAYLOSTMODESOUND: variant})
+		if err != nil {
+			t.Fatalf("marshal union: %v", err)
+		}
+		want, err := json.Marshal(variant)
+		if err != nil {
+			t.Fatalf("marshal variant: %v", err)
+		}
+		if !bytes.Equal(got, want) {
+			t.Fatalf("union marshalled to %s, want the bare variant %s", got, want)
+		}
+		var back MDMCommandRequestCommandData
+		if err := json.Unmarshal([]byte(`{"commandType":"PLAY_LOST_MODE_SOUND"}`), &back); err != nil {
+			t.Fatalf("unmarshal union: %v", err)
+		}
+		if back.CommandType != "PLAY_LOST_MODE_SOUND" {
+			t.Fatalf("CommandType = %q after decode, want %q", back.CommandType, "PLAY_LOST_MODE_SOUND")
+		}
+		if back.PLAYLOSTMODESOUND == nil {
+			t.Fatal("PLAY_LOST_MODE_SOUND decoded with PLAYLOSTMODESOUND nil — the value is mapped to no variant")
+		}
+	})
+	t.Run("PROFILE_LIST", func(t *testing.T) {
+		variant := &ProfileListCommand{}
+		got, err := json.Marshal(MDMCommandRequestCommandData{CommandType: "PROFILE_LIST", PROFILELIST: variant})
+		if err != nil {
+			t.Fatalf("marshal union: %v", err)
+		}
+		want, err := json.Marshal(variant)
+		if err != nil {
+			t.Fatalf("marshal variant: %v", err)
+		}
+		if !bytes.Equal(got, want) {
+			t.Fatalf("union marshalled to %s, want the bare variant %s", got, want)
+		}
+		var back MDMCommandRequestCommandData
+		if err := json.Unmarshal([]byte(`{"commandType":"PROFILE_LIST"}`), &back); err != nil {
+			t.Fatalf("unmarshal union: %v", err)
+		}
+		if back.CommandType != "PROFILE_LIST" {
+			t.Fatalf("CommandType = %q after decode, want %q", back.CommandType, "PROFILE_LIST")
+		}
+		if back.PROFILELIST == nil {
+			t.Fatal("PROFILE_LIST decoded with PROFILELIST nil — the value is mapped to no variant")
+		}
+	})
+	t.Run("PROVISIONING_PROFILE_LIST", func(t *testing.T) {
+		variant := &ProvisioningProfileListCommand{}
+		got, err := json.Marshal(MDMCommandRequestCommandData{CommandType: "PROVISIONING_PROFILE_LIST", PROVISIONINGPROFILELIST: variant})
+		if err != nil {
+			t.Fatalf("marshal union: %v", err)
+		}
+		want, err := json.Marshal(variant)
+		if err != nil {
+			t.Fatalf("marshal variant: %v", err)
+		}
+		if !bytes.Equal(got, want) {
+			t.Fatalf("union marshalled to %s, want the bare variant %s", got, want)
+		}
+		var back MDMCommandRequestCommandData
+		if err := json.Unmarshal([]byte(`{"commandType":"PROVISIONING_PROFILE_LIST"}`), &back); err != nil {
+			t.Fatalf("unmarshal union: %v", err)
+		}
+		if back.CommandType != "PROVISIONING_PROFILE_LIST" {
+			t.Fatalf("CommandType = %q after decode, want %q", back.CommandType, "PROVISIONING_PROFILE_LIST")
+		}
+		if back.PROVISIONINGPROFILELIST == nil {
+			t.Fatal("PROVISIONING_PROFILE_LIST decoded with PROVISIONINGPROFILELIST nil — the value is mapped to no variant")
+		}
+	})
+	t.Run("REFRESH_CELLULAR_PLANS", func(t *testing.T) {
+		variant := &RefreshCellularPlansCommand{}
+		got, err := json.Marshal(MDMCommandRequestCommandData{CommandType: "REFRESH_CELLULAR_PLANS", REFRESHCELLULARPLANS: variant})
+		if err != nil {
+			t.Fatalf("marshal union: %v", err)
+		}
+		want, err := json.Marshal(variant)
+		if err != nil {
+			t.Fatalf("marshal variant: %v", err)
+		}
+		if !bytes.Equal(got, want) {
+			t.Fatalf("union marshalled to %s, want the bare variant %s", got, want)
+		}
+		var back MDMCommandRequestCommandData
+		if err := json.Unmarshal([]byte(`{"commandType":"REFRESH_CELLULAR_PLANS"}`), &back); err != nil {
+			t.Fatalf("unmarshal union: %v", err)
+		}
+		if back.CommandType != "REFRESH_CELLULAR_PLANS" {
+			t.Fatalf("CommandType = %q after decode, want %q", back.CommandType, "REFRESH_CELLULAR_PLANS")
+		}
+		if back.REFRESHCELLULARPLANS == nil {
+			t.Fatal("REFRESH_CELLULAR_PLANS decoded with REFRESHCELLULARPLANS nil — the value is mapped to no variant")
+		}
+	})
+	t.Run("REQUEST_MIRRORING", func(t *testing.T) {
+		variant := &RequestMirroringCommand{}
+		got, err := json.Marshal(MDMCommandRequestCommandData{CommandType: "REQUEST_MIRRORING", REQUESTMIRRORING: variant})
+		if err != nil {
+			t.Fatalf("marshal union: %v", err)
+		}
+		want, err := json.Marshal(variant)
+		if err != nil {
+			t.Fatalf("marshal variant: %v", err)
+		}
+		if !bytes.Equal(got, want) {
+			t.Fatalf("union marshalled to %s, want the bare variant %s", got, want)
+		}
+		var back MDMCommandRequestCommandData
+		if err := json.Unmarshal([]byte(`{"commandType":"REQUEST_MIRRORING"}`), &back); err != nil {
+			t.Fatalf("unmarshal union: %v", err)
+		}
+		if back.CommandType != "REQUEST_MIRRORING" {
+			t.Fatalf("CommandType = %q after decode, want %q", back.CommandType, "REQUEST_MIRRORING")
+		}
+		if back.REQUESTMIRRORING == nil {
+			t.Fatal("REQUEST_MIRRORING decoded with REQUESTMIRRORING nil — the value is mapped to no variant")
+		}
+	})
+	t.Run("RESTART_DEVICE", func(t *testing.T) {
+		variant := &RestartDeviceCommand{}
+		got, err := json.Marshal(MDMCommandRequestCommandData{CommandType: "RESTART_DEVICE", RESTARTDEVICE: variant})
+		if err != nil {
+			t.Fatalf("marshal union: %v", err)
+		}
+		want, err := json.Marshal(variant)
+		if err != nil {
+			t.Fatalf("marshal variant: %v", err)
+		}
+		if !bytes.Equal(got, want) {
+			t.Fatalf("union marshalled to %s, want the bare variant %s", got, want)
+		}
+		var back MDMCommandRequestCommandData
+		if err := json.Unmarshal([]byte(`{"commandType":"RESTART_DEVICE"}`), &back); err != nil {
+			t.Fatalf("unmarshal union: %v", err)
+		}
+		if back.CommandType != "RESTART_DEVICE" {
+			t.Fatalf("CommandType = %q after decode, want %q", back.CommandType, "RESTART_DEVICE")
+		}
+		if back.RESTARTDEVICE == nil {
+			t.Fatal("RESTART_DEVICE decoded with RESTARTDEVICE nil — the value is mapped to no variant")
+		}
+	})
+	t.Run("SECURITY_INFO", func(t *testing.T) {
+		variant := &SecurityInfoCommand{}
+		got, err := json.Marshal(MDMCommandRequestCommandData{CommandType: "SECURITY_INFO", SECURITYINFO: variant})
+		if err != nil {
+			t.Fatalf("marshal union: %v", err)
+		}
+		want, err := json.Marshal(variant)
+		if err != nil {
+			t.Fatalf("marshal variant: %v", err)
+		}
+		if !bytes.Equal(got, want) {
+			t.Fatalf("union marshalled to %s, want the bare variant %s", got, want)
+		}
+		var back MDMCommandRequestCommandData
+		if err := json.Unmarshal([]byte(`{"commandType":"SECURITY_INFO"}`), &back); err != nil {
+			t.Fatalf("unmarshal union: %v", err)
+		}
+		if back.CommandType != "SECURITY_INFO" {
+			t.Fatalf("CommandType = %q after decode, want %q", back.CommandType, "SECURITY_INFO")
+		}
+		if back.SECURITYINFO == nil {
+			t.Fatal("SECURITY_INFO decoded with SECURITYINFO nil — the value is mapped to no variant")
+		}
+	})
+	t.Run("SETTINGS", func(t *testing.T) {
+		variant := &SettingsCommand{}
+		got, err := json.Marshal(MDMCommandRequestCommandData{CommandType: "SETTINGS", SETTINGS: variant})
+		if err != nil {
+			t.Fatalf("marshal union: %v", err)
+		}
+		want, err := json.Marshal(variant)
+		if err != nil {
+			t.Fatalf("marshal variant: %v", err)
+		}
+		if !bytes.Equal(got, want) {
+			t.Fatalf("union marshalled to %s, want the bare variant %s", got, want)
+		}
+		var back MDMCommandRequestCommandData
+		if err := json.Unmarshal([]byte(`{"commandType":"SETTINGS"}`), &back); err != nil {
+			t.Fatalf("unmarshal union: %v", err)
+		}
+		if back.CommandType != "SETTINGS" {
+			t.Fatalf("CommandType = %q after decode, want %q", back.CommandType, "SETTINGS")
+		}
+		if back.SETTINGS == nil {
+			t.Fatal("SETTINGS decoded with SETTINGS nil — the value is mapped to no variant")
+		}
+	})
+	t.Run("SET_AUTO_ADMIN_PASSWORD", func(t *testing.T) {
+		variant := &SetAutoAdminPasswordCommand{}
+		got, err := json.Marshal(MDMCommandRequestCommandData{CommandType: "SET_AUTO_ADMIN_PASSWORD", SETAUTOADMINPASSWORD: variant})
+		if err != nil {
+			t.Fatalf("marshal union: %v", err)
+		}
+		want, err := json.Marshal(variant)
+		if err != nil {
+			t.Fatalf("marshal variant: %v", err)
+		}
+		if !bytes.Equal(got, want) {
+			t.Fatalf("union marshalled to %s, want the bare variant %s", got, want)
+		}
+		var back MDMCommandRequestCommandData
+		if err := json.Unmarshal([]byte(`{"commandType":"SET_AUTO_ADMIN_PASSWORD"}`), &back); err != nil {
+			t.Fatalf("unmarshal union: %v", err)
+		}
+		if back.CommandType != "SET_AUTO_ADMIN_PASSWORD" {
+			t.Fatalf("CommandType = %q after decode, want %q", back.CommandType, "SET_AUTO_ADMIN_PASSWORD")
+		}
+		if back.SETAUTOADMINPASSWORD == nil {
+			t.Fatal("SET_AUTO_ADMIN_PASSWORD decoded with SETAUTOADMINPASSWORD nil — the value is mapped to no variant")
+		}
+	})
+	t.Run("SET_RECOVERY_LOCK", func(t *testing.T) {
+		variant := &SetRecoveryLockCommand{}
+		got, err := json.Marshal(MDMCommandRequestCommandData{CommandType: "SET_RECOVERY_LOCK", SETRECOVERYLOCK: variant})
+		if err != nil {
+			t.Fatalf("marshal union: %v", err)
+		}
+		want, err := json.Marshal(variant)
+		if err != nil {
+			t.Fatalf("marshal variant: %v", err)
+		}
+		if !bytes.Equal(got, want) {
+			t.Fatalf("union marshalled to %s, want the bare variant %s", got, want)
+		}
+		var back MDMCommandRequestCommandData
+		if err := json.Unmarshal([]byte(`{"commandType":"SET_RECOVERY_LOCK"}`), &back); err != nil {
+			t.Fatalf("unmarshal union: %v", err)
+		}
+		if back.CommandType != "SET_RECOVERY_LOCK" {
+			t.Fatalf("CommandType = %q after decode, want %q", back.CommandType, "SET_RECOVERY_LOCK")
+		}
+		if back.SETRECOVERYLOCK == nil {
+			t.Fatal("SET_RECOVERY_LOCK decoded with SETRECOVERYLOCK nil — the value is mapped to no variant")
+		}
+	})
+	t.Run("SHUT_DOWN_DEVICE", func(t *testing.T) {
+		variant := &ShutDownDeviceCommand{}
+		got, err := json.Marshal(MDMCommandRequestCommandData{CommandType: "SHUT_DOWN_DEVICE", SHUTDOWNDEVICE: variant})
+		if err != nil {
+			t.Fatalf("marshal union: %v", err)
+		}
+		want, err := json.Marshal(variant)
+		if err != nil {
+			t.Fatalf("marshal variant: %v", err)
+		}
+		if !bytes.Equal(got, want) {
+			t.Fatalf("union marshalled to %s, want the bare variant %s", got, want)
+		}
+		var back MDMCommandRequestCommandData
+		if err := json.Unmarshal([]byte(`{"commandType":"SHUT_DOWN_DEVICE"}`), &back); err != nil {
+			t.Fatalf("unmarshal union: %v", err)
+		}
+		if back.CommandType != "SHUT_DOWN_DEVICE" {
+			t.Fatalf("CommandType = %q after decode, want %q", back.CommandType, "SHUT_DOWN_DEVICE")
+		}
+		if back.SHUTDOWNDEVICE == nil {
+			t.Fatal("SHUT_DOWN_DEVICE decoded with SHUTDOWNDEVICE nil — the value is mapped to no variant")
+		}
+	})
+	t.Run("STOP_MIRRORING", func(t *testing.T) {
+		variant := &StopMirroringCommand{}
+		got, err := json.Marshal(MDMCommandRequestCommandData{CommandType: "STOP_MIRRORING", STOPMIRRORING: variant})
+		if err != nil {
+			t.Fatalf("marshal union: %v", err)
+		}
+		want, err := json.Marshal(variant)
+		if err != nil {
+			t.Fatalf("marshal variant: %v", err)
+		}
+		if !bytes.Equal(got, want) {
+			t.Fatalf("union marshalled to %s, want the bare variant %s", got, want)
+		}
+		var back MDMCommandRequestCommandData
+		if err := json.Unmarshal([]byte(`{"commandType":"STOP_MIRRORING"}`), &back); err != nil {
+			t.Fatalf("unmarshal union: %v", err)
+		}
+		if back.CommandType != "STOP_MIRRORING" {
+			t.Fatalf("CommandType = %q after decode, want %q", back.CommandType, "STOP_MIRRORING")
+		}
+		if back.STOPMIRRORING == nil {
+			t.Fatal("STOP_MIRRORING decoded with STOPMIRRORING nil — the value is mapped to no variant")
+		}
+	})
+	t.Run("TRIGGER_ENHANCED_LOG_COLLECTION", func(t *testing.T) {
+		variant := &TriggerEnhancedLogCollectionCommand{}
+		got, err := json.Marshal(MDMCommandRequestCommandData{CommandType: "TRIGGER_ENHANCED_LOG_COLLECTION", TRIGGERENHANCEDLOGCOLLECTION: variant})
+		if err != nil {
+			t.Fatalf("marshal union: %v", err)
+		}
+		want, err := json.Marshal(variant)
+		if err != nil {
+			t.Fatalf("marshal variant: %v", err)
+		}
+		if !bytes.Equal(got, want) {
+			t.Fatalf("union marshalled to %s, want the bare variant %s", got, want)
+		}
+		var back MDMCommandRequestCommandData
+		if err := json.Unmarshal([]byte(`{"commandType":"TRIGGER_ENHANCED_LOG_COLLECTION"}`), &back); err != nil {
+			t.Fatalf("unmarshal union: %v", err)
+		}
+		if back.CommandType != "TRIGGER_ENHANCED_LOG_COLLECTION" {
+			t.Fatalf("CommandType = %q after decode, want %q", back.CommandType, "TRIGGER_ENHANCED_LOG_COLLECTION")
+		}
+		if back.TRIGGERENHANCEDLOGCOLLECTION == nil {
+			t.Fatal("TRIGGER_ENHANCED_LOG_COLLECTION decoded with TRIGGERENHANCEDLOGCOLLECTION nil — the value is mapped to no variant")
+		}
+	})
+	t.Run("UNLOCK_USER_ACCOUNT", func(t *testing.T) {
+		variant := &UnlockUserAccountCommand{}
+		got, err := json.Marshal(MDMCommandRequestCommandData{CommandType: "UNLOCK_USER_ACCOUNT", UNLOCKUSERACCOUNT: variant})
+		if err != nil {
+			t.Fatalf("marshal union: %v", err)
+		}
+		want, err := json.Marshal(variant)
+		if err != nil {
+			t.Fatalf("marshal variant: %v", err)
+		}
+		if !bytes.Equal(got, want) {
+			t.Fatalf("union marshalled to %s, want the bare variant %s", got, want)
+		}
+		var back MDMCommandRequestCommandData
+		if err := json.Unmarshal([]byte(`{"commandType":"UNLOCK_USER_ACCOUNT"}`), &back); err != nil {
+			t.Fatalf("unmarshal union: %v", err)
+		}
+		if back.CommandType != "UNLOCK_USER_ACCOUNT" {
+			t.Fatalf("CommandType = %q after decode, want %q", back.CommandType, "UNLOCK_USER_ACCOUNT")
+		}
+		if back.UNLOCKUSERACCOUNT == nil {
+			t.Fatal("UNLOCK_USER_ACCOUNT decoded with UNLOCKUSERACCOUNT nil — the value is mapped to no variant")
+		}
+	})
+	t.Run("VALIDATE_APPLICATIONS", func(t *testing.T) {
+		variant := &ValidateApplicationsCommand{}
+		got, err := json.Marshal(MDMCommandRequestCommandData{CommandType: "VALIDATE_APPLICATIONS", VALIDATEAPPLICATIONS: variant})
+		if err != nil {
+			t.Fatalf("marshal union: %v", err)
+		}
+		want, err := json.Marshal(variant)
+		if err != nil {
+			t.Fatalf("marshal variant: %v", err)
+		}
+		if !bytes.Equal(got, want) {
+			t.Fatalf("union marshalled to %s, want the bare variant %s", got, want)
+		}
+		var back MDMCommandRequestCommandData
+		if err := json.Unmarshal([]byte(`{"commandType":"VALIDATE_APPLICATIONS"}`), &back); err != nil {
+			t.Fatalf("unmarshal union: %v", err)
+		}
+		if back.CommandType != "VALIDATE_APPLICATIONS" {
+			t.Fatalf("CommandType = %q after decode, want %q", back.CommandType, "VALIDATE_APPLICATIONS")
+		}
+		if back.VALIDATEAPPLICATIONS == nil {
+			t.Fatal("VALIDATE_APPLICATIONS decoded with VALIDATEAPPLICATIONS nil — the value is mapped to no variant")
+		}
+	})
+	t.Run("VERIFY_RECOVERY_LOCK", func(t *testing.T) {
+		variant := &VerifyRecoveryLockCommand{}
+		got, err := json.Marshal(MDMCommandRequestCommandData{CommandType: "VERIFY_RECOVERY_LOCK", VERIFYRECOVERYLOCK: variant})
+		if err != nil {
+			t.Fatalf("marshal union: %v", err)
+		}
+		want, err := json.Marshal(variant)
+		if err != nil {
+			t.Fatalf("marshal variant: %v", err)
+		}
+		if !bytes.Equal(got, want) {
+			t.Fatalf("union marshalled to %s, want the bare variant %s", got, want)
+		}
+		var back MDMCommandRequestCommandData
+		if err := json.Unmarshal([]byte(`{"commandType":"VERIFY_RECOVERY_LOCK"}`), &back); err != nil {
+			t.Fatalf("unmarshal union: %v", err)
+		}
+		if back.CommandType != "VERIFY_RECOVERY_LOCK" {
+			t.Fatalf("CommandType = %q after decode, want %q", back.CommandType, "VERIFY_RECOVERY_LOCK")
+		}
+		if back.VERIFYRECOVERYLOCK == nil {
+			t.Fatal("VERIFY_RECOVERY_LOCK decoded with VERIFYRECOVERYLOCK nil — the value is mapped to no variant")
+		}
+	})
+	t.Run("unrecognised discriminator", func(t *testing.T) {
+		var back MDMCommandRequestCommandData
+		if err := json.Unmarshal([]byte(`{"commandType":"NOT_A_CommandType_VALUE"}`), &back); err != nil {
+			t.Fatalf("unmarshal: %v", err)
+		}
+		if back.CommandType != "NOT_A_CommandType_VALUE" {
+			t.Fatalf("CommandType = %q, want the unrecognised value preserved", back.CommandType)
+		}
+		if back.APPLYREDEMPTIONCODE != nil {
+			t.Error("APPLYREDEMPTIONCODE was populated for an unrecognised discriminator")
+		}
+		if back.CANCELENHANCEDLOGCOLLECTION != nil {
+			t.Error("CANCELENHANCEDLOGCOLLECTION was populated for an unrecognised discriminator")
+		}
+		if back.CERTIFICATELIST != nil {
+			t.Error("CERTIFICATELIST was populated for an unrecognised discriminator")
+		}
+		if back.CLEARPASSCODE != nil {
+			t.Error("CLEARPASSCODE was populated for an unrecognised discriminator")
+		}
+		if back.CLEARRESTRICTIONSPASSWORD != nil {
+			t.Error("CLEARRESTRICTIONSPASSWORD was populated for an unrecognised discriminator")
+		}
+		if back.DECLARATIVEMANAGEMENT != nil {
+			t.Error("DECLARATIVEMANAGEMENT was populated for an unrecognised discriminator")
+		}
+		if back.DELETEUSER != nil {
+			t.Error("DELETEUSER was populated for an unrecognised discriminator")
+		}
+		if back.DEVICEINFORMATION != nil {
+			t.Error("DEVICEINFORMATION was populated for an unrecognised discriminator")
+		}
+		if back.DEVICELOCATION != nil {
+			t.Error("DEVICELOCATION was populated for an unrecognised discriminator")
+		}
+		if back.DEVICELOCK != nil {
+			t.Error("DEVICELOCK was populated for an unrecognised discriminator")
+		}
+		if back.DISABLELOSTMODE != nil {
+			t.Error("DISABLELOSTMODE was populated for an unrecognised discriminator")
+		}
+		if back.DISABLEREMOTEDESKTOP != nil {
+			t.Error("DISABLEREMOTEDESKTOP was populated for an unrecognised discriminator")
+		}
+		if back.ENABLELOSTMODE != nil {
+			t.Error("ENABLELOSTMODE was populated for an unrecognised discriminator")
+		}
+		if back.ENABLEREMOTEDESKTOP != nil {
+			t.Error("ENABLEREMOTEDESKTOP was populated for an unrecognised discriminator")
+		}
+		if back.ERASEDEVICE != nil {
+			t.Error("ERASEDEVICE was populated for an unrecognised discriminator")
+		}
+		if back.INSTALLEDAPPLICATIONLIST != nil {
+			t.Error("INSTALLEDAPPLICATIONLIST was populated for an unrecognised discriminator")
+		}
+		if back.LOGOUTUSER != nil {
+			t.Error("LOGOUTUSER was populated for an unrecognised discriminator")
+		}
+		if back.MANAGEDAPPLICATIONLIST != nil {
+			t.Error("MANAGEDAPPLICATIONLIST was populated for an unrecognised discriminator")
+		}
+		if back.MANAGEDMEDIALIST != nil {
+			t.Error("MANAGEDMEDIALIST was populated for an unrecognised discriminator")
+		}
+		if back.PLAYLOSTMODESOUND != nil {
+			t.Error("PLAYLOSTMODESOUND was populated for an unrecognised discriminator")
+		}
+		if back.PROFILELIST != nil {
+			t.Error("PROFILELIST was populated for an unrecognised discriminator")
+		}
+		if back.PROVISIONINGPROFILELIST != nil {
+			t.Error("PROVISIONINGPROFILELIST was populated for an unrecognised discriminator")
+		}
+		if back.REFRESHCELLULARPLANS != nil {
+			t.Error("REFRESHCELLULARPLANS was populated for an unrecognised discriminator")
+		}
+		if back.REQUESTMIRRORING != nil {
+			t.Error("REQUESTMIRRORING was populated for an unrecognised discriminator")
+		}
+		if back.RESTARTDEVICE != nil {
+			t.Error("RESTARTDEVICE was populated for an unrecognised discriminator")
+		}
+		if back.SECURITYINFO != nil {
+			t.Error("SECURITYINFO was populated for an unrecognised discriminator")
+		}
+		if back.SETTINGS != nil {
+			t.Error("SETTINGS was populated for an unrecognised discriminator")
+		}
+		if back.SETAUTOADMINPASSWORD != nil {
+			t.Error("SETAUTOADMINPASSWORD was populated for an unrecognised discriminator")
+		}
+		if back.SETRECOVERYLOCK != nil {
+			t.Error("SETRECOVERYLOCK was populated for an unrecognised discriminator")
+		}
+		if back.SHUTDOWNDEVICE != nil {
+			t.Error("SHUTDOWNDEVICE was populated for an unrecognised discriminator")
+		}
+		if back.STOPMIRRORING != nil {
+			t.Error("STOPMIRRORING was populated for an unrecognised discriminator")
+		}
+		if back.TRIGGERENHANCEDLOGCOLLECTION != nil {
+			t.Error("TRIGGERENHANCEDLOGCOLLECTION was populated for an unrecognised discriminator")
+		}
+		if back.UNLOCKUSERACCOUNT != nil {
+			t.Error("UNLOCKUSERACCOUNT was populated for an unrecognised discriminator")
+		}
+		if back.VALIDATEAPPLICATIONS != nil {
+			t.Error("VALIDATEAPPLICATIONS was populated for an unrecognised discriminator")
+		}
+		if back.VERIFYRECOVERYLOCK != nil {
+			t.Error("VERIFYRECOVERYLOCK was populated for an unrecognised discriminator")
+		}
+	})
+	t.Run("known discriminator, no variant", func(t *testing.T) {
+		if _, err := json.Marshal(MDMCommandRequestCommandData{CommandType: "APPLY_REDEMPTION_CODE"}); err == nil {
+			t.Fatal("marshalling APPLY_REDEMPTION_CODE with APPLYREDEMPTIONCODE nil succeeded; want an error, not a bare discriminator")
+		}
+	})
+	t.Run("unrecognised discriminator, variant set", func(t *testing.T) {
+		if _, err := json.Marshal(MDMCommandRequestCommandData{CommandType: "NOT_A_CommandType_VALUE", APPLYREDEMPTIONCODE: &ApplyRedemptionCodeCommand{}}); err == nil {
+			t.Fatal("marshalling a variant under an unrecognised discriminator succeeded; the payload would be dropped")
+		}
+	})
+	t.Run("unrecognised discriminator, no variant", func(t *testing.T) {
+		got, err := json.Marshal(MDMCommandRequestCommandData{CommandType: "NOT_A_CommandType_VALUE"})
+		if err != nil {
+			t.Fatalf("marshal: %v", err)
+		}
+		if want := `{"commandType":"NOT_A_CommandType_VALUE"}`; string(got) != want {
+			t.Fatalf("marshalled to %s, want %s", got, want)
+		}
+	})
+	t.Run("zero value", func(t *testing.T) {
+		if _, err := json.Marshal(MDMCommandRequestCommandData{}); err != nil {
+			t.Fatalf("the zero union must stay marshalable: %v", err)
+		}
+	})
+	t.Run("variant that does not match the discriminator", func(t *testing.T) {
+		if _, err := json.Marshal(MDMCommandRequestCommandData{CommandType: "APPLY_REDEMPTION_CODE", APPLYREDEMPTIONCODE: &ApplyRedemptionCodeCommand{}, CANCELENHANCEDLOGCOLLECTION: &CancelEnhancedLogCollectionCommand{}}); err == nil {
+			t.Fatal("marshalling two variants succeeded; the second would be dropped")
+		}
+		if _, err := json.Marshal(MDMCommandRequestCommandData{CommandType: "APPLY_REDEMPTION_CODE", CANCELENHANCEDLOGCOLLECTION: &CancelEnhancedLogCollectionCommand{}}); err == nil {
+			t.Fatal("marshalling APPLY_REDEMPTION_CODE with only CANCELENHANCEDLOGCOLLECTION set succeeded; that payload would be dropped")
+		}
+	})
+}
+
 // TestMobileDeviceResponse_Marshal asserts that each "deviceType" value marshals to exactly the bytes
 // its variant alone produces, that a payload carrying the value decodes into
 // that variant, and that an unrecognised value leaves every variant nil while
@@ -131,6 +1124,38 @@ func TestMobileDeviceResponse_Marshal(t *testing.T) {
 		}
 		if back.WatchOS != nil {
 			t.Error("WatchOS was populated for an unrecognised discriminator")
+		}
+	})
+	t.Run("known discriminator, no variant", func(t *testing.T) {
+		if _, err := json.Marshal(MobileDeviceResponse{DeviceType: "iOS"}); err == nil {
+			t.Fatal("marshalling iOS with IOS nil succeeded; want an error, not a bare discriminator")
+		}
+	})
+	t.Run("unrecognised discriminator, variant set", func(t *testing.T) {
+		if _, err := json.Marshal(MobileDeviceResponse{DeviceType: "NOT_A_DeviceType_VALUE", IOS: &MobileDeviceIosInventory{}}); err == nil {
+			t.Fatal("marshalling a variant under an unrecognised discriminator succeeded; the payload would be dropped")
+		}
+	})
+	t.Run("unrecognised discriminator, no variant", func(t *testing.T) {
+		got, err := json.Marshal(MobileDeviceResponse{DeviceType: "NOT_A_DeviceType_VALUE"})
+		if err != nil {
+			t.Fatalf("marshal: %v", err)
+		}
+		if want := `{"deviceType":"NOT_A_DeviceType_VALUE"}`; string(got) != want {
+			t.Fatalf("marshalled to %s, want %s", got, want)
+		}
+	})
+	t.Run("zero value", func(t *testing.T) {
+		if _, err := json.Marshal(MobileDeviceResponse{}); err != nil {
+			t.Fatalf("the zero union must stay marshalable: %v", err)
+		}
+	})
+	t.Run("variant that does not match the discriminator", func(t *testing.T) {
+		if _, err := json.Marshal(MobileDeviceResponse{DeviceType: "iOS", IOS: &MobileDeviceIosInventory{}, TvOS: &MobileDeviceTvOsInventory{}}); err == nil {
+			t.Fatal("marshalling two variants succeeded; the second would be dropped")
+		}
+		if _, err := json.Marshal(MobileDeviceResponse{DeviceType: "iOS", TvOS: &MobileDeviceTvOsInventory{}}); err == nil {
+			t.Fatal("marshalling iOS with only TvOS set succeeded; that payload would be dropped")
 		}
 	})
 }
