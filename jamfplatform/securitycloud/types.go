@@ -7,6 +7,8 @@ package securitycloud
 
 import (
 	"encoding/json"
+	"fmt"
+	"strings"
 	"time"
 )
 
@@ -1065,50 +1067,132 @@ func (m *ConnectorCreateRequestBody) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// MarshalJSON emits the active variant's JSON. If the matching variant
-// pointer is nil, emits a minimal object carrying only the discriminator.
+// MarshalJSON emits the active variant's JSON.
+//
+// A discriminator that names a variant must be accompanied by exactly that
+// variant: a nil one, or a different one set beside it, is an error rather than
+// a body the caller did not write. Where the request carries a destructive
+// command, a bare discriminator is a well-formed request with every option
+// defaulted, and dropping a populated variant is how a caller ships it. An
+// empty or unrecognised discriminator with no variant set is the one case that
+// still emits the discriminator alone, so the zero value and an unknown value
+// read from a response stay marshalable.
 func (m ConnectorCreateRequestBody) MarshalJSON() ([]byte, error) {
+	var set []string
+	if m.AIRWATCH != nil {
+		set = append(set, "AIRWATCH")
+	}
+	if m.GOOGLE != nil {
+		set = append(set, "GOOGLE")
+	}
+	if m.INTUNE != nil {
+		set = append(set, "INTUNE")
+	}
+	if m.JAMFPRO != nil {
+		set = append(set, "JAMFPRO")
+	}
+	if m.JAMFSCHOOL != nil {
+		set = append(set, "JAMFSCHOOL")
+	}
+	if m.MAAS360 != nil {
+		set = append(set, "MAAS360")
+	}
+	if m.MOBILEIRONCLOUD != nil {
+		set = append(set, "MOBILEIRONCLOUD")
+	}
+	if m.MOBILEIRONCORE != nil {
+		set = append(set, "MOBILEIRONCORE")
+	}
+	if m.WIZY != nil {
+		set = append(set, "WIZY")
+	}
+	if m.XENMOBILE != nil {
+		set = append(set, "XENMOBILE")
+	}
 	switch m.Vendor {
 	case "AIRWATCH":
-		if m.AIRWATCH != nil {
-			return json.Marshal(m.AIRWATCH)
+		if m.AIRWATCH == nil {
+			return nil, fmt.Errorf("ConnectorCreateRequestBody: vendor %q set but AIRWATCH is nil", m.Vendor)
 		}
+		if len(set) > 1 {
+			return nil, fmt.Errorf("ConnectorCreateRequestBody: vendor %q selects AIRWATCH, but %s are set", m.Vendor, strings.Join(set, ", "))
+		}
+		return json.Marshal(m.AIRWATCH)
 	case "GOOGLE":
-		if m.GOOGLE != nil {
-			return json.Marshal(m.GOOGLE)
+		if m.GOOGLE == nil {
+			return nil, fmt.Errorf("ConnectorCreateRequestBody: vendor %q set but GOOGLE is nil", m.Vendor)
 		}
+		if len(set) > 1 {
+			return nil, fmt.Errorf("ConnectorCreateRequestBody: vendor %q selects GOOGLE, but %s are set", m.Vendor, strings.Join(set, ", "))
+		}
+		return json.Marshal(m.GOOGLE)
 	case "INTUNE":
-		if m.INTUNE != nil {
-			return json.Marshal(m.INTUNE)
+		if m.INTUNE == nil {
+			return nil, fmt.Errorf("ConnectorCreateRequestBody: vendor %q set but INTUNE is nil", m.Vendor)
 		}
+		if len(set) > 1 {
+			return nil, fmt.Errorf("ConnectorCreateRequestBody: vendor %q selects INTUNE, but %s are set", m.Vendor, strings.Join(set, ", "))
+		}
+		return json.Marshal(m.INTUNE)
 	case "JAMF_PRO":
-		if m.JAMFPRO != nil {
-			return json.Marshal(m.JAMFPRO)
+		if m.JAMFPRO == nil {
+			return nil, fmt.Errorf("ConnectorCreateRequestBody: vendor %q set but JAMFPRO is nil", m.Vendor)
 		}
+		if len(set) > 1 {
+			return nil, fmt.Errorf("ConnectorCreateRequestBody: vendor %q selects JAMFPRO, but %s are set", m.Vendor, strings.Join(set, ", "))
+		}
+		return json.Marshal(m.JAMFPRO)
 	case "JAMF_SCHOOL":
-		if m.JAMFSCHOOL != nil {
-			return json.Marshal(m.JAMFSCHOOL)
+		if m.JAMFSCHOOL == nil {
+			return nil, fmt.Errorf("ConnectorCreateRequestBody: vendor %q set but JAMFSCHOOL is nil", m.Vendor)
 		}
+		if len(set) > 1 {
+			return nil, fmt.Errorf("ConnectorCreateRequestBody: vendor %q selects JAMFSCHOOL, but %s are set", m.Vendor, strings.Join(set, ", "))
+		}
+		return json.Marshal(m.JAMFSCHOOL)
 	case "MAAS360":
-		if m.MAAS360 != nil {
-			return json.Marshal(m.MAAS360)
+		if m.MAAS360 == nil {
+			return nil, fmt.Errorf("ConnectorCreateRequestBody: vendor %q set but MAAS360 is nil", m.Vendor)
 		}
+		if len(set) > 1 {
+			return nil, fmt.Errorf("ConnectorCreateRequestBody: vendor %q selects MAAS360, but %s are set", m.Vendor, strings.Join(set, ", "))
+		}
+		return json.Marshal(m.MAAS360)
 	case "MOBILEIRONCLOUD":
-		if m.MOBILEIRONCLOUD != nil {
-			return json.Marshal(m.MOBILEIRONCLOUD)
+		if m.MOBILEIRONCLOUD == nil {
+			return nil, fmt.Errorf("ConnectorCreateRequestBody: vendor %q set but MOBILEIRONCLOUD is nil", m.Vendor)
 		}
+		if len(set) > 1 {
+			return nil, fmt.Errorf("ConnectorCreateRequestBody: vendor %q selects MOBILEIRONCLOUD, but %s are set", m.Vendor, strings.Join(set, ", "))
+		}
+		return json.Marshal(m.MOBILEIRONCLOUD)
 	case "MOBILEIRONCORE":
-		if m.MOBILEIRONCORE != nil {
-			return json.Marshal(m.MOBILEIRONCORE)
+		if m.MOBILEIRONCORE == nil {
+			return nil, fmt.Errorf("ConnectorCreateRequestBody: vendor %q set but MOBILEIRONCORE is nil", m.Vendor)
 		}
+		if len(set) > 1 {
+			return nil, fmt.Errorf("ConnectorCreateRequestBody: vendor %q selects MOBILEIRONCORE, but %s are set", m.Vendor, strings.Join(set, ", "))
+		}
+		return json.Marshal(m.MOBILEIRONCORE)
 	case "WIZY":
-		if m.WIZY != nil {
-			return json.Marshal(m.WIZY)
+		if m.WIZY == nil {
+			return nil, fmt.Errorf("ConnectorCreateRequestBody: vendor %q set but WIZY is nil", m.Vendor)
 		}
+		if len(set) > 1 {
+			return nil, fmt.Errorf("ConnectorCreateRequestBody: vendor %q selects WIZY, but %s are set", m.Vendor, strings.Join(set, ", "))
+		}
+		return json.Marshal(m.WIZY)
 	case "XENMOBILE":
-		if m.XENMOBILE != nil {
-			return json.Marshal(m.XENMOBILE)
+		if m.XENMOBILE == nil {
+			return nil, fmt.Errorf("ConnectorCreateRequestBody: vendor %q set but XENMOBILE is nil", m.Vendor)
 		}
+		if len(set) > 1 {
+			return nil, fmt.Errorf("ConnectorCreateRequestBody: vendor %q selects XENMOBILE, but %s are set", m.Vendor, strings.Join(set, ", "))
+		}
+		return json.Marshal(m.XENMOBILE)
+	}
+	if len(set) > 0 {
+		return nil, fmt.Errorf("ConnectorCreateRequestBody: vendor %q selects no variant, but %s set", m.Vendor, strings.Join(set, ", "))
 	}
 	return json.Marshal(map[string]string{"vendor": m.Vendor})
 }

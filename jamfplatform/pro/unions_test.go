@@ -970,6 +970,38 @@ func TestMDMCommandRequestCommandData_Marshal(t *testing.T) {
 			t.Error("VERIFYRECOVERYLOCK was populated for an unrecognised discriminator")
 		}
 	})
+	t.Run("known discriminator, no variant", func(t *testing.T) {
+		if _, err := json.Marshal(MDMCommandRequestCommandData{CommandType: "APPLY_REDEMPTION_CODE"}); err == nil {
+			t.Fatal("marshalling APPLY_REDEMPTION_CODE with APPLYREDEMPTIONCODE nil succeeded; want an error, not a bare discriminator")
+		}
+	})
+	t.Run("unrecognised discriminator, variant set", func(t *testing.T) {
+		if _, err := json.Marshal(MDMCommandRequestCommandData{CommandType: "NOT_A_CommandType_VALUE", APPLYREDEMPTIONCODE: &ApplyRedemptionCodeCommand{}}); err == nil {
+			t.Fatal("marshalling a variant under an unrecognised discriminator succeeded; the payload would be dropped")
+		}
+	})
+	t.Run("unrecognised discriminator, no variant", func(t *testing.T) {
+		got, err := json.Marshal(MDMCommandRequestCommandData{CommandType: "NOT_A_CommandType_VALUE"})
+		if err != nil {
+			t.Fatalf("marshal: %v", err)
+		}
+		if want := `{"commandType":"NOT_A_CommandType_VALUE"}`; string(got) != want {
+			t.Fatalf("marshalled to %s, want %s", got, want)
+		}
+	})
+	t.Run("zero value", func(t *testing.T) {
+		if _, err := json.Marshal(MDMCommandRequestCommandData{}); err != nil {
+			t.Fatalf("the zero union must stay marshalable: %v", err)
+		}
+	})
+	t.Run("variant that does not match the discriminator", func(t *testing.T) {
+		if _, err := json.Marshal(MDMCommandRequestCommandData{CommandType: "APPLY_REDEMPTION_CODE", APPLYREDEMPTIONCODE: &ApplyRedemptionCodeCommand{}, CANCELENHANCEDLOGCOLLECTION: &CancelEnhancedLogCollectionCommand{}}); err == nil {
+			t.Fatal("marshalling two variants succeeded; the second would be dropped")
+		}
+		if _, err := json.Marshal(MDMCommandRequestCommandData{CommandType: "APPLY_REDEMPTION_CODE", CANCELENHANCEDLOGCOLLECTION: &CancelEnhancedLogCollectionCommand{}}); err == nil {
+			t.Fatal("marshalling APPLY_REDEMPTION_CODE with only CANCELENHANCEDLOGCOLLECTION set succeeded; that payload would be dropped")
+		}
+	})
 }
 
 // TestMobileDeviceResponse_Marshal asserts that each "deviceType" value marshals to exactly the bytes
@@ -1092,6 +1124,38 @@ func TestMobileDeviceResponse_Marshal(t *testing.T) {
 		}
 		if back.WatchOS != nil {
 			t.Error("WatchOS was populated for an unrecognised discriminator")
+		}
+	})
+	t.Run("known discriminator, no variant", func(t *testing.T) {
+		if _, err := json.Marshal(MobileDeviceResponse{DeviceType: "iOS"}); err == nil {
+			t.Fatal("marshalling iOS with IOS nil succeeded; want an error, not a bare discriminator")
+		}
+	})
+	t.Run("unrecognised discriminator, variant set", func(t *testing.T) {
+		if _, err := json.Marshal(MobileDeviceResponse{DeviceType: "NOT_A_DeviceType_VALUE", IOS: &MobileDeviceIosInventory{}}); err == nil {
+			t.Fatal("marshalling a variant under an unrecognised discriminator succeeded; the payload would be dropped")
+		}
+	})
+	t.Run("unrecognised discriminator, no variant", func(t *testing.T) {
+		got, err := json.Marshal(MobileDeviceResponse{DeviceType: "NOT_A_DeviceType_VALUE"})
+		if err != nil {
+			t.Fatalf("marshal: %v", err)
+		}
+		if want := `{"deviceType":"NOT_A_DeviceType_VALUE"}`; string(got) != want {
+			t.Fatalf("marshalled to %s, want %s", got, want)
+		}
+	})
+	t.Run("zero value", func(t *testing.T) {
+		if _, err := json.Marshal(MobileDeviceResponse{}); err != nil {
+			t.Fatalf("the zero union must stay marshalable: %v", err)
+		}
+	})
+	t.Run("variant that does not match the discriminator", func(t *testing.T) {
+		if _, err := json.Marshal(MobileDeviceResponse{DeviceType: "iOS", IOS: &MobileDeviceIosInventory{}, TvOS: &MobileDeviceTvOsInventory{}}); err == nil {
+			t.Fatal("marshalling two variants succeeded; the second would be dropped")
+		}
+		if _, err := json.Marshal(MobileDeviceResponse{DeviceType: "iOS", TvOS: &MobileDeviceTvOsInventory{}}); err == nil {
+			t.Fatal("marshalling iOS with only TvOS set succeeded; that payload would be dropped")
 		}
 	})
 }

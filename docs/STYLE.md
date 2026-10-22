@@ -1325,7 +1325,8 @@ that honest:
   spec carries. Note the rego accepts *either* the GA capability or a
   retired `read:org:*`/`update:org:*` permission
   (`lib.has_any_of_permissions`), and only the GA form is carried: `Scoped` is a
-  conjunction, so listing the alternative would read as "both required".
+  conjunction outside the one request-selected case, so listing the alternative
+  would read as "both required".
 
 `undocumented: true` on a spec skips the privilege name-match check and stamps an
 "Unofficial:" godoc line — it marks a spec whose operations are in no spec Jamf
@@ -1339,8 +1340,11 @@ lookup answers both *"what privileges does this method need"* and *"what kind of
 credential must I hold to call it"*. The two fields sit next to each other in one
 struct and **mean opposite things**:
 
-- **`Scoped` is a conjunction.** More than one entry means every identifier is
-  required. Render it as *"grant all of these"*.
+- **`Scoped` is a conjunction unless `ScopedAlternatives` is true.** More than
+  one entry means every identifier is required. Render it as *"grant all of
+  these"*. When the flag is set the request selects which one applies (today only
+  `SendMdmCommandV2`, by `commandType`), so render it as *"one of these, chosen by
+  the request"*; the per-type mapping is in the method's godoc, not the registry.
 - **`Scopes` is an alternatives set.** A client carries exactly one scope, so
   more than one entry means the endpoint is published under each of them and the
   caller picks one. Render it as *"use a credential of one of these kinds"*.

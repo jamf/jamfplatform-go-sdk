@@ -295,4 +295,36 @@ func TestConnectorCreateRequestBody_Marshal(t *testing.T) {
 			t.Error("XENMOBILE was populated for an unrecognised discriminator")
 		}
 	})
+	t.Run("known discriminator, no variant", func(t *testing.T) {
+		if _, err := json.Marshal(ConnectorCreateRequestBody{Vendor: "AIRWATCH"}); err == nil {
+			t.Fatal("marshalling AIRWATCH with AIRWATCH nil succeeded; want an error, not a bare discriminator")
+		}
+	})
+	t.Run("unrecognised discriminator, variant set", func(t *testing.T) {
+		if _, err := json.Marshal(ConnectorCreateRequestBody{Vendor: "NOT_A_Vendor_VALUE", AIRWATCH: &WorkspaceOneConnectorCreateRequest{}}); err == nil {
+			t.Fatal("marshalling a variant under an unrecognised discriminator succeeded; the payload would be dropped")
+		}
+	})
+	t.Run("unrecognised discriminator, no variant", func(t *testing.T) {
+		got, err := json.Marshal(ConnectorCreateRequestBody{Vendor: "NOT_A_Vendor_VALUE"})
+		if err != nil {
+			t.Fatalf("marshal: %v", err)
+		}
+		if want := `{"vendor":"NOT_A_Vendor_VALUE"}`; string(got) != want {
+			t.Fatalf("marshalled to %s, want %s", got, want)
+		}
+	})
+	t.Run("zero value", func(t *testing.T) {
+		if _, err := json.Marshal(ConnectorCreateRequestBody{}); err != nil {
+			t.Fatalf("the zero union must stay marshalable: %v", err)
+		}
+	})
+	t.Run("variant that does not match the discriminator", func(t *testing.T) {
+		if _, err := json.Marshal(ConnectorCreateRequestBody{Vendor: "AIRWATCH", AIRWATCH: &WorkspaceOneConnectorCreateRequest{}, GOOGLE: &GoogleConnectorCreateRequest{}}); err == nil {
+			t.Fatal("marshalling two variants succeeded; the second would be dropped")
+		}
+		if _, err := json.Marshal(ConnectorCreateRequestBody{Vendor: "AIRWATCH", GOOGLE: &GoogleConnectorCreateRequest{}}); err == nil {
+			t.Fatal("marshalling AIRWATCH with only GOOGLE set succeeded; that payload would be dropped")
+		}
+	})
 }

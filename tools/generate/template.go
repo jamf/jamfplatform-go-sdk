@@ -91,7 +91,7 @@ var funcMap = template.FuncMap{
 	// testZeroExtraArgs is testExtraArgs with every parameter at its zero value,
 	// required ones included — the call a requiredParams method must refuse.
 	"testZeroExtraArgs": func(m GoMethod) string { return testQueryArgs(m, false) },
-	"isStringSlice": func(s string) bool { return s == "[]string" },
+	"isStringSlice":     func(s string) bool { return s == "[]string" },
 	// sliceElem is the element type of an "[]T" config value, for the
 	// generic call in the unwrap template. UnwrapResults is parameterised on
 	// the element, while unwrapResults is declared as the slice the method
@@ -421,6 +421,7 @@ type {{ .Name }} = {{ .AliasTarget }}
 // {{ .Comment }}
 type {{ .Name }} = json.RawMessage
 {{- else if .Discriminator }}
+{{- $u := . }}
 // {{ .Comment }}
 type {{ .Name }} struct {
 {{- if .Discriminator.EnumTypeName }}
@@ -453,16 +454,37 @@ func (m *{{ .Name }}) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// MarshalJSON emits the active variant's JSON. If the matching variant
-// pointer is nil, emits a minimal object carrying only the discriminator.
+// MarshalJSON emits the active variant's JSON.
+//
+// A discriminator that names a variant must be accompanied by exactly that
+// variant: a nil one, or a different one set beside it, is an error rather than
+// a body the caller did not write. Where the request carries a destructive
+// command, a bare discriminator is a well-formed request with every option
+// defaulted, and dropping a populated variant is how a caller ships it. An
+// empty or unrecognised discriminator with no variant set is the one case that
+// still emits the discriminator alone, so the zero value and an unknown value
+// read from a response stay marshalable.
 func (m {{ .Name }}) MarshalJSON() ([]byte, error) {
+	var set []string
+{{- range .Discriminator.Variants }}
+	if m.{{ .FieldName }} != nil {
+		set = append(set, "{{ .FieldName }}")
+	}
+{{- end }}
 	switch m.{{ .Discriminator.GoFieldName }} {
 {{- range .Discriminator.Variants }}
 	case {{ range $i, $v := .Values }}{{ if $i }}, {{ end }}"{{ $v }}"{{ end }}:
-		if m.{{ .FieldName }} != nil {
-			return json.Marshal(m.{{ .FieldName }})
+		if m.{{ .FieldName }} == nil {
+			return nil, fmt.Errorf("{{ $u.Name }}: {{ $u.Discriminator.PropertyName }} %q set but {{ .FieldName }} is nil", m.{{ $u.Discriminator.GoFieldName }})
 		}
+		if len(set) > 1 {
+			return nil, fmt.Errorf("{{ $u.Name }}: {{ $u.Discriminator.PropertyName }} %q selects {{ .FieldName }}, but %s are set", m.{{ $u.Discriminator.GoFieldName }}, strings.Join(set, ", "))
+		}
+		return json.Marshal(m.{{ .FieldName }})
 {{- end }}
+	}
+	if len(set) > 0 {
+		return nil, fmt.Errorf("{{ .Name }}: {{ .Discriminator.PropertyName }} %q selects no variant, but %s set", m.{{ .Discriminator.GoFieldName }}, strings.Join(set, ", "))
 	}
 	return json.Marshal(map[string]string{"{{ .Discriminator.PropertyName }}": m.{{ .Discriminator.GoFieldName }}})
 }
@@ -1596,7 +1618,7 @@ func Test<% .Name %>(t *testing.T) {
 		t.Fatalf("len = %d, want 2", len(results))
 	}
 }
-<% end %>
+<% template "testRequiredRefusal" . %><% end %>
 
 <%- define "testResolverID" %>
 func Test<% .Name %>(t *testing.T) {

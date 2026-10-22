@@ -658,7 +658,9 @@ func assertMdmCommandsV2Status(t *testing.T, err error, want int, label string) 
 
 // mdmCommandsWriteGate names the opt-in for queuing a real MDM command. Its own
 // gate: the operation reaches managed devices, and the request type can carry
-// ERASE_DEVICE, which no test here ever sends.
+// ERASE_DEVICE. Only the opted-in test queues anything, and it sends
+// CERTIFICATE_LIST; CommandTypeEnumMatchesServer does send ERASE_DEVICE and the
+// other destructive types, ungated, but only at a management id no device holds.
 const mdmCommandsWriteGate = "JAMFPLATFORM_ACC_PRO_MDM_COMMANDS_WRITE_OK"
 
 // TestAcceptance_Pro_SendMdmCommandV2UnknownDevice pins the routing and the
@@ -786,9 +788,11 @@ func commandDataOf(t *testing.T, ct string) *pro.MDMCommandRequestCommandData {
 // NOT_FOUND (device lookup precedes field validation, so a type that needs
 // fields still answers 404, wire-checked for all 35 on 2026-10-22), and anything
 // else is the gateway. So a 403 is ambiguous between "not a
-// type" and "this credential lacks the grant" and is reported, not failed: a
-// credential without recovery-lock:execute legitimately gets one for
-// SET_RECOVERY_LOCK. Any other status fails.
+// type" and "this credential lacks the grant". A 403 is therefore tolerated only
+// for the types whose privilege a credential can lack independently of
+// device-actions:execute (grantGatedCommandTypes); a 403 for any other type, or
+// for every type, fails: the first is an enum value the gateway does not know,
+// the second a credential that cannot run the check. Any other status fails.
 //
 // Nothing is queued: no device holds the id.
 func TestAcceptance_Pro_MdmUpdates_CommandTypeEnumMatchesServer(t *testing.T) {
@@ -812,12 +816,29 @@ func TestAcceptance_Pro_MdmUpdates_CommandTypeEnumMatchesServer(t *testing.T) {
 		case apiErr.HasStatus(http.StatusNotFound):
 		case apiErr.HasStatus(http.StatusForbidden):
 			refused = append(refused, ct)
+			if !grantGatedCommandTypes[ct] {
+				t.Errorf("%s: 403 from a type that needs only device-actions:execute — a value the gateway does not know, or a credential without that grant: %v", ct, err)
+			}
 		default:
 			t.Errorf("%s: unexpected %v", ct, err)
 		}
 	}
-	t.Logf("SDK emits %d command types; refused with 403 (unknown to the gateway, or ungranted to this credential): %v",
+	if len(refused) == len(pro.MDMCommandTypeValues()) {
+		t.Errorf("every one of %d command types was refused with 403: this credential cannot run the check", len(refused))
+	}
+	t.Logf("SDK emits %d command types; refused with 403 (grant-gated types this credential lacks): %v",
 		len(pro.MDMCommandTypeValues()), refused)
+}
+
+// grantGatedCommandTypes are the command types whose privilege is separate from
+// device-actions:execute, per the SendMdmCommandV2 godoc, so a credential can
+// hold one and lack another.
+var grantGatedCommandTypes = map[string]bool{
+	"ERASE_DEVICE":            true,
+	"DEVICE_LOCK":             true,
+	"DELETE_USER":             true,
+	"SET_AUTO_ADMIN_PASSWORD": true,
+	"SET_RECOVERY_LOCK":       true,
 }
 
 // TestAcceptance_Pro_MdmUpdates_EnhancedLogCollectionCommands covers the two

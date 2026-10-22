@@ -2403,12 +2403,19 @@ func flattenAllOf(schema *openapi3.Schema) (map[string]*openapi3.SchemaRef, []st
 // isAnnotationOnly reports whether an inline property schema carries no type
 // information at all — no $ref, type, format, enum, shape or composition — so
 // that it can only be restating metadata of a property declared elsewhere.
+//
+// nullable, writeOnly and readOnly are not metadata here: the generator reads
+// all three off the winning property (pointer-ness, the write-only doc line), so
+// an overlay carrying one is not skipped. It wins as it did before, which for a
+// type-less overlay reaches validateNoUntypedFields and fails generation loudly
+// rather than dropping the flag.
 func isAnnotationOnly(r *openapi3.SchemaRef) bool {
 	if r == nil || r.Ref != "" || r.Value == nil {
 		return false
 	}
 	v := r.Value
 	return (v.Type == nil || len(*v.Type) == 0) && v.Format == "" && len(v.Enum) == 0 &&
+		!v.Nullable && !v.WriteOnly && !v.ReadOnly &&
 		len(v.Properties) == 0 && v.Items == nil && len(v.AllOf) == 0 &&
 		len(v.OneOf) == 0 && len(v.AnyOf) == 0 && v.AdditionalProperties.Schema == nil &&
 		v.AdditionalProperties.Has == nil

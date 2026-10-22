@@ -7,6 +7,8 @@ package pro
 
 import (
 	"encoding/json"
+	"fmt"
+	"strings"
 	"time"
 )
 
@@ -5222,150 +5224,407 @@ func (m *MDMCommandRequestCommandData) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// MarshalJSON emits the active variant's JSON. If the matching variant
-// pointer is nil, emits a minimal object carrying only the discriminator.
+// MarshalJSON emits the active variant's JSON.
+//
+// A discriminator that names a variant must be accompanied by exactly that
+// variant: a nil one, or a different one set beside it, is an error rather than
+// a body the caller did not write. Where the request carries a destructive
+// command, a bare discriminator is a well-formed request with every option
+// defaulted, and dropping a populated variant is how a caller ships it. An
+// empty or unrecognised discriminator with no variant set is the one case that
+// still emits the discriminator alone, so the zero value and an unknown value
+// read from a response stay marshalable.
 func (m MDMCommandRequestCommandData) MarshalJSON() ([]byte, error) {
+	var set []string
+	if m.APPLYREDEMPTIONCODE != nil {
+		set = append(set, "APPLYREDEMPTIONCODE")
+	}
+	if m.CANCELENHANCEDLOGCOLLECTION != nil {
+		set = append(set, "CANCELENHANCEDLOGCOLLECTION")
+	}
+	if m.CERTIFICATELIST != nil {
+		set = append(set, "CERTIFICATELIST")
+	}
+	if m.CLEARPASSCODE != nil {
+		set = append(set, "CLEARPASSCODE")
+	}
+	if m.CLEARRESTRICTIONSPASSWORD != nil {
+		set = append(set, "CLEARRESTRICTIONSPASSWORD")
+	}
+	if m.DECLARATIVEMANAGEMENT != nil {
+		set = append(set, "DECLARATIVEMANAGEMENT")
+	}
+	if m.DELETEUSER != nil {
+		set = append(set, "DELETEUSER")
+	}
+	if m.DEVICEINFORMATION != nil {
+		set = append(set, "DEVICEINFORMATION")
+	}
+	if m.DEVICELOCATION != nil {
+		set = append(set, "DEVICELOCATION")
+	}
+	if m.DEVICELOCK != nil {
+		set = append(set, "DEVICELOCK")
+	}
+	if m.DISABLELOSTMODE != nil {
+		set = append(set, "DISABLELOSTMODE")
+	}
+	if m.DISABLEREMOTEDESKTOP != nil {
+		set = append(set, "DISABLEREMOTEDESKTOP")
+	}
+	if m.ENABLELOSTMODE != nil {
+		set = append(set, "ENABLELOSTMODE")
+	}
+	if m.ENABLEREMOTEDESKTOP != nil {
+		set = append(set, "ENABLEREMOTEDESKTOP")
+	}
+	if m.ERASEDEVICE != nil {
+		set = append(set, "ERASEDEVICE")
+	}
+	if m.INSTALLEDAPPLICATIONLIST != nil {
+		set = append(set, "INSTALLEDAPPLICATIONLIST")
+	}
+	if m.LOGOUTUSER != nil {
+		set = append(set, "LOGOUTUSER")
+	}
+	if m.MANAGEDAPPLICATIONLIST != nil {
+		set = append(set, "MANAGEDAPPLICATIONLIST")
+	}
+	if m.MANAGEDMEDIALIST != nil {
+		set = append(set, "MANAGEDMEDIALIST")
+	}
+	if m.PLAYLOSTMODESOUND != nil {
+		set = append(set, "PLAYLOSTMODESOUND")
+	}
+	if m.PROFILELIST != nil {
+		set = append(set, "PROFILELIST")
+	}
+	if m.PROVISIONINGPROFILELIST != nil {
+		set = append(set, "PROVISIONINGPROFILELIST")
+	}
+	if m.REFRESHCELLULARPLANS != nil {
+		set = append(set, "REFRESHCELLULARPLANS")
+	}
+	if m.REQUESTMIRRORING != nil {
+		set = append(set, "REQUESTMIRRORING")
+	}
+	if m.RESTARTDEVICE != nil {
+		set = append(set, "RESTARTDEVICE")
+	}
+	if m.SECURITYINFO != nil {
+		set = append(set, "SECURITYINFO")
+	}
+	if m.SETTINGS != nil {
+		set = append(set, "SETTINGS")
+	}
+	if m.SETAUTOADMINPASSWORD != nil {
+		set = append(set, "SETAUTOADMINPASSWORD")
+	}
+	if m.SETRECOVERYLOCK != nil {
+		set = append(set, "SETRECOVERYLOCK")
+	}
+	if m.SHUTDOWNDEVICE != nil {
+		set = append(set, "SHUTDOWNDEVICE")
+	}
+	if m.STOPMIRRORING != nil {
+		set = append(set, "STOPMIRRORING")
+	}
+	if m.TRIGGERENHANCEDLOGCOLLECTION != nil {
+		set = append(set, "TRIGGERENHANCEDLOGCOLLECTION")
+	}
+	if m.UNLOCKUSERACCOUNT != nil {
+		set = append(set, "UNLOCKUSERACCOUNT")
+	}
+	if m.VALIDATEAPPLICATIONS != nil {
+		set = append(set, "VALIDATEAPPLICATIONS")
+	}
+	if m.VERIFYRECOVERYLOCK != nil {
+		set = append(set, "VERIFYRECOVERYLOCK")
+	}
 	switch m.CommandType {
 	case "APPLY_REDEMPTION_CODE":
-		if m.APPLYREDEMPTIONCODE != nil {
-			return json.Marshal(m.APPLYREDEMPTIONCODE)
+		if m.APPLYREDEMPTIONCODE == nil {
+			return nil, fmt.Errorf("MDMCommandRequestCommandData: commandType %q set but APPLYREDEMPTIONCODE is nil", m.CommandType)
 		}
+		if len(set) > 1 {
+			return nil, fmt.Errorf("MDMCommandRequestCommandData: commandType %q selects APPLYREDEMPTIONCODE, but %s are set", m.CommandType, strings.Join(set, ", "))
+		}
+		return json.Marshal(m.APPLYREDEMPTIONCODE)
 	case "CANCEL_ENHANCED_LOG_COLLECTION":
-		if m.CANCELENHANCEDLOGCOLLECTION != nil {
-			return json.Marshal(m.CANCELENHANCEDLOGCOLLECTION)
+		if m.CANCELENHANCEDLOGCOLLECTION == nil {
+			return nil, fmt.Errorf("MDMCommandRequestCommandData: commandType %q set but CANCELENHANCEDLOGCOLLECTION is nil", m.CommandType)
 		}
+		if len(set) > 1 {
+			return nil, fmt.Errorf("MDMCommandRequestCommandData: commandType %q selects CANCELENHANCEDLOGCOLLECTION, but %s are set", m.CommandType, strings.Join(set, ", "))
+		}
+		return json.Marshal(m.CANCELENHANCEDLOGCOLLECTION)
 	case "CERTIFICATE_LIST":
-		if m.CERTIFICATELIST != nil {
-			return json.Marshal(m.CERTIFICATELIST)
+		if m.CERTIFICATELIST == nil {
+			return nil, fmt.Errorf("MDMCommandRequestCommandData: commandType %q set but CERTIFICATELIST is nil", m.CommandType)
 		}
+		if len(set) > 1 {
+			return nil, fmt.Errorf("MDMCommandRequestCommandData: commandType %q selects CERTIFICATELIST, but %s are set", m.CommandType, strings.Join(set, ", "))
+		}
+		return json.Marshal(m.CERTIFICATELIST)
 	case "CLEAR_PASSCODE":
-		if m.CLEARPASSCODE != nil {
-			return json.Marshal(m.CLEARPASSCODE)
+		if m.CLEARPASSCODE == nil {
+			return nil, fmt.Errorf("MDMCommandRequestCommandData: commandType %q set but CLEARPASSCODE is nil", m.CommandType)
 		}
+		if len(set) > 1 {
+			return nil, fmt.Errorf("MDMCommandRequestCommandData: commandType %q selects CLEARPASSCODE, but %s are set", m.CommandType, strings.Join(set, ", "))
+		}
+		return json.Marshal(m.CLEARPASSCODE)
 	case "CLEAR_RESTRICTIONS_PASSWORD":
-		if m.CLEARRESTRICTIONSPASSWORD != nil {
-			return json.Marshal(m.CLEARRESTRICTIONSPASSWORD)
+		if m.CLEARRESTRICTIONSPASSWORD == nil {
+			return nil, fmt.Errorf("MDMCommandRequestCommandData: commandType %q set but CLEARRESTRICTIONSPASSWORD is nil", m.CommandType)
 		}
+		if len(set) > 1 {
+			return nil, fmt.Errorf("MDMCommandRequestCommandData: commandType %q selects CLEARRESTRICTIONSPASSWORD, but %s are set", m.CommandType, strings.Join(set, ", "))
+		}
+		return json.Marshal(m.CLEARRESTRICTIONSPASSWORD)
 	case "DECLARATIVE_MANAGEMENT":
-		if m.DECLARATIVEMANAGEMENT != nil {
-			return json.Marshal(m.DECLARATIVEMANAGEMENT)
+		if m.DECLARATIVEMANAGEMENT == nil {
+			return nil, fmt.Errorf("MDMCommandRequestCommandData: commandType %q set but DECLARATIVEMANAGEMENT is nil", m.CommandType)
 		}
+		if len(set) > 1 {
+			return nil, fmt.Errorf("MDMCommandRequestCommandData: commandType %q selects DECLARATIVEMANAGEMENT, but %s are set", m.CommandType, strings.Join(set, ", "))
+		}
+		return json.Marshal(m.DECLARATIVEMANAGEMENT)
 	case "DELETE_USER":
-		if m.DELETEUSER != nil {
-			return json.Marshal(m.DELETEUSER)
+		if m.DELETEUSER == nil {
+			return nil, fmt.Errorf("MDMCommandRequestCommandData: commandType %q set but DELETEUSER is nil", m.CommandType)
 		}
+		if len(set) > 1 {
+			return nil, fmt.Errorf("MDMCommandRequestCommandData: commandType %q selects DELETEUSER, but %s are set", m.CommandType, strings.Join(set, ", "))
+		}
+		return json.Marshal(m.DELETEUSER)
 	case "DEVICE_INFORMATION":
-		if m.DEVICEINFORMATION != nil {
-			return json.Marshal(m.DEVICEINFORMATION)
+		if m.DEVICEINFORMATION == nil {
+			return nil, fmt.Errorf("MDMCommandRequestCommandData: commandType %q set but DEVICEINFORMATION is nil", m.CommandType)
 		}
+		if len(set) > 1 {
+			return nil, fmt.Errorf("MDMCommandRequestCommandData: commandType %q selects DEVICEINFORMATION, but %s are set", m.CommandType, strings.Join(set, ", "))
+		}
+		return json.Marshal(m.DEVICEINFORMATION)
 	case "DEVICE_LOCATION":
-		if m.DEVICELOCATION != nil {
-			return json.Marshal(m.DEVICELOCATION)
+		if m.DEVICELOCATION == nil {
+			return nil, fmt.Errorf("MDMCommandRequestCommandData: commandType %q set but DEVICELOCATION is nil", m.CommandType)
 		}
+		if len(set) > 1 {
+			return nil, fmt.Errorf("MDMCommandRequestCommandData: commandType %q selects DEVICELOCATION, but %s are set", m.CommandType, strings.Join(set, ", "))
+		}
+		return json.Marshal(m.DEVICELOCATION)
 	case "DEVICE_LOCK":
-		if m.DEVICELOCK != nil {
-			return json.Marshal(m.DEVICELOCK)
+		if m.DEVICELOCK == nil {
+			return nil, fmt.Errorf("MDMCommandRequestCommandData: commandType %q set but DEVICELOCK is nil", m.CommandType)
 		}
+		if len(set) > 1 {
+			return nil, fmt.Errorf("MDMCommandRequestCommandData: commandType %q selects DEVICELOCK, but %s are set", m.CommandType, strings.Join(set, ", "))
+		}
+		return json.Marshal(m.DEVICELOCK)
 	case "DISABLE_LOST_MODE":
-		if m.DISABLELOSTMODE != nil {
-			return json.Marshal(m.DISABLELOSTMODE)
+		if m.DISABLELOSTMODE == nil {
+			return nil, fmt.Errorf("MDMCommandRequestCommandData: commandType %q set but DISABLELOSTMODE is nil", m.CommandType)
 		}
+		if len(set) > 1 {
+			return nil, fmt.Errorf("MDMCommandRequestCommandData: commandType %q selects DISABLELOSTMODE, but %s are set", m.CommandType, strings.Join(set, ", "))
+		}
+		return json.Marshal(m.DISABLELOSTMODE)
 	case "DISABLE_REMOTE_DESKTOP":
-		if m.DISABLEREMOTEDESKTOP != nil {
-			return json.Marshal(m.DISABLEREMOTEDESKTOP)
+		if m.DISABLEREMOTEDESKTOP == nil {
+			return nil, fmt.Errorf("MDMCommandRequestCommandData: commandType %q set but DISABLEREMOTEDESKTOP is nil", m.CommandType)
 		}
+		if len(set) > 1 {
+			return nil, fmt.Errorf("MDMCommandRequestCommandData: commandType %q selects DISABLEREMOTEDESKTOP, but %s are set", m.CommandType, strings.Join(set, ", "))
+		}
+		return json.Marshal(m.DISABLEREMOTEDESKTOP)
 	case "ENABLE_LOST_MODE":
-		if m.ENABLELOSTMODE != nil {
-			return json.Marshal(m.ENABLELOSTMODE)
+		if m.ENABLELOSTMODE == nil {
+			return nil, fmt.Errorf("MDMCommandRequestCommandData: commandType %q set but ENABLELOSTMODE is nil", m.CommandType)
 		}
+		if len(set) > 1 {
+			return nil, fmt.Errorf("MDMCommandRequestCommandData: commandType %q selects ENABLELOSTMODE, but %s are set", m.CommandType, strings.Join(set, ", "))
+		}
+		return json.Marshal(m.ENABLELOSTMODE)
 	case "ENABLE_REMOTE_DESKTOP":
-		if m.ENABLEREMOTEDESKTOP != nil {
-			return json.Marshal(m.ENABLEREMOTEDESKTOP)
+		if m.ENABLEREMOTEDESKTOP == nil {
+			return nil, fmt.Errorf("MDMCommandRequestCommandData: commandType %q set but ENABLEREMOTEDESKTOP is nil", m.CommandType)
 		}
+		if len(set) > 1 {
+			return nil, fmt.Errorf("MDMCommandRequestCommandData: commandType %q selects ENABLEREMOTEDESKTOP, but %s are set", m.CommandType, strings.Join(set, ", "))
+		}
+		return json.Marshal(m.ENABLEREMOTEDESKTOP)
 	case "ERASE_DEVICE":
-		if m.ERASEDEVICE != nil {
-			return json.Marshal(m.ERASEDEVICE)
+		if m.ERASEDEVICE == nil {
+			return nil, fmt.Errorf("MDMCommandRequestCommandData: commandType %q set but ERASEDEVICE is nil", m.CommandType)
 		}
+		if len(set) > 1 {
+			return nil, fmt.Errorf("MDMCommandRequestCommandData: commandType %q selects ERASEDEVICE, but %s are set", m.CommandType, strings.Join(set, ", "))
+		}
+		return json.Marshal(m.ERASEDEVICE)
 	case "INSTALLED_APPLICATION_LIST":
-		if m.INSTALLEDAPPLICATIONLIST != nil {
-			return json.Marshal(m.INSTALLEDAPPLICATIONLIST)
+		if m.INSTALLEDAPPLICATIONLIST == nil {
+			return nil, fmt.Errorf("MDMCommandRequestCommandData: commandType %q set but INSTALLEDAPPLICATIONLIST is nil", m.CommandType)
 		}
+		if len(set) > 1 {
+			return nil, fmt.Errorf("MDMCommandRequestCommandData: commandType %q selects INSTALLEDAPPLICATIONLIST, but %s are set", m.CommandType, strings.Join(set, ", "))
+		}
+		return json.Marshal(m.INSTALLEDAPPLICATIONLIST)
 	case "LOG_OUT_USER":
-		if m.LOGOUTUSER != nil {
-			return json.Marshal(m.LOGOUTUSER)
+		if m.LOGOUTUSER == nil {
+			return nil, fmt.Errorf("MDMCommandRequestCommandData: commandType %q set but LOGOUTUSER is nil", m.CommandType)
 		}
+		if len(set) > 1 {
+			return nil, fmt.Errorf("MDMCommandRequestCommandData: commandType %q selects LOGOUTUSER, but %s are set", m.CommandType, strings.Join(set, ", "))
+		}
+		return json.Marshal(m.LOGOUTUSER)
 	case "MANAGED_APPLICATION_LIST":
-		if m.MANAGEDAPPLICATIONLIST != nil {
-			return json.Marshal(m.MANAGEDAPPLICATIONLIST)
+		if m.MANAGEDAPPLICATIONLIST == nil {
+			return nil, fmt.Errorf("MDMCommandRequestCommandData: commandType %q set but MANAGEDAPPLICATIONLIST is nil", m.CommandType)
 		}
+		if len(set) > 1 {
+			return nil, fmt.Errorf("MDMCommandRequestCommandData: commandType %q selects MANAGEDAPPLICATIONLIST, but %s are set", m.CommandType, strings.Join(set, ", "))
+		}
+		return json.Marshal(m.MANAGEDAPPLICATIONLIST)
 	case "MANAGED_MEDIA_LIST":
-		if m.MANAGEDMEDIALIST != nil {
-			return json.Marshal(m.MANAGEDMEDIALIST)
+		if m.MANAGEDMEDIALIST == nil {
+			return nil, fmt.Errorf("MDMCommandRequestCommandData: commandType %q set but MANAGEDMEDIALIST is nil", m.CommandType)
 		}
+		if len(set) > 1 {
+			return nil, fmt.Errorf("MDMCommandRequestCommandData: commandType %q selects MANAGEDMEDIALIST, but %s are set", m.CommandType, strings.Join(set, ", "))
+		}
+		return json.Marshal(m.MANAGEDMEDIALIST)
 	case "PLAY_LOST_MODE_SOUND":
-		if m.PLAYLOSTMODESOUND != nil {
-			return json.Marshal(m.PLAYLOSTMODESOUND)
+		if m.PLAYLOSTMODESOUND == nil {
+			return nil, fmt.Errorf("MDMCommandRequestCommandData: commandType %q set but PLAYLOSTMODESOUND is nil", m.CommandType)
 		}
+		if len(set) > 1 {
+			return nil, fmt.Errorf("MDMCommandRequestCommandData: commandType %q selects PLAYLOSTMODESOUND, but %s are set", m.CommandType, strings.Join(set, ", "))
+		}
+		return json.Marshal(m.PLAYLOSTMODESOUND)
 	case "PROFILE_LIST":
-		if m.PROFILELIST != nil {
-			return json.Marshal(m.PROFILELIST)
+		if m.PROFILELIST == nil {
+			return nil, fmt.Errorf("MDMCommandRequestCommandData: commandType %q set but PROFILELIST is nil", m.CommandType)
 		}
+		if len(set) > 1 {
+			return nil, fmt.Errorf("MDMCommandRequestCommandData: commandType %q selects PROFILELIST, but %s are set", m.CommandType, strings.Join(set, ", "))
+		}
+		return json.Marshal(m.PROFILELIST)
 	case "PROVISIONING_PROFILE_LIST":
-		if m.PROVISIONINGPROFILELIST != nil {
-			return json.Marshal(m.PROVISIONINGPROFILELIST)
+		if m.PROVISIONINGPROFILELIST == nil {
+			return nil, fmt.Errorf("MDMCommandRequestCommandData: commandType %q set but PROVISIONINGPROFILELIST is nil", m.CommandType)
 		}
+		if len(set) > 1 {
+			return nil, fmt.Errorf("MDMCommandRequestCommandData: commandType %q selects PROVISIONINGPROFILELIST, but %s are set", m.CommandType, strings.Join(set, ", "))
+		}
+		return json.Marshal(m.PROVISIONINGPROFILELIST)
 	case "REFRESH_CELLULAR_PLANS":
-		if m.REFRESHCELLULARPLANS != nil {
-			return json.Marshal(m.REFRESHCELLULARPLANS)
+		if m.REFRESHCELLULARPLANS == nil {
+			return nil, fmt.Errorf("MDMCommandRequestCommandData: commandType %q set but REFRESHCELLULARPLANS is nil", m.CommandType)
 		}
+		if len(set) > 1 {
+			return nil, fmt.Errorf("MDMCommandRequestCommandData: commandType %q selects REFRESHCELLULARPLANS, but %s are set", m.CommandType, strings.Join(set, ", "))
+		}
+		return json.Marshal(m.REFRESHCELLULARPLANS)
 	case "REQUEST_MIRRORING":
-		if m.REQUESTMIRRORING != nil {
-			return json.Marshal(m.REQUESTMIRRORING)
+		if m.REQUESTMIRRORING == nil {
+			return nil, fmt.Errorf("MDMCommandRequestCommandData: commandType %q set but REQUESTMIRRORING is nil", m.CommandType)
 		}
+		if len(set) > 1 {
+			return nil, fmt.Errorf("MDMCommandRequestCommandData: commandType %q selects REQUESTMIRRORING, but %s are set", m.CommandType, strings.Join(set, ", "))
+		}
+		return json.Marshal(m.REQUESTMIRRORING)
 	case "RESTART_DEVICE":
-		if m.RESTARTDEVICE != nil {
-			return json.Marshal(m.RESTARTDEVICE)
+		if m.RESTARTDEVICE == nil {
+			return nil, fmt.Errorf("MDMCommandRequestCommandData: commandType %q set but RESTARTDEVICE is nil", m.CommandType)
 		}
+		if len(set) > 1 {
+			return nil, fmt.Errorf("MDMCommandRequestCommandData: commandType %q selects RESTARTDEVICE, but %s are set", m.CommandType, strings.Join(set, ", "))
+		}
+		return json.Marshal(m.RESTARTDEVICE)
 	case "SECURITY_INFO":
-		if m.SECURITYINFO != nil {
-			return json.Marshal(m.SECURITYINFO)
+		if m.SECURITYINFO == nil {
+			return nil, fmt.Errorf("MDMCommandRequestCommandData: commandType %q set but SECURITYINFO is nil", m.CommandType)
 		}
+		if len(set) > 1 {
+			return nil, fmt.Errorf("MDMCommandRequestCommandData: commandType %q selects SECURITYINFO, but %s are set", m.CommandType, strings.Join(set, ", "))
+		}
+		return json.Marshal(m.SECURITYINFO)
 	case "SETTINGS":
-		if m.SETTINGS != nil {
-			return json.Marshal(m.SETTINGS)
+		if m.SETTINGS == nil {
+			return nil, fmt.Errorf("MDMCommandRequestCommandData: commandType %q set but SETTINGS is nil", m.CommandType)
 		}
+		if len(set) > 1 {
+			return nil, fmt.Errorf("MDMCommandRequestCommandData: commandType %q selects SETTINGS, but %s are set", m.CommandType, strings.Join(set, ", "))
+		}
+		return json.Marshal(m.SETTINGS)
 	case "SET_AUTO_ADMIN_PASSWORD":
-		if m.SETAUTOADMINPASSWORD != nil {
-			return json.Marshal(m.SETAUTOADMINPASSWORD)
+		if m.SETAUTOADMINPASSWORD == nil {
+			return nil, fmt.Errorf("MDMCommandRequestCommandData: commandType %q set but SETAUTOADMINPASSWORD is nil", m.CommandType)
 		}
+		if len(set) > 1 {
+			return nil, fmt.Errorf("MDMCommandRequestCommandData: commandType %q selects SETAUTOADMINPASSWORD, but %s are set", m.CommandType, strings.Join(set, ", "))
+		}
+		return json.Marshal(m.SETAUTOADMINPASSWORD)
 	case "SET_RECOVERY_LOCK":
-		if m.SETRECOVERYLOCK != nil {
-			return json.Marshal(m.SETRECOVERYLOCK)
+		if m.SETRECOVERYLOCK == nil {
+			return nil, fmt.Errorf("MDMCommandRequestCommandData: commandType %q set but SETRECOVERYLOCK is nil", m.CommandType)
 		}
+		if len(set) > 1 {
+			return nil, fmt.Errorf("MDMCommandRequestCommandData: commandType %q selects SETRECOVERYLOCK, but %s are set", m.CommandType, strings.Join(set, ", "))
+		}
+		return json.Marshal(m.SETRECOVERYLOCK)
 	case "SHUT_DOWN_DEVICE":
-		if m.SHUTDOWNDEVICE != nil {
-			return json.Marshal(m.SHUTDOWNDEVICE)
+		if m.SHUTDOWNDEVICE == nil {
+			return nil, fmt.Errorf("MDMCommandRequestCommandData: commandType %q set but SHUTDOWNDEVICE is nil", m.CommandType)
 		}
+		if len(set) > 1 {
+			return nil, fmt.Errorf("MDMCommandRequestCommandData: commandType %q selects SHUTDOWNDEVICE, but %s are set", m.CommandType, strings.Join(set, ", "))
+		}
+		return json.Marshal(m.SHUTDOWNDEVICE)
 	case "STOP_MIRRORING":
-		if m.STOPMIRRORING != nil {
-			return json.Marshal(m.STOPMIRRORING)
+		if m.STOPMIRRORING == nil {
+			return nil, fmt.Errorf("MDMCommandRequestCommandData: commandType %q set but STOPMIRRORING is nil", m.CommandType)
 		}
+		if len(set) > 1 {
+			return nil, fmt.Errorf("MDMCommandRequestCommandData: commandType %q selects STOPMIRRORING, but %s are set", m.CommandType, strings.Join(set, ", "))
+		}
+		return json.Marshal(m.STOPMIRRORING)
 	case "TRIGGER_ENHANCED_LOG_COLLECTION":
-		if m.TRIGGERENHANCEDLOGCOLLECTION != nil {
-			return json.Marshal(m.TRIGGERENHANCEDLOGCOLLECTION)
+		if m.TRIGGERENHANCEDLOGCOLLECTION == nil {
+			return nil, fmt.Errorf("MDMCommandRequestCommandData: commandType %q set but TRIGGERENHANCEDLOGCOLLECTION is nil", m.CommandType)
 		}
+		if len(set) > 1 {
+			return nil, fmt.Errorf("MDMCommandRequestCommandData: commandType %q selects TRIGGERENHANCEDLOGCOLLECTION, but %s are set", m.CommandType, strings.Join(set, ", "))
+		}
+		return json.Marshal(m.TRIGGERENHANCEDLOGCOLLECTION)
 	case "UNLOCK_USER_ACCOUNT":
-		if m.UNLOCKUSERACCOUNT != nil {
-			return json.Marshal(m.UNLOCKUSERACCOUNT)
+		if m.UNLOCKUSERACCOUNT == nil {
+			return nil, fmt.Errorf("MDMCommandRequestCommandData: commandType %q set but UNLOCKUSERACCOUNT is nil", m.CommandType)
 		}
+		if len(set) > 1 {
+			return nil, fmt.Errorf("MDMCommandRequestCommandData: commandType %q selects UNLOCKUSERACCOUNT, but %s are set", m.CommandType, strings.Join(set, ", "))
+		}
+		return json.Marshal(m.UNLOCKUSERACCOUNT)
 	case "VALIDATE_APPLICATIONS":
-		if m.VALIDATEAPPLICATIONS != nil {
-			return json.Marshal(m.VALIDATEAPPLICATIONS)
+		if m.VALIDATEAPPLICATIONS == nil {
+			return nil, fmt.Errorf("MDMCommandRequestCommandData: commandType %q set but VALIDATEAPPLICATIONS is nil", m.CommandType)
 		}
+		if len(set) > 1 {
+			return nil, fmt.Errorf("MDMCommandRequestCommandData: commandType %q selects VALIDATEAPPLICATIONS, but %s are set", m.CommandType, strings.Join(set, ", "))
+		}
+		return json.Marshal(m.VALIDATEAPPLICATIONS)
 	case "VERIFY_RECOVERY_LOCK":
-		if m.VERIFYRECOVERYLOCK != nil {
-			return json.Marshal(m.VERIFYRECOVERYLOCK)
+		if m.VERIFYRECOVERYLOCK == nil {
+			return nil, fmt.Errorf("MDMCommandRequestCommandData: commandType %q set but VERIFYRECOVERYLOCK is nil", m.CommandType)
 		}
+		if len(set) > 1 {
+			return nil, fmt.Errorf("MDMCommandRequestCommandData: commandType %q selects VERIFYRECOVERYLOCK, but %s are set", m.CommandType, strings.Join(set, ", "))
+		}
+		return json.Marshal(m.VERIFYRECOVERYLOCK)
+	}
+	if len(set) > 0 {
+		return nil, fmt.Errorf("MDMCommandRequestCommandData: commandType %q selects no variant, but %s set", m.CommandType, strings.Join(set, ", "))
 	}
 	return json.Marshal(map[string]string{"commandType": m.CommandType})
 }
@@ -6057,26 +6316,66 @@ func (m *MobileDeviceResponse) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// MarshalJSON emits the active variant's JSON. If the matching variant
-// pointer is nil, emits a minimal object carrying only the discriminator.
+// MarshalJSON emits the active variant's JSON.
+//
+// A discriminator that names a variant must be accompanied by exactly that
+// variant: a nil one, or a different one set beside it, is an error rather than
+// a body the caller did not write. Where the request carries a destructive
+// command, a bare discriminator is a well-formed request with every option
+// defaulted, and dropping a populated variant is how a caller ships it. An
+// empty or unrecognised discriminator with no variant set is the one case that
+// still emits the discriminator alone, so the zero value and an unknown value
+// read from a response stay marshalable.
 func (m MobileDeviceResponse) MarshalJSON() ([]byte, error) {
+	var set []string
+	if m.IOS != nil {
+		set = append(set, "IOS")
+	}
+	if m.TvOS != nil {
+		set = append(set, "TvOS")
+	}
+	if m.VisionOS != nil {
+		set = append(set, "VisionOS")
+	}
+	if m.WatchOS != nil {
+		set = append(set, "WatchOS")
+	}
 	switch m.DeviceType {
 	case "iOS":
-		if m.IOS != nil {
-			return json.Marshal(m.IOS)
+		if m.IOS == nil {
+			return nil, fmt.Errorf("MobileDeviceResponse: deviceType %q set but IOS is nil", m.DeviceType)
 		}
+		if len(set) > 1 {
+			return nil, fmt.Errorf("MobileDeviceResponse: deviceType %q selects IOS, but %s are set", m.DeviceType, strings.Join(set, ", "))
+		}
+		return json.Marshal(m.IOS)
 	case "tvOS":
-		if m.TvOS != nil {
-			return json.Marshal(m.TvOS)
+		if m.TvOS == nil {
+			return nil, fmt.Errorf("MobileDeviceResponse: deviceType %q set but TvOS is nil", m.DeviceType)
 		}
+		if len(set) > 1 {
+			return nil, fmt.Errorf("MobileDeviceResponse: deviceType %q selects TvOS, but %s are set", m.DeviceType, strings.Join(set, ", "))
+		}
+		return json.Marshal(m.TvOS)
 	case "visionOS":
-		if m.VisionOS != nil {
-			return json.Marshal(m.VisionOS)
+		if m.VisionOS == nil {
+			return nil, fmt.Errorf("MobileDeviceResponse: deviceType %q set but VisionOS is nil", m.DeviceType)
 		}
+		if len(set) > 1 {
+			return nil, fmt.Errorf("MobileDeviceResponse: deviceType %q selects VisionOS, but %s are set", m.DeviceType, strings.Join(set, ", "))
+		}
+		return json.Marshal(m.VisionOS)
 	case "watchOS":
-		if m.WatchOS != nil {
-			return json.Marshal(m.WatchOS)
+		if m.WatchOS == nil {
+			return nil, fmt.Errorf("MobileDeviceResponse: deviceType %q set but WatchOS is nil", m.DeviceType)
 		}
+		if len(set) > 1 {
+			return nil, fmt.Errorf("MobileDeviceResponse: deviceType %q selects WatchOS, but %s are set", m.DeviceType, strings.Join(set, ", "))
+		}
+		return json.Marshal(m.WatchOS)
+	}
+	if len(set) > 0 {
+		return nil, fmt.Errorf("MobileDeviceResponse: deviceType %q selects no variant, but %s set", m.DeviceType, strings.Join(set, ", "))
 	}
 	return json.Marshal(map[string]string{"deviceType": m.DeviceType})
 }

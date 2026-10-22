@@ -7,6 +7,8 @@ package blueprints
 
 import (
 	"encoding/json"
+	"fmt"
+	"strings"
 	"time"
 )
 
@@ -337,18 +339,44 @@ func (m *BookmarkItem) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// MarshalJSON emits the active variant's JSON. If the matching variant
-// pointer is nil, emits a minimal object carrying only the discriminator.
+// MarshalJSON emits the active variant's JSON.
+//
+// A discriminator that names a variant must be accompanied by exactly that
+// variant: a nil one, or a different one set beside it, is an error rather than
+// a body the caller did not write. Where the request carries a destructive
+// command, a bare discriminator is a well-formed request with every option
+// defaulted, and dropping a populated variant is how a caller ships it. An
+// empty or unrecognised discriminator with no variant set is the one case that
+// still emits the discriminator alone, so the zero value and an unknown value
+// read from a response stay marshalable.
 func (m BookmarkItem) MarshalJSON() ([]byte, error) {
+	var set []string
+	if m.BOOKMARK != nil {
+		set = append(set, "BOOKMARK")
+	}
+	if m.FOLDER != nil {
+		set = append(set, "FOLDER")
+	}
 	switch m.Type {
 	case "BOOKMARK":
-		if m.BOOKMARK != nil {
-			return json.Marshal(m.BOOKMARK)
+		if m.BOOKMARK == nil {
+			return nil, fmt.Errorf("BookmarkItem: Type %q set but BOOKMARK is nil", m.Type)
 		}
+		if len(set) > 1 {
+			return nil, fmt.Errorf("BookmarkItem: Type %q selects BOOKMARK, but %s are set", m.Type, strings.Join(set, ", "))
+		}
+		return json.Marshal(m.BOOKMARK)
 	case "FOLDER":
-		if m.FOLDER != nil {
-			return json.Marshal(m.FOLDER)
+		if m.FOLDER == nil {
+			return nil, fmt.Errorf("BookmarkItem: Type %q set but FOLDER is nil", m.Type)
 		}
+		if len(set) > 1 {
+			return nil, fmt.Errorf("BookmarkItem: Type %q selects FOLDER, but %s are set", m.Type, strings.Join(set, ", "))
+		}
+		return json.Marshal(m.FOLDER)
+	}
+	if len(set) > 0 {
+		return nil, fmt.Errorf("BookmarkItem: Type %q selects no variant, but %s set", m.Type, strings.Join(set, ", "))
 	}
 	return json.Marshal(map[string]string{"Type": m.Type})
 }
@@ -808,54 +836,143 @@ func (m *DeclarationsComponentConfigurationDeclarationsItem) UnmarshalJSON(data 
 	return nil
 }
 
-// MarshalJSON emits the active variant's JSON. If the matching variant
-// pointer is nil, emits a minimal object carrying only the discriminator.
+// MarshalJSON emits the active variant's JSON.
+//
+// A discriminator that names a variant must be accompanied by exactly that
+// variant: a nil one, or a different one set beside it, is an error rather than
+// a body the caller did not write. Where the request carries a destructive
+// command, a bare discriminator is a well-formed request with every option
+// defaulted, and dropping a populated variant is how a caller ships it. An
+// empty or unrecognised discriminator with no variant set is the one case that
+// still emits the discriminator alone, so the zero value and an unknown value
+// read from a response stay marshalable.
 func (m DeclarationsComponentConfigurationDeclarationsItem) MarshalJSON() ([]byte, error) {
+	var set []string
+	if m.ManagedAppDeclaration != nil {
+		set = append(set, "ManagedAppDeclaration")
+	}
+	if m.AppSettingsDeclaration != nil {
+		set = append(set, "AppSettingsDeclaration")
+	}
+	if m.ContentCachingDeclaration != nil {
+		set = append(set, "ContentCachingDeclaration")
+	}
+	if m.ExternalIntelligenceSettingsDeclaration != nil {
+		set = append(set, "ExternalIntelligenceSettingsDeclaration")
+	}
+	if m.IntelligenceSettingsDeclaration != nil {
+		set = append(set, "IntelligenceSettingsDeclaration")
+	}
+	if m.KeyboardSettingsDeclaration != nil {
+		set = append(set, "KeyboardSettingsDeclaration")
+	}
+	if m.PackageDeclaration != nil {
+		set = append(set, "PackageDeclaration")
+	}
+	if m.ScreenSharingConnectionDeclaration != nil {
+		set = append(set, "ScreenSharingConnectionDeclaration")
+	}
+	if m.ScreenSharingConnectionGroupDeclaration != nil {
+		set = append(set, "ScreenSharingConnectionGroupDeclaration")
+	}
+	if m.ScreenSharingHostSettingsDeclaration != nil {
+		set = append(set, "ScreenSharingHostSettingsDeclaration")
+	}
+	if m.SiriSettingsDeclaration != nil {
+		set = append(set, "SiriSettingsDeclaration")
+	}
 	switch m.Type {
 	case "com.apple.configuration.app.managed":
-		if m.ManagedAppDeclaration != nil {
-			return json.Marshal(m.ManagedAppDeclaration)
+		if m.ManagedAppDeclaration == nil {
+			return nil, fmt.Errorf("DeclarationsComponentConfigurationDeclarationsItem: type %q set but ManagedAppDeclaration is nil", m.Type)
 		}
+		if len(set) > 1 {
+			return nil, fmt.Errorf("DeclarationsComponentConfigurationDeclarationsItem: type %q selects ManagedAppDeclaration, but %s are set", m.Type, strings.Join(set, ", "))
+		}
+		return json.Marshal(m.ManagedAppDeclaration)
 	case "com.apple.configuration.app.settings":
-		if m.AppSettingsDeclaration != nil {
-			return json.Marshal(m.AppSettingsDeclaration)
+		if m.AppSettingsDeclaration == nil {
+			return nil, fmt.Errorf("DeclarationsComponentConfigurationDeclarationsItem: type %q set but AppSettingsDeclaration is nil", m.Type)
 		}
+		if len(set) > 1 {
+			return nil, fmt.Errorf("DeclarationsComponentConfigurationDeclarationsItem: type %q selects AppSettingsDeclaration, but %s are set", m.Type, strings.Join(set, ", "))
+		}
+		return json.Marshal(m.AppSettingsDeclaration)
 	case "com.apple.configuration.content-cache.settings":
-		if m.ContentCachingDeclaration != nil {
-			return json.Marshal(m.ContentCachingDeclaration)
+		if m.ContentCachingDeclaration == nil {
+			return nil, fmt.Errorf("DeclarationsComponentConfigurationDeclarationsItem: type %q set but ContentCachingDeclaration is nil", m.Type)
 		}
+		if len(set) > 1 {
+			return nil, fmt.Errorf("DeclarationsComponentConfigurationDeclarationsItem: type %q selects ContentCachingDeclaration, but %s are set", m.Type, strings.Join(set, ", "))
+		}
+		return json.Marshal(m.ContentCachingDeclaration)
 	case "com.apple.configuration.external-intelligence.settings":
-		if m.ExternalIntelligenceSettingsDeclaration != nil {
-			return json.Marshal(m.ExternalIntelligenceSettingsDeclaration)
+		if m.ExternalIntelligenceSettingsDeclaration == nil {
+			return nil, fmt.Errorf("DeclarationsComponentConfigurationDeclarationsItem: type %q set but ExternalIntelligenceSettingsDeclaration is nil", m.Type)
 		}
+		if len(set) > 1 {
+			return nil, fmt.Errorf("DeclarationsComponentConfigurationDeclarationsItem: type %q selects ExternalIntelligenceSettingsDeclaration, but %s are set", m.Type, strings.Join(set, ", "))
+		}
+		return json.Marshal(m.ExternalIntelligenceSettingsDeclaration)
 	case "com.apple.configuration.intelligence.settings":
-		if m.IntelligenceSettingsDeclaration != nil {
-			return json.Marshal(m.IntelligenceSettingsDeclaration)
+		if m.IntelligenceSettingsDeclaration == nil {
+			return nil, fmt.Errorf("DeclarationsComponentConfigurationDeclarationsItem: type %q set but IntelligenceSettingsDeclaration is nil", m.Type)
 		}
+		if len(set) > 1 {
+			return nil, fmt.Errorf("DeclarationsComponentConfigurationDeclarationsItem: type %q selects IntelligenceSettingsDeclaration, but %s are set", m.Type, strings.Join(set, ", "))
+		}
+		return json.Marshal(m.IntelligenceSettingsDeclaration)
 	case "com.apple.configuration.keyboard.settings":
-		if m.KeyboardSettingsDeclaration != nil {
-			return json.Marshal(m.KeyboardSettingsDeclaration)
+		if m.KeyboardSettingsDeclaration == nil {
+			return nil, fmt.Errorf("DeclarationsComponentConfigurationDeclarationsItem: type %q set but KeyboardSettingsDeclaration is nil", m.Type)
 		}
+		if len(set) > 1 {
+			return nil, fmt.Errorf("DeclarationsComponentConfigurationDeclarationsItem: type %q selects KeyboardSettingsDeclaration, but %s are set", m.Type, strings.Join(set, ", "))
+		}
+		return json.Marshal(m.KeyboardSettingsDeclaration)
 	case "com.apple.configuration.package":
-		if m.PackageDeclaration != nil {
-			return json.Marshal(m.PackageDeclaration)
+		if m.PackageDeclaration == nil {
+			return nil, fmt.Errorf("DeclarationsComponentConfigurationDeclarationsItem: type %q set but PackageDeclaration is nil", m.Type)
 		}
+		if len(set) > 1 {
+			return nil, fmt.Errorf("DeclarationsComponentConfigurationDeclarationsItem: type %q selects PackageDeclaration, but %s are set", m.Type, strings.Join(set, ", "))
+		}
+		return json.Marshal(m.PackageDeclaration)
 	case "com.apple.configuration.screensharing.connection":
-		if m.ScreenSharingConnectionDeclaration != nil {
-			return json.Marshal(m.ScreenSharingConnectionDeclaration)
+		if m.ScreenSharingConnectionDeclaration == nil {
+			return nil, fmt.Errorf("DeclarationsComponentConfigurationDeclarationsItem: type %q set but ScreenSharingConnectionDeclaration is nil", m.Type)
 		}
+		if len(set) > 1 {
+			return nil, fmt.Errorf("DeclarationsComponentConfigurationDeclarationsItem: type %q selects ScreenSharingConnectionDeclaration, but %s are set", m.Type, strings.Join(set, ", "))
+		}
+		return json.Marshal(m.ScreenSharingConnectionDeclaration)
 	case "com.apple.configuration.screensharing.connection.group":
-		if m.ScreenSharingConnectionGroupDeclaration != nil {
-			return json.Marshal(m.ScreenSharingConnectionGroupDeclaration)
+		if m.ScreenSharingConnectionGroupDeclaration == nil {
+			return nil, fmt.Errorf("DeclarationsComponentConfigurationDeclarationsItem: type %q set but ScreenSharingConnectionGroupDeclaration is nil", m.Type)
 		}
+		if len(set) > 1 {
+			return nil, fmt.Errorf("DeclarationsComponentConfigurationDeclarationsItem: type %q selects ScreenSharingConnectionGroupDeclaration, but %s are set", m.Type, strings.Join(set, ", "))
+		}
+		return json.Marshal(m.ScreenSharingConnectionGroupDeclaration)
 	case "com.apple.configuration.screensharing.host.settings":
-		if m.ScreenSharingHostSettingsDeclaration != nil {
-			return json.Marshal(m.ScreenSharingHostSettingsDeclaration)
+		if m.ScreenSharingHostSettingsDeclaration == nil {
+			return nil, fmt.Errorf("DeclarationsComponentConfigurationDeclarationsItem: type %q set but ScreenSharingHostSettingsDeclaration is nil", m.Type)
 		}
+		if len(set) > 1 {
+			return nil, fmt.Errorf("DeclarationsComponentConfigurationDeclarationsItem: type %q selects ScreenSharingHostSettingsDeclaration, but %s are set", m.Type, strings.Join(set, ", "))
+		}
+		return json.Marshal(m.ScreenSharingHostSettingsDeclaration)
 	case "com.apple.configuration.siri.settings":
-		if m.SiriSettingsDeclaration != nil {
-			return json.Marshal(m.SiriSettingsDeclaration)
+		if m.SiriSettingsDeclaration == nil {
+			return nil, fmt.Errorf("DeclarationsComponentConfigurationDeclarationsItem: type %q set but SiriSettingsDeclaration is nil", m.Type)
 		}
+		if len(set) > 1 {
+			return nil, fmt.Errorf("DeclarationsComponentConfigurationDeclarationsItem: type %q selects SiriSettingsDeclaration, but %s are set", m.Type, strings.Join(set, ", "))
+		}
+		return json.Marshal(m.SiriSettingsDeclaration)
+	}
+	if len(set) > 0 {
+		return nil, fmt.Errorf("DeclarationsComponentConfigurationDeclarationsItem: type %q selects no variant, but %s set", m.Type, strings.Join(set, ", "))
 	}
 	return json.Marshal(map[string]string{"type": m.Type})
 }
@@ -1829,18 +1946,44 @@ func (m *SwUpdateAutomaticConfiguration) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// MarshalJSON emits the active variant's JSON. If the matching variant
-// pointer is nil, emits a minimal object carrying only the discriminator.
+// MarshalJSON emits the active variant's JSON.
+//
+// A discriminator that names a variant must be accompanied by exactly that
+// variant: a nil one, or a different one set beside it, is an error rather than
+// a body the caller did not write. Where the request carries a destructive
+// command, a bare discriminator is a well-formed request with every option
+// defaulted, and dropping a populated variant is how a caller ships it. An
+// empty or unrecognised discriminator with no variant set is the one case that
+// still emits the discriminator alone, so the zero value and an unknown value
+// read from a response stay marshalable.
 func (m SwUpdateAutomaticConfiguration) MarshalJSON() ([]byte, error) {
+	var set []string
+	if m.LATEST != nil {
+		set = append(set, "LATEST")
+	}
+	if m.SEMANTIC != nil {
+		set = append(set, "SEMANTIC")
+	}
 	switch m.Strategy {
 	case "LATEST":
-		if m.LATEST != nil {
-			return json.Marshal(m.LATEST)
+		if m.LATEST == nil {
+			return nil, fmt.Errorf("SwUpdateAutomaticConfiguration: strategy %q set but LATEST is nil", m.Strategy)
 		}
+		if len(set) > 1 {
+			return nil, fmt.Errorf("SwUpdateAutomaticConfiguration: strategy %q selects LATEST, but %s are set", m.Strategy, strings.Join(set, ", "))
+		}
+		return json.Marshal(m.LATEST)
 	case "SEMANTIC":
-		if m.SEMANTIC != nil {
-			return json.Marshal(m.SEMANTIC)
+		if m.SEMANTIC == nil {
+			return nil, fmt.Errorf("SwUpdateAutomaticConfiguration: strategy %q set but SEMANTIC is nil", m.Strategy)
 		}
+		if len(set) > 1 {
+			return nil, fmt.Errorf("SwUpdateAutomaticConfiguration: strategy %q selects SEMANTIC, but %s are set", m.Strategy, strings.Join(set, ", "))
+		}
+		return json.Marshal(m.SEMANTIC)
+	}
+	if len(set) > 0 {
+		return nil, fmt.Errorf("SwUpdateAutomaticConfiguration: strategy %q selects no variant, but %s set", m.Strategy, strings.Join(set, ", "))
 	}
 	return json.Marshal(map[string]string{"strategy": m.Strategy})
 }
@@ -1885,18 +2028,44 @@ func (m *SwUpdateConfiguration) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// MarshalJSON emits the active variant's JSON. If the matching variant
-// pointer is nil, emits a minimal object carrying only the discriminator.
+// MarshalJSON emits the active variant's JSON.
+//
+// A discriminator that names a variant must be accompanied by exactly that
+// variant: a nil one, or a different one set beside it, is an error rather than
+// a body the caller did not write. Where the request carries a destructive
+// command, a bare discriminator is a well-formed request with every option
+// defaulted, and dropping a populated variant is how a caller ships it. An
+// empty or unrecognised discriminator with no variant set is the one case that
+// still emits the discriminator alone, so the zero value and an unknown value
+// read from a response stay marshalable.
 func (m SwUpdateConfiguration) MarshalJSON() ([]byte, error) {
+	var set []string
+	if m.AUTOMATIC != nil {
+		set = append(set, "AUTOMATIC")
+	}
+	if m.MANUAL != nil {
+		set = append(set, "MANUAL")
+	}
 	switch m.EnforcementType {
 	case "AUTOMATIC":
-		if m.AUTOMATIC != nil {
-			return json.Marshal(m.AUTOMATIC)
+		if m.AUTOMATIC == nil {
+			return nil, fmt.Errorf("SwUpdateConfiguration: enforcementType %q set but AUTOMATIC is nil", m.EnforcementType)
 		}
+		if len(set) > 1 {
+			return nil, fmt.Errorf("SwUpdateConfiguration: enforcementType %q selects AUTOMATIC, but %s are set", m.EnforcementType, strings.Join(set, ", "))
+		}
+		return json.Marshal(m.AUTOMATIC)
 	case "MANUAL":
-		if m.MANUAL != nil {
-			return json.Marshal(m.MANUAL)
+		if m.MANUAL == nil {
+			return nil, fmt.Errorf("SwUpdateConfiguration: enforcementType %q set but MANUAL is nil", m.EnforcementType)
 		}
+		if len(set) > 1 {
+			return nil, fmt.Errorf("SwUpdateConfiguration: enforcementType %q selects MANUAL, but %s are set", m.EnforcementType, strings.Join(set, ", "))
+		}
+		return json.Marshal(m.MANUAL)
+	}
+	if len(set) > 0 {
+		return nil, fmt.Errorf("SwUpdateConfiguration: enforcementType %q selects no variant, but %s set", m.EnforcementType, strings.Join(set, ", "))
 	}
 	return json.Marshal(map[string]string{"enforcementType": m.EnforcementType})
 }

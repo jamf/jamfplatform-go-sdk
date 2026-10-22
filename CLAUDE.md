@@ -81,9 +81,10 @@ generated `{capability}:{action}` identifiers against its parsed capability
 tables. The specs are where the values come from and `_permissions/routes.yaml`
 cannot corroborate them — it is generated from the same extensions, so its
 agreement is tautological — whereas the published map is authored from the
-gateway's capability model. It currently agrees on **every one**, including
-the `account` privileges that no published spec carries, so
-`permissionsMapExceptions` is empty. `make permmap` refreshes the snapshot; a
+gateway's capability model. It agrees on every one but five, including the
+`account` privileges that no published spec carries; the five are carried in
+`permissionsMapExceptions` (`platform-environments:{read,create,update,delete}`
+and `recovery-lock:execute`), each expiring the day the map declares it. `make permmap` refreshes the snapshot; a
 new capability upstream makes the test fail, which is the notification to
 refresh, not an accusation. Mechanism, the two guards that keep the parse
 honest, and why the *path* dimension is deliberately not checked:
@@ -555,7 +556,9 @@ published permissions map (above) and the gateway's authorization policy; see
 **`MethodPrivileges` carries `Scopes []ScopeKind` beside `Scoped`**, so one
 registry lookup answers both "what privileges" and "what scope". The two are
 opposites and the godoc says so: `Scoped` is a conjunction (grant all of
-these), `Scopes` an alternatives set (a client carries exactly one scope).
+these) unless `ScopedAlternatives` is set — one method, `SendMdmCommandV2`, where
+the request body selects which — and `Scopes` an alternatives set (a client
+carries exactly one scope).
 
 - **It is per-method although scope is declared per-spec**, because two specs
   in one package can disagree — `securitycloud` did while one of its specs was

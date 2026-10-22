@@ -2641,7 +2641,53 @@ func Test%[1]s_Marshal(t *testing.T) {
 		}
 `, v.FieldName, v.FieldName)
 		}
-		b.WriteString("	})\n}\n")
+		b.WriteString("	})\n")
+
+		// What the marshaler does when the discriminator and the variants
+		// disagree. The cases above only ever set the matching variant, so a
+		// guard that was removed, or a fall-through that quietly emitted the
+		// discriminator alone, would pass every one of them.
+		first := d.Variants[0]
+		firstValue := first.Values[0]
+		fmt.Fprintf(&b, `	t.Run("known discriminator, no variant", func(t *testing.T) {
+		if _, err := json.Marshal(%[1]s{%[2]s: %[3]q}); err == nil {
+			t.Fatal("marshalling %[3]s with %[4]s nil succeeded; want an error, not a bare discriminator")
+		}
+	})
+	t.Run("unrecognised discriminator, variant set", func(t *testing.T) {
+		if _, err := json.Marshal(%[1]s{%[2]s: "NOT_A_%[2]s_VALUE", %[4]s: &%[5]s{}}); err == nil {
+			t.Fatal("marshalling a variant under an unrecognised discriminator succeeded; the payload would be dropped")
+		}
+	})
+	t.Run("unrecognised discriminator, no variant", func(t *testing.T) {
+		got, err := json.Marshal(%[1]s{%[2]s: "NOT_A_%[2]s_VALUE"})
+		if err != nil {
+			t.Fatalf("marshal: %%v", err)
+		}
+		if want := %[6]s; string(got) != want {
+			t.Fatalf("marshalled to %%s, want %%s", got, want)
+		}
+	})
+	t.Run("zero value", func(t *testing.T) {
+		if _, err := json.Marshal(%[1]s{}); err != nil {
+			t.Fatalf("the zero union must stay marshalable: %%v", err)
+		}
+	})
+`, u.Name, d.GoFieldName, firstValue, first.FieldName, first.TypeName,
+			"`"+fmt.Sprintf(`{%q:%q}`, d.PropertyName, "NOT_A_"+d.GoFieldName+"_VALUE")+"`")
+		if len(d.Variants) > 1 {
+			second := d.Variants[1]
+			fmt.Fprintf(&b, `	t.Run("variant that does not match the discriminator", func(t *testing.T) {
+		if _, err := json.Marshal(%[1]s{%[2]s: %[3]q, %[4]s: &%[5]s{}, %[6]s: &%[7]s{}}); err == nil {
+			t.Fatal("marshalling two variants succeeded; the second would be dropped")
+		}
+		if _, err := json.Marshal(%[1]s{%[2]s: %[3]q, %[6]s: &%[7]s{}}); err == nil {
+			t.Fatal("marshalling %[3]s with only %[6]s set succeeded; that payload would be dropped")
+		}
+	})
+`, u.Name, d.GoFieldName, firstValue, first.FieldName, first.TypeName, second.FieldName, second.TypeName)
+		}
+		b.WriteString("}\n")
 	}
 
 	outPath := filepath.Join(pkgDir, "unions_test.go")

@@ -213,8 +213,9 @@ agree, and the 8 with no matching rule, are each one of five things:
   either capability still admits the caller. This is the platform's **only**
   cross-capability OR — every other multi-capability route uses
   `has_all_permissions` — and because the spec declares only
-  `flush-policy-logs:execute`, no registry entry is an alternatives set. That is
-  what licenses the godoc's "all of them are required".
+  `flush-policy-logs:execute`, no registry entry was an alternatives set when this
+  was probed. That licensed the godoc's "all of them are required"; the one entry
+  since marked `ScopedAlternatives` is `SendMdmCommandV2`, below.
 - **4 `audit` operations, 1 `proclassic` file upload: matched by hand, agree.**
   Not parser gaps in the policy. The audit policy gates on a path *predicate*
   rather than a literal array, requiring `audit:read` on `environmentPermissions`

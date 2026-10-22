@@ -522,10 +522,13 @@ func TestFlattenAllOfKeepsBaseTypeUnderAnnotationOnlyOverlay(t *testing.T) {
 	}
 }
 
-// A union with no variant set marshals to its discriminator alone, as its godoc
-// says, and not to `null`: a caller who set the type and forgot the payload sent
-// a body the server read as no command at all.
-func TestDiscriminatedUnionMarshalsMinimalObjectWithNoVariant(t *testing.T) {
+// A discriminated union refuses a discriminator that names a variant which is
+// nil, and a variant set beside a discriminator that selects another. Only an
+// empty or unrecognised discriminator with nothing set marshals to the
+// discriminator alone. The behaviour itself is executed by the generated
+// unions_test.go in each package; this pins that the template emits the guards
+// those tests exercise.
+func TestDiscriminatedUnionRefusesMismatchedVariants(t *testing.T) {
 	// registerDiscriminatorEnum writes to a package-level registry that extractTypes
 	// owns for the duration of one spec; stand one up for this call.
 	currentPropertyEnums = map[string]GoType{}
@@ -539,11 +542,16 @@ func TestDiscriminatedUnionMarshalsMinimalObjectWithNoVariant(t *testing.T) {
 		t.Fatal(err)
 	}
 	out := buf.String()
-	if !strings.Contains(out, "if m.A != nil {") {
-		t.Fatalf("variant case does not guard on a nil pointer:\n%s", out)
-	}
-	if !strings.Contains(out, `map[string]string{"kind": m.Kind}`) {
-		t.Fatalf("no minimal-object fallback:\n%s", out)
+	for _, want := range []string{
+		"if m.A == nil {",
+		`kind %q set but A is nil`,
+		"if len(set) > 1 {",
+		`kind %q selects no variant, but %s set`,
+		`map[string]string{"kind": m.Kind}`,
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("template output lacks %q:\n%s", want, out)
+		}
 	}
 }
 
@@ -597,5 +605,100 @@ func TestApplyPrivilegeAlternatives(t *testing.T) {
 	}
 	if err := applyPrivilegeAlternatives(methods, []string{"Nope"}); err == nil || !strings.Contains(err.Error(), "names no emitted method") {
 		t.Errorf("unknown method: err = %v", err)
+	}
+}
+
+// isAnnotationOnly decides whether an allOf overlay may be skipped, so each
+// clause is pinned on its own: an overlay carrying any one of these is a real
+// redefinition and must win.
+func TestIsAnnotationOnly(t *testing.T) {
+	item := openapi3.NewStringSchema()
+	cases := map[string]struct {
+		ref  *openapi3.SchemaRef
+		want bool
+	}{
+		"nil ref":          {nil, false},
+		"nil value":        {&openapi3.SchemaRef{}, false},
+		"$ref":             {&openapi3.SchemaRef{Ref: "#/components/schemas/X", Value: &openapi3.Schema{}}, false},
+		"example only":     {&openapi3.SchemaRef{Value: &openapi3.Schema{Example: "x"}}, true},
+		"description only": {&openapi3.SchemaRef{Value: &openapi3.Schema{Description: "d"}}, true},
+		"type":             {&openapi3.SchemaRef{Value: openapi3.NewIntegerSchema()}, false},
+		"format":           {&openapi3.SchemaRef{Value: &openapi3.Schema{Format: "date-time"}}, false},
+		"enum":             {&openapi3.SchemaRef{Value: &openapi3.Schema{Enum: []any{"A"}}}, false},
+		"items":            {&openapi3.SchemaRef{Value: &openapi3.Schema{Items: &openapi3.SchemaRef{Value: item}}}, false},
+		"properties":       {&openapi3.SchemaRef{Value: &openapi3.Schema{Properties: openapi3.Schemas{"a": {Value: item}}}}, false},
+		"allOf":            {&openapi3.SchemaRef{Value: &openapi3.Schema{AllOf: openapi3.SchemaRefs{{Value: item}}}}, false},
+		"oneOf":            {&openapi3.SchemaRef{Value: &openapi3.Schema{OneOf: openapi3.SchemaRefs{{Value: item}}}}, false},
+		"anyOf":            {&openapi3.SchemaRef{Value: &openapi3.Schema{AnyOf: openapi3.SchemaRefs{{Value: item}}}}, false},
+		"additionalProps":  {&openapi3.SchemaRef{Value: &openapi3.Schema{AdditionalProperties: openapi3.AdditionalProperties{Schema: &openapi3.SchemaRef{Value: item}}}}, false},
+		"nullable":         {&openapi3.SchemaRef{Value: &openapi3.Schema{Nullable: true}}, false},
+		"writeOnly":        {&openapi3.SchemaRef{Value: &openapi3.Schema{WriteOnly: true}}, false},
+		"readOnly":         {&openapi3.SchemaRef{Value: &openapi3.Schema{ReadOnly: true}}, false},
+	}
+	for name, tc := range cases {
+		if got := isAnnotationOnly(tc.ref); got != tc.want {
+			t.Errorf("%s: isAnnotationOnly = %v, want %v", name, got, tc.want)
+		}
+	}
+}
+
+// The discriminator is what licenses the new hoist arm. isInlineItemUnion
+// accepts `type: object` where isRefUnion refuses any type, so a discriminator-less
+// `{type: object, oneOf: [$ref, $ref]}` property differs only by that arm: without
+// the conjunct it would be hoisted, and re-typed from the merge it falls to today.
+func TestHoistInlineObjectsDiscriminatedArmIsNarrow(t *testing.T) {
+	doc := &openapi3.T{Components: &openapi3.Components{Schemas: openapi3.Schemas{
+		"Request": {Value: &openapi3.Schema{
+			Type: types("object"),
+			Properties: openapi3.Schemas{
+				"data": {Value: &openapi3.Schema{
+					Type:  types("object"),
+					OneOf: openapi3.SchemaRefs{schemaRef("A"), schemaRef("B")},
+				}},
+			},
+		}},
+		"A": {Value: openapi3.NewObjectSchema()},
+		"B": {Value: openapi3.NewObjectSchema()},
+	}}}
+
+	hoistInlineObjects(doc, "json")
+
+	if prop := doc.Components.Schemas["Request"].Value.Properties["data"]; prop.Ref != "" {
+		t.Fatalf("a discriminator-less typed oneOf was hoisted to %q", prop.Ref)
+	}
+}
+
+// The godoc line applyPrivilegeAlternatives rewrites is emitted elsewhere. When
+// it stops being emitted the method would carry both claims, so that must fail
+// generation rather than be skipped.
+func TestApplyPrivilegeAlternativesFailsWhenGodocLineIsGone(t *testing.T) {
+	methods := []GoMethod{{Name: "Send", ScopedPrivileges: []string{"a:execute", "b:execute"}, Comment: "Required privileges: a:execute, b:execute."}}
+	if err := applyPrivilegeAlternatives(methods, []string{"Send"}); err == nil || !strings.Contains(err.Error(), "has no") {
+		t.Fatalf("err = %v, want a refusal naming the missing godoc line", err)
+	}
+}
+
+// queryMissing is the negation of queryGuard, and every parameter type has its
+// own branch. The one configured requiredParams entry is a string, so the other
+// branches are exercised here and nowhere else.
+func TestQueryMissingNegatesQueryGuard(t *testing.T) {
+	for _, tc := range []struct {
+		typ, missing string
+	}{
+		{"string", `p == ""`},
+		{"bool", "!p"},
+		{"int", "p == 0"},
+		{"int64", "p == 0"},
+		{"[]string", "len(p) == 0"},
+	} {
+		qp := ExtraParam{Go: "p", Type: tc.typ}
+		got := funcMap["queryMissing"].(func(ExtraParam) string)(qp)
+		if got != tc.missing {
+			t.Errorf("%s: queryMissing = %q, want %q", tc.typ, got, tc.missing)
+		}
+		guard := funcMap["queryGuard"].(func(ExtraParam) string)(qp)
+		if guard == got {
+			t.Errorf("%s: queryGuard and queryMissing are both %q; one must be the negation of the other", tc.typ, got)
+		}
 	}
 }
