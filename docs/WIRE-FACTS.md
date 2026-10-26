@@ -1815,7 +1815,8 @@ the path-parameter enum godoc (which no key reaches) is corrected by
   deprecated in the spec (2026-03-13) and still queued.
 - **Icon upload (`pro.UploadIconV1`, `POST /v1/icon`).** The SDK sends the file
   untouched: the multipart `file` part was byte-identical to the source (same
-  SHA-256, `Content-Type: image/png`, HTTP/1.1 chunked, no declared length),
+  SHA-256, `Content-Type: image/png`, HTTP/1.1 chunked, no declared length —
+  the framing at the time),
   verified by capturing the request body. **The server then resizes it**: a
   2048×2048, 5.7 MB RGBA PNG is stored as a 512×512, 409 KB RGBA PNG — a plain
   downscale (alpha kept; mean per-channel difference 0.44/255 against a local

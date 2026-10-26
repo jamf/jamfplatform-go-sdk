@@ -79,13 +79,10 @@ func TestDoMultipart_FileUpload(t *testing.T) {
 	_ = srv
 }
 
-// Every multipart request is sent chunked, with no declared Content-Length,
-// whatever the reader is. A declared length lowered the ceiling of a large
-// upload on the gateway (1.43 GiB over HTTP/1.1 was refused near 1.04 GiB with
-// one and uploaded whole without), and there is deliberately no size threshold
-// or opt-out, so a seekable file, an *os.File and a plain reader must all take
-// the same path.
-func TestDoMultipart_NeverDeclaresContentLength(t *testing.T) {
+// Every multipart request declares an exact Content-Length when every file
+// part's size is knowable — a seekable reader or an *os.File — and is sent
+// chunked only for a plain reader. All three go over HTTP/1.1.
+func TestDoMultipart_ContentLengthFollowsReader(t *testing.T) {
 	file, err := os.CreateTemp(t.TempDir(), "up-*.bin")
 	if err != nil {
 		t.Fatal(err)
@@ -99,12 +96,15 @@ func TestDoMultipart_NeverDeclaresContentLength(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = file.Close() })
 
-	readers := map[string]func() io.Reader{
-		"bytes.Reader (seekable)": func() io.Reader { return bytes.NewReader([]byte(payload)) },
-		"*os.File":                func() io.Reader { _, _ = file.Seek(0, io.SeekStart); return file },
-		"plain io.Reader":         func() io.Reader { return unseekableReader{r: strings.NewReader(payload)} },
+	cases := map[string]struct {
+		mk      func() io.Reader
+		chunked bool
+	}{
+		"bytes.Reader (seekable)": {func() io.Reader { return bytes.NewReader([]byte(payload)) }, false},
+		"*os.File":                {func() io.Reader { _, _ = file.Seek(0, io.SeekStart); return file }, false},
+		"plain io.Reader":         {func() io.Reader { return unseekableReader{r: strings.NewReader(payload)} }, true},
 	}
-	for name, mk := range readers {
+	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			c, _, mux := newTestClient(t)
 			var gotCL int64
@@ -118,16 +118,26 @@ func TestDoMultipart_NeverDeclaresContentLength(t *testing.T) {
 			})
 
 			err := c.DoMultipart(context.Background(), http.MethodPost, "/api/up", []MultipartField{
-				{Name: "file", Filename: "x.bin", Content: mk()},
+				{Name: "file", Filename: "x.bin", Content: tc.mk()},
+				{Name: "note", Value: "v"},
 			}, http.StatusCreated, nil)
 			if err != nil {
 				t.Fatalf("DoMultipart: %v", err)
 			}
-			if gotCL != -1 {
-				t.Errorf("server saw ContentLength = %d, want -1 (no declared length)", gotCL)
-			}
-			if !slices.Equal(gotTE, []string{"chunked"}) {
-				t.Errorf("TransferEncoding = %v, want [chunked]", gotTE)
+			if tc.chunked {
+				if gotCL != -1 {
+					t.Errorf("ContentLength = %d, want -1 (size unknown)", gotCL)
+				}
+				if !slices.Equal(gotTE, []string{"chunked"}) {
+					t.Errorf("TransferEncoding = %v, want [chunked]", gotTE)
+				}
+			} else {
+				if gotCL != gotBody {
+					t.Errorf("ContentLength = %d, want the %d body bytes actually sent", gotCL, gotBody)
+				}
+				if len(gotTE) != 0 {
+					t.Errorf("TransferEncoding = %v, want none", gotTE)
+				}
 			}
 			if gotProto != "HTTP/1.1" {
 				t.Errorf("Proto = %q, want HTTP/1.1", gotProto)
@@ -233,12 +243,12 @@ func TestNewHTTP1Transport_DisablesHTTP2ButKeepsTheTuning(t *testing.T) {
 
 // A client supplied through WithHTTPClient keeps its own transport, and so its
 // own protocol; the framing still applies to it.
-func TestDoMultipart_CallerSuppliedClientStillGetsNoContentLength(t *testing.T) {
+func TestDoMultipart_CallerSuppliedClientStillGetsContentLength(t *testing.T) {
 	srv, mux := newTestServer(t)
-	var gotCL int64
+	var gotCL, gotBody int64
 	mux.HandleFunc("/api/up", func(w http.ResponseWriter, r *http.Request) {
 		gotCL = r.ContentLength
-		_, _ = io.Copy(io.Discard, r.Body)
+		gotBody, _ = io.Copy(io.Discard, r.Body)
 		w.WriteHeader(http.StatusCreated)
 	})
 	c := NewTransportWithUserAgent(srv.URL, "id", "secret", "ua/1",
@@ -249,8 +259,8 @@ func TestDoMultipart_CallerSuppliedClientStillGetsNoContentLength(t *testing.T) 
 	}, http.StatusCreated, nil); err != nil {
 		t.Fatalf("DoMultipart: %v", err)
 	}
-	if gotCL != -1 {
-		t.Errorf("ContentLength = %d, want -1", gotCL)
+	if gotCL != gotBody {
+		t.Errorf("ContentLength = %d, want the %d body bytes actually sent", gotCL, gotBody)
 	}
 }
 
