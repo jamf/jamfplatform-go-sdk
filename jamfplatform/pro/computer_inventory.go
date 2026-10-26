@@ -453,11 +453,13 @@ func (c *Client) UpdateComputerInventoryDetailV3(ctx context.Context, id string,
 // Parameters:
 //   - id: instance id of computer record.
 //
-// For file parts, pass an *os.File or *bytes.Reader (anything that
-// implements io.Seeker) so the SDK can rewind the file and retry on a
-// 429/Retry-After. A plain io.Reader is accepted too but is not retried.
-// The upload is sent over HTTP/1.1, with an exact Content-Length when the
-// reader is seekable and chunked transfer encoding when it is not.
+// The upload is sent over HTTP/1.1 with an exact Content-Length, never
+// chunked, so the SDK must be able to size each file part. Pass an *os.File
+// or *bytes.Reader (anything that implements io.Seeker) so it can also rewind
+// the file and retry on a 429/Retry-After; a *bytes.Buffer is sized but not
+// retried. Wrap any other reader with jamfplatform.SizedReader, giving its
+// length, or the call fails with jamfplatform.ErrUnknownUploadSize before
+// anything is sent.
 func (c *Client) UploadComputerInventoryAttachmentV4(ctx context.Context, id string, fileFilename string, file io.Reader) (*HrefResponse, error) {
 	prefix := c.transport.APIPrefix("pro", "v4")
 	var result HrefResponse
@@ -480,11 +482,13 @@ func (c *Client) UploadComputerInventoryAttachmentV4(ctx context.Context, id str
 // Parameters:
 //   - id: instance id of computer record.
 //
-// For file parts, pass an *os.File or *bytes.Reader (anything that
-// implements io.Seeker) so the SDK can rewind the file and retry on a
-// 429/Retry-After. A plain io.Reader is accepted too but is not retried.
-// The upload is sent over HTTP/1.1, with an exact Content-Length when the
-// reader is seekable and chunked transfer encoding when it is not.
+// The upload is sent over HTTP/1.1 with an exact Content-Length, never
+// chunked, so the SDK must be able to size each file part. Pass an *os.File
+// or *bytes.Reader (anything that implements io.Seeker) so it can also rewind
+// the file and retry on a 429/Retry-After; a *bytes.Buffer is sized but not
+// retried. Wrap any other reader with jamfplatform.SizedReader, giving its
+// length, or the call fails with jamfplatform.ErrUnknownUploadSize before
+// anything is sent.
 func (c *Client) UploadComputerInventoryAttachmentV3(ctx context.Context, id string, fileFilename string, file io.Reader) (*HrefResponse, error) {
 	prefix := c.transport.APIPrefix("pro", "v3")
 	var result HrefResponse

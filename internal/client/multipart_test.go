@@ -8,12 +8,12 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"io"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -79,10 +79,10 @@ func TestDoMultipart_FileUpload(t *testing.T) {
 	_ = srv
 }
 
-// Every multipart request declares an exact Content-Length when every file
-// part's size is knowable — a seekable reader or an *os.File — and is sent
-// chunked only for a plain reader. All three go over HTTP/1.1.
-func TestDoMultipart_ContentLengthFollowsReader(t *testing.T) {
+// Every multipart request declares an exact Content-Length and goes over
+// HTTP/1.1, whether the size comes from a seekable reader, an *os.File or a
+// NewSizedReader declaration. None is ever sent chunked.
+func TestDoMultipart_AlwaysDeclaresContentLength(t *testing.T) {
 	file, err := os.CreateTemp(t.TempDir(), "up-*.bin")
 	if err != nil {
 		t.Fatal(err)
@@ -96,15 +96,14 @@ func TestDoMultipart_ContentLengthFollowsReader(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = file.Close() })
 
-	cases := map[string]struct {
-		mk      func() io.Reader
-		chunked bool
-	}{
-		"bytes.Reader (seekable)": {func() io.Reader { return bytes.NewReader([]byte(payload)) }, false},
-		"*os.File":                {func() io.Reader { _, _ = file.Seek(0, io.SeekStart); return file }, false},
-		"plain io.Reader":         {func() io.Reader { return unseekableReader{r: strings.NewReader(payload)} }, true},
+	readers := map[string]func() io.Reader{
+		"bytes.Reader (seekable)": func() io.Reader { return bytes.NewReader([]byte(payload)) },
+		"*os.File":                func() io.Reader { _, _ = file.Seek(0, io.SeekStart); return file },
+		"NewSizedReader": func() io.Reader {
+			return NewSizedReader(unseekableReader{r: strings.NewReader(payload)}, int64(len(payload)))
+		},
 	}
-	for name, tc := range cases {
+	for name, mk := range readers {
 		t.Run(name, func(t *testing.T) {
 			c, _, mux := newTestClient(t)
 			var gotCL int64
@@ -118,26 +117,17 @@ func TestDoMultipart_ContentLengthFollowsReader(t *testing.T) {
 			})
 
 			err := c.DoMultipart(context.Background(), http.MethodPost, "/api/up", []MultipartField{
-				{Name: "file", Filename: "x.bin", Content: tc.mk()},
+				{Name: "file", Filename: "x.bin", Content: mk()},
 				{Name: "note", Value: "v"},
 			}, http.StatusCreated, nil)
 			if err != nil {
 				t.Fatalf("DoMultipart: %v", err)
 			}
-			if tc.chunked {
-				if gotCL != -1 {
-					t.Errorf("ContentLength = %d, want -1 (size unknown)", gotCL)
-				}
-				if !slices.Equal(gotTE, []string{"chunked"}) {
-					t.Errorf("TransferEncoding = %v, want [chunked]", gotTE)
-				}
-			} else {
-				if gotCL != gotBody {
-					t.Errorf("ContentLength = %d, want the %d body bytes actually sent", gotCL, gotBody)
-				}
-				if len(gotTE) != 0 {
-					t.Errorf("TransferEncoding = %v, want none", gotTE)
-				}
+			if gotCL != gotBody {
+				t.Errorf("ContentLength = %d, want the %d body bytes actually sent", gotCL, gotBody)
+			}
+			if len(gotTE) != 0 {
+				t.Errorf("TransferEncoding = %v, want none", gotTE)
 			}
 			if gotProto != "HTTP/1.1" {
 				t.Errorf("Proto = %q, want HTTP/1.1", gotProto)
@@ -149,8 +139,56 @@ func TestDoMultipart_ContentLengthFollowsReader(t *testing.T) {
 	}
 }
 
+// A reader whose size cannot be known is refused before any request goes out,
+// rather than sent chunked — including a NewSizedReader with a negative length.
+// The refusal is not a transport error, so it is not retried either.
+func TestDoMultipart_RefusesUnknownSize(t *testing.T) {
+	readers := map[string]io.Reader{
+		"plain io.Reader":         unseekableReader{r: strings.NewReader("payload")},
+		"negative NewSizedReader": NewSizedReader(unseekableReader{r: strings.NewReader("payload")}, -1),
+	}
+	for name, r := range readers {
+		t.Run(name, func(t *testing.T) {
+			c, _, mux := newTestClient(t)
+			var calls atomic.Int32
+			mux.HandleFunc("/api/up", func(w http.ResponseWriter, r *http.Request) {
+				calls.Add(1)
+				w.WriteHeader(http.StatusCreated)
+			})
+			err := c.DoMultipart(context.Background(), http.MethodPost, "/api/up", []MultipartField{
+				{Name: "file", Filename: "x.bin", Content: r},
+			}, http.StatusCreated, nil)
+			if !errors.Is(err, ErrUnknownUploadSize) {
+				t.Fatalf("err = %v, want ErrUnknownUploadSize", err)
+			}
+			if !strings.Contains(err.Error(), `"file"`) {
+				t.Errorf("err = %v, want it to name the part", err)
+			}
+			if got := calls.Load(); got != 0 {
+				t.Errorf("server saw %d requests, want 0", got)
+			}
+		})
+	}
+}
+
+// A NewSizedReader whose reader yields fewer bytes than declared fails the
+// request instead of sending a short body the server would take as complete.
+func TestDoMultipart_SizedReaderShortBodyFails(t *testing.T) {
+	c, _, mux := newTestClient(t)
+	mux.HandleFunc("/api/up", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.Copy(io.Discard, r.Body)
+		w.WriteHeader(http.StatusCreated)
+	})
+	err := c.DoMultipart(context.Background(), http.MethodPost, "/api/up", []MultipartField{
+		{Name: "file", Filename: "x.bin", Content: NewSizedReader(unseekableReader{r: strings.NewReader("short")}, 100)},
+	}, http.StatusCreated, nil)
+	if err == nil {
+		t.Fatal("DoMultipart succeeded with a body shorter than its declared length")
+	}
+}
+
 // unseekableReader is an io.Reader that deliberately does not implement
-// io.Seeker — used to assert the not-rewindable path.
+// io.Seeker — used to assert the unknown-size and not-rewindable paths.
 type unseekableReader struct{ r io.Reader }
 
 func (u unseekableReader) Read(p []byte) (int, error) { return u.r.Read(p) }
@@ -404,7 +442,7 @@ func TestDoMultipart_NoRetryWhenNotRewindable(t *testing.T) {
 	})
 
 	err := c.DoMultipart(context.Background(), http.MethodPut, "/api/unseekable-upload", []MultipartField{
-		{Name: "file", Filename: "pkg.bin", Content: unseekableReader{r: strings.NewReader("payload")}},
+		{Name: "file", Filename: "pkg.bin", Content: NewSizedReader(unseekableReader{r: strings.NewReader("payload")}, int64(len("payload")))},
 	}, http.StatusCreated, nil)
 	if err == nil {
 		t.Fatal("expected error, got nil")

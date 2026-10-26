@@ -1632,9 +1632,12 @@ returns and that would cap every call and upload.
 ### Multipart uploads: HTTP/1.1, declared length, no threshold, no opt-out
 
 Every `DoMultipart` request — all eleven file-body methods, not only package
-upload — goes over **HTTP/1.1 with an exact `Content-Length`** whenever every
-file part's size is knowable (an `*os.File` or any `io.Seeker`), and chunked
-only for a plain `io.Reader`. `multipartContentLength` sizes the body by driving
+upload — goes over **HTTP/1.1 with an exact `Content-Length`, and nothing is
+ever sent chunked.** Each file part must be sizeable: an `*os.File`, any
+`io.Seeker`, anything with `Len() int` (`*bytes.Buffer`), or a reader wrapped
+with `jamfplatform.SizedReader`. Any other reader is refused with
+`ErrUnknownUploadSize` before a request is sent, and that refusal is not
+retried. `multipartContentLength` sizes the body by driving
 a `multipart.Writer` against a byte counter with the same boundary, so the
 framing bytes are counted exactly and nothing is buffered. `sendMultipart`
 marks the context; `protocolTransport`, installed at the bottom of the SDK-built
@@ -1663,8 +1666,15 @@ Decisions that look like omissions:
   four times is a lot of extra traffic for the gateway to take. One retry still
   covers the common case, a stale keep-alive connection or a brief network drop.
   The length is recomputed per attempt, after the rewind.
-- **No opt-out.** Nothing has asked for h2 or for forced chunking; add one only
-  when a consumer needs it.
+- **No opt-out, and no chunked fallback.** Nothing has asked for h2 or for
+  chunking; add one only when a consumer needs it.
+- **`SizedReader` exists for streams.** A body streamed from a URL has no size
+  the SDK can discover, and only the caller knows it — from the source
+  response's `Content-Length`. The alternatives are worse: a size parameter on
+  all eleven methods breaks every caller, and spooling to a temp file or memory
+  inside the SDK is a hidden multi-gigabyte cost. A reader that yields a
+  different number of bytes than declared fails the request, never sends a
+  malformed body. A `SizedReader` is not seekable, so its upload is not retried.
 - **The route is per request, not a swap of `uploadClient`'s transport**, because
   that client also carries the no-retry JSON writes, which must stay on h2, and the
   token exchange carries no marker.
@@ -1673,8 +1683,9 @@ Decisions that look like omissions:
   transport it does not own.
 - **`WithResponseHeaderTimeout` applies to both transports.**
 
-`TestDoMultipart_ContentLengthFollowsReader` and
-`TestDoMultipart_UsesHTTP1WhileEverythingElseUsesHTTP2` pin it; the second runs
+`TestDoMultipart_AlwaysDeclaresContentLength`,
+`TestDoMultipart_RefusesUnknownSize` and
+`TestDoMultipart_UsesHTTP1WhileEverythingElseUsesHTTP2` pin it; the last runs
 against a TLS server that speaks h2 and records the protocol each request used.
 
 `TestTunedTransport_*`, `TestWithResponseHeaderTimeout_*` and

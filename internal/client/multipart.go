@@ -6,6 +6,7 @@ package client
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"mime"
@@ -28,15 +29,46 @@ const multipartCopyBuf = 1 << 20
 // idempotent methods) still run to retryMax.
 const maxMultipartTransportRetries = 1
 
+// ErrUnknownUploadSize reports that a multipart file part's length could not
+// be determined, so the upload was refused before any request was sent. Every
+// upload declares an exact Content-Length and none is sent chunked; pass an
+// *os.File, an io.Seeker, a *bytes.Buffer, or a reader wrapped with
+// NewSizedReader.
+var ErrUnknownUploadSize = errors.New("jamfplatform: upload size unknown; pass an *os.File, an io.Seeker, a *bytes.Buffer, or a reader wrapped with SizedReader")
+
+// sizer is implemented by a reader that knows how many bytes remain to be
+// read from it. NewSizedReader returns one.
+type sizer interface {
+	ContentLength() int64
+}
+
+// sizedReader pairs a reader of unknown length with the caller's declaration
+// of how many bytes it will yield.
+type sizedReader struct {
+	io.Reader
+	n int64
+}
+
+func (s *sizedReader) ContentLength() int64 { return s.n }
+
+// NewSizedReader declares that r will yield exactly n more bytes, so an upload
+// streamed from it can declare its Content-Length. If r yields a different
+// number of bytes, the request fails rather than sending a malformed body. The
+// result is not seekable, so an upload from it is not retried.
+func NewSizedReader(r io.Reader, n int64) io.Reader {
+	return &sizedReader{Reader: r, n: n}
+}
+
 // MultipartField represents one part of a multipart/form-data request body.
 // Exactly one of Filename (file upload) or Value (text field) must be set.
 //
 // For file parts, Content is consumed once and streamed directly to the
 // network — no in-memory buffering of the whole body. The body is always sent
-// over HTTP/1.1. When every file part is an *os.File or an io.Seeker, the
-// transport precomputes an exact Content-Length; otherwise the body is sent
-// chunked. An io.Seeker also makes the upload retryable, because it can be
-// rewound and streamed again. See sendMultipart for why.
+// over HTTP/1.1 with an exact Content-Length, never chunked, so every file
+// part's size must be knowable: an *os.File, an io.Seeker, a *bytes.Buffer, or
+// a reader wrapped with NewSizedReader. Any other reader is refused with ErrUnknownUploadSize
+// before a request is sent. An io.Seeker also makes the upload retryable,
+// because it can be rewound and streamed again. See sendMultipart for why.
 type MultipartField struct {
 	Name     string    // form field name
 	Filename string    // if non-empty, part is a file upload with this filename
@@ -69,6 +101,14 @@ func (c *Transport) DoMultipart(ctx context.Context, method, path string, fields
 	fullURL := c.buildURL(path)
 	if err := checkDeniedPath(method, fullURL); err != nil {
 		return err
+	}
+	for _, f := range fields {
+		if f.Filename == "" {
+			continue
+		}
+		if _, ok := readerSize(f.Content); !ok {
+			return fmt.Errorf("multipart part %q: %w", f.Name, ErrUnknownUploadSize)
+		}
 	}
 
 	var resp *http.Response
@@ -128,10 +168,9 @@ func (c *Transport) DoMultipart(ctx context.Context, method, path string, fields
 func (c *Transport) sendMultipart(ctx context.Context, method, fullURL string, fields []MultipartField) (*http.Response, error) {
 	boundary := randomBoundary()
 
-	// Every multipart request goes out over HTTP/1.1, with an exact
-	// Content-Length whenever every file part's size is knowable, and chunked
-	// only when it is not (a plain io.Reader). Both measured against the GA
-	// gateway:
+	// Every multipart request goes out over HTTP/1.1 with an exact
+	// Content-Length, never chunked; DoMultipart has already refused a part
+	// whose size is unknowable. Both measured against the GA gateway:
 	//
 	//   - HTTP/1.1: CloudFront advertises a 64 KiB per-stream HTTP/2 window, so a
 	//     single h2 upload often tops out near 4 MiB/s, where HTTP/1.1 runs at
@@ -140,12 +179,15 @@ func (c *Transport) sendMultipart(ctx context.Context, method, fullURL string, f
 	//   - Content-Length: framing made no measurable difference to throughput
 	//     over HTTP/1.1 at that size (8.1-9.1 declared, 7.6-9.4 chunked). A
 	//     declared length lets the server refuse an oversize body up front and
-	//     is understood by every intermediary, so it is the default again.
+	//     is understood by every intermediary, so it is the only framing.
 	//
 	// Marking the context is what routes this request to the HTTP/1.1 transport;
 	// a client supplied through WithHTTPClient keeps its own transport and so
 	// its own protocol, and only the framing applies to it.
-	contentLen, canPrecompute := multipartContentLength(fields, boundary)
+	contentLen, ok := multipartContentLength(fields, boundary)
+	if !ok {
+		return nil, fmt.Errorf("multipart: %w", ErrUnknownUploadSize)
+	}
 	ctx = withHTTP1(ctx)
 
 	pr, pw := io.Pipe()
@@ -160,13 +202,7 @@ func (c *Transport) sendMultipart(ctx context.Context, method, fullURL string, f
 	}
 	c.setScopeHeader(req)
 	req.Header.Set("Content-Type", "multipart/form-data; boundary="+boundary)
-	// -1 declares the length unknown, so net/http chunks the body without
-	// probing it first (a zero length with a non-nil body makes it wait up to
-	// 200ms for a first byte to decide).
-	req.ContentLength = -1
-	if canPrecompute {
-		req.ContentLength = contentLen
-	}
+	req.ContentLength = contentLen
 
 	if c.logger != nil {
 		c.logger.LogRequest(ctx, method, fullURL, []byte("<multipart body>"))
@@ -293,8 +329,7 @@ func filePartHeader(name, filename string) textproto.MIMEHeader {
 
 // multipartContentLength computes the exact byte length of the multipart
 // body produced by writeMultipart. Returns ok=false if any file part's
-// Content size cannot be determined (non-seekable io.Reader). In that case
-// the caller should send with chunked transfer encoding.
+// Content size cannot be determined, which DoMultipart refuses up front.
 //
 // Implementation: drive a multipart.Writer against a byte-counting sink so
 // boundary/header/CRLF bytes are measured exactly as they will be written
@@ -339,11 +374,20 @@ func multipartContentLength(fields []MultipartField, boundary string) (int64, bo
 // readerSize reports the number of bytes remaining in r, if knowable without
 // consuming the reader. Nil Content counts as zero bytes. Supported shapes:
 //   - nil
+//   - a reader from NewSizedReader: the declared length, if not negative
+//   - Len() int: the unread length (bytes.Buffer, bytes.Reader, strings.Reader)
 //   - *os.File: Stat size minus current offset
 //   - io.Seeker: seek-to-end / restore (covers bytes.Reader, strings.Reader)
 func readerSize(r io.Reader) (int64, bool) {
 	if r == nil {
 		return 0, true
+	}
+	if s, ok := r.(sizer); ok {
+		n := s.ContentLength()
+		return n, n >= 0
+	}
+	if l, ok := r.(interface{ Len() int }); ok {
+		return int64(l.Len()), true
 	}
 	if f, ok := r.(*os.File); ok {
 		st, err := f.Stat()

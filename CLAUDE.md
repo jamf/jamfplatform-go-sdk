@@ -309,9 +309,10 @@ was passed and so override it — a Terraform `update = "10m"` was cut off at 60
 check on the tuned transport (30s + 15s), which cannot interrupt a slow response.
 Every consumer is expected to pass a context with a deadline.
 
-**Multipart uploads go over HTTP/1.1 with an exact `Content-Length`** — every
-`DoMultipart` method; chunked only when a file part is a plain `io.Reader` whose
-size cannot be known. CloudFront's 64 KiB per-stream h2 window halves an h2
+**Multipart uploads go over HTTP/1.1 with an exact `Content-Length`, never
+chunked** — every `DoMultipart` method. A file part whose size cannot be known
+is refused with `ErrUnknownUploadSize` before sending; a stream is passed
+through `jamfplatform.SizedReader` with its length. CloudFront's 64 KiB per-stream h2 window halves an h2
 upload's throughput on many runs (re-measured 2026-10-26), while framing makes no
 measurable difference over HTTP/1.1. Transport-error retries of an upload are
 bounded at one, since each re-sends the whole file. Rationale, the
