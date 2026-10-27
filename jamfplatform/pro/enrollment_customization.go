@@ -345,11 +345,13 @@ func (c *Client) CreateEnrollmentCustomizationV2(ctx context.Context, request *E
 //
 // Required privileges: enrollment-customization:update. Legacy Jamf Pro privilege name(s): Update Enrollment Customizations.
 //
-// For file parts, pass an *os.File or *bytes.Reader (anything that
-// implements io.Seeker) so the SDK can rewind the file and retry on a
-// 429/Retry-After. A plain io.Reader is accepted too but is not retried.
-// Whatever the reader, the upload is sent over HTTP/1.1 with chunked
-// transfer encoding and no declared Content-Length.
+// The upload is sent over HTTP/1.1 with an exact Content-Length, never
+// chunked, so the SDK must be able to size each file part. Pass an *os.File
+// or *bytes.Reader (anything that implements io.Seeker) so it can also rewind
+// the file and retry on a 429/Retry-After; a *bytes.Buffer is sized but not
+// retried. Wrap any other reader with jamfplatform.SizedReader, giving its
+// length, or the call fails with jamfplatform.ErrUnknownUploadSize before
+// anything is sent.
 func (c *Client) UploadEnrollmentCustomizationImageV2(ctx context.Context, fileFilename string, file io.Reader) (*BrandingImageURL, error) {
 	prefix := c.transport.APIPrefix("pro", "v2")
 	var result BrandingImageURL

@@ -1629,52 +1629,52 @@ the token URL beneath the header wrapper — not `Client.Timeout` on the base
 client**, because `oauth2.NewClient` copies `Timeout` onto the API client it
 returns and that would cap every call and upload.
 
-### Multipart uploads: HTTP/1.1, no declared length, no threshold, no opt-out
+### Multipart uploads: HTTP/1.1, declared length, no threshold, no opt-out
 
 Every `DoMultipart` request — all eleven file-body methods, not only package
-upload — goes over **HTTP/1.1 with `Transfer-Encoding: chunked` and no
-`Content-Length`**, whatever the reader is. `sendMultipart` sets
-`ContentLength = -1` and marks the context; `protocolTransport`, installed at the
-bottom of the SDK-built chain, sends a marked request to `newHTTP1Transport()` and
-everything else to the HTTP/2-capable transport.
-
-Both halves were measured against the GA gateway, and neither is general best
-practice. A declared length is normally the better default: it lets a server
-refuse an oversize body up front, gives progress and ETA, and is understood by
-every intermediary. This is a workaround for how this gateway behaves, which is
-why the rationale is recorded here and should be revisited if it changes.
+upload — goes over **HTTP/1.1 with an exact `Content-Length`, and nothing is
+ever sent chunked.** Each file part must be sizeable: an `*os.File`, any
+`io.Seeker`, anything with `Len() int` (`*bytes.Buffer`), or a reader wrapped
+with `jamfplatform.SizedReader`. Any other reader is refused with
+`ErrUnknownUploadSize` before a request is sent, and that refusal is not
+retried. `multipartContentLength` sizes the body by driving
+a `multipart.Writer` against a byte counter with the same boundary, so the
+framing bytes are counted exactly and nothing is buffered. `sendMultipart`
+marks the context; `protocolTransport`, installed at the bottom of the SDK-built
+chain, sends a marked request to `newHTTP1Transport()` and everything else to
+the HTTP/2-capable transport.
 
 - **HTTP/1.1.** CloudFront advertises `SETTINGS_INITIAL_WINDOW_SIZE=65536`, so one
-  h2 upload is capped at 64 KiB per round trip: about 4 MiB/s at 13 ms, against
-  about 10 MiB/s over HTTP/1.1 on the same uplink (curl and Go alike). The client
-  cannot raise the server's window, and the penalty grows with RTT.
-- **No declared length.** On one tenant over HTTP/1.1, the same 1.43 GiB file was
-  refused with a 502 at about 1.04 GiB when the length was declared (Go and curl
-  agree) and uploaded whole, with matching SHA3-512, SHA-256 and MD5, when it was
-  not. Over h2 a declared length failed from 375 MiB up on two tenants.
-- **It raises the ceiling and does not remove it.** A 2 GiB file still fails
-  mid-body on both tenants tried, and the ceiling without a declared length varies
-  by tenant and by run (the first tenant mostly died near 1.36 GiB). Uploads are
-  not resumable: a failure means starting again from byte zero.
-- **This is not a statement that very large uploads are safe.** The gateway
-  is not sized for very large request bodies, so the framing buys throughput
-  and headroom, not a licence to send multi-gigabyte bodies.
-  Callers that can bound package size should.
+  h2 upload is often capped at 64 KiB per round trip. Re-measured 2026-10-26 on
+  the EU gateway (7 ms RTT, 20 MiB random body, fresh connection per upload, 8
+  rounds): HTTP/1.1 8.1–9.4 MiB/s on every run; HTTP/2 3.5–9.2 MiB/s, with 7 of
+  16 runs under 5 MiB/s. HTTP/2 is never faster and often half the speed. The
+  client cannot raise the server's window, and the penalty grows with RTT.
+- **Declared length.** Framing made no measurable throughput difference over
+  HTTP/1.1 in the same run (declared 8.1–9.1 MiB/s, chunked 7.6–9.4 MiB/s). A
+  declared length is the general best practice — the server can refuse an
+  oversize body up front, and every intermediary understands it — so it is the
+  default.
 
 Decisions that look like omissions:
 
-- **No size threshold, because the point where the gateway refuses varies.** It
-  differs by tenant and by run, so any cut-off would encode one observation as a
-  rule. Sending every upload the same way is correct wherever that point falls.
+- **No size threshold.** The point where the gateway refuses varies by tenant
+  and by run, so any cut-off would encode one observation as a rule.
 - **Transport-error retries are bounded at one** (`maxMultipartTransportRetries`),
   where status-driven retries (429, and 5xx on idempotent methods) still run to
   `retryMax`. A retry re-sends the whole file, so repeating a very large body
   four times is a lot of extra traffic for the gateway to take. One retry still
   covers the common case, a stale keep-alive connection or a brief network drop.
-- **No opt-out.** The only reason to want HTTP/2 here is that something upstream
-  rejects chunked bodies, which no consumer has reported; if one does, answer
-  `411 Length Required` with a retry that declares the length rather than adding a
-  knob. Not built, because nothing yet needs it.
+  The length is recomputed per attempt, after the rewind.
+- **No opt-out, and no chunked fallback.** Nothing has asked for h2 or for
+  chunking; add one only when a consumer needs it.
+- **`SizedReader` exists for streams.** A body streamed from a URL has no size
+  the SDK can discover, and only the caller knows it — from the source
+  response's `Content-Length`. The alternatives are worse: a size parameter on
+  all eleven methods breaks every caller, and spooling to a temp file or memory
+  inside the SDK is a hidden multi-gigabyte cost. A reader that yields a
+  different number of bytes than declared fails the request, never sends a
+  malformed body. A `SizedReader` is not seekable, so its upload is not retried.
 - **The route is per request, not a swap of `uploadClient`'s transport**, because
   that client also carries the no-retry JSON writes, which must stay on h2, and the
   token exchange carries no marker.
@@ -1683,8 +1683,9 @@ Decisions that look like omissions:
   transport it does not own.
 - **`WithResponseHeaderTimeout` applies to both transports.**
 
-`TestDoMultipart_NeverDeclaresContentLength` and
-`TestDoMultipart_UsesHTTP1WhileEverythingElseUsesHTTP2` pin it; the second runs
+`TestDoMultipart_AlwaysDeclaresContentLength`,
+`TestDoMultipart_RefusesUnknownSize` and
+`TestDoMultipart_UsesHTTP1WhileEverythingElseUsesHTTP2` pin it; the last runs
 against a TLS server that speaks h2 and records the protocol each request used.
 
 `TestTunedTransport_*`, `TestWithResponseHeaderTimeout_*` and

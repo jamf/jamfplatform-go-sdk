@@ -5,6 +5,7 @@ package jamfplatform
 
 import (
 	"context"
+	"io"
 	"log"
 	"net/http"
 	"path/filepath"
@@ -425,3 +426,19 @@ func WithResponseHeaderTimeout(d time.Duration) Option {
 		cfg.responseHeaderTimeout = d
 	}
 }
+
+// SizedReader declares that r will yield exactly n more bytes, for passing to
+// an upload method when r is not an *os.File, an io.Seeker or a *bytes.Buffer — a body
+// streamed from a URL whose response declared its Content-Length, say. Every
+// upload declares its length and none is sent chunked, so an upload method
+// refuses any other reader with ErrUnknownUploadSize. If r yields a different
+// number of bytes the request fails rather than sending a malformed body. The
+// result is not seekable, so an upload from it is not retried.
+func SizedReader(r io.Reader, n int64) io.Reader {
+	return client.NewSizedReader(r, n)
+}
+
+// ErrUnknownUploadSize reports that an upload method was given a reader whose
+// length it cannot determine. Nothing was sent. Pass an *os.File, an
+// io.Seeker or a *bytes.Buffer, or wrap the reader with SizedReader.
+var ErrUnknownUploadSize = client.ErrUnknownUploadSize

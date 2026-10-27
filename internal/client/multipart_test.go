@@ -8,12 +8,12 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"io"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -79,13 +79,10 @@ func TestDoMultipart_FileUpload(t *testing.T) {
 	_ = srv
 }
 
-// Every multipart request is sent chunked, with no declared Content-Length,
-// whatever the reader is. A declared length lowered the ceiling of a large
-// upload on the gateway (1.43 GiB over HTTP/1.1 was refused near 1.04 GiB with
-// one and uploaded whole without), and there is deliberately no size threshold
-// or opt-out, so a seekable file, an *os.File and a plain reader must all take
-// the same path.
-func TestDoMultipart_NeverDeclaresContentLength(t *testing.T) {
+// Every multipart request declares an exact Content-Length and goes over
+// HTTP/1.1, whether the size comes from a seekable reader, an *os.File or a
+// NewSizedReader declaration. None is ever sent chunked.
+func TestDoMultipart_AlwaysDeclaresContentLength(t *testing.T) {
 	file, err := os.CreateTemp(t.TempDir(), "up-*.bin")
 	if err != nil {
 		t.Fatal(err)
@@ -102,7 +99,9 @@ func TestDoMultipart_NeverDeclaresContentLength(t *testing.T) {
 	readers := map[string]func() io.Reader{
 		"bytes.Reader (seekable)": func() io.Reader { return bytes.NewReader([]byte(payload)) },
 		"*os.File":                func() io.Reader { _, _ = file.Seek(0, io.SeekStart); return file },
-		"plain io.Reader":         func() io.Reader { return unseekableReader{r: strings.NewReader(payload)} },
+		"NewSizedReader": func() io.Reader {
+			return NewSizedReader(unseekableReader{r: strings.NewReader(payload)}, int64(len(payload)))
+		},
 	}
 	for name, mk := range readers {
 		t.Run(name, func(t *testing.T) {
@@ -119,15 +118,16 @@ func TestDoMultipart_NeverDeclaresContentLength(t *testing.T) {
 
 			err := c.DoMultipart(context.Background(), http.MethodPost, "/api/up", []MultipartField{
 				{Name: "file", Filename: "x.bin", Content: mk()},
+				{Name: "note", Value: "v"},
 			}, http.StatusCreated, nil)
 			if err != nil {
 				t.Fatalf("DoMultipart: %v", err)
 			}
-			if gotCL != -1 {
-				t.Errorf("server saw ContentLength = %d, want -1 (no declared length)", gotCL)
+			if gotCL != gotBody {
+				t.Errorf("ContentLength = %d, want the %d body bytes actually sent", gotCL, gotBody)
 			}
-			if !slices.Equal(gotTE, []string{"chunked"}) {
-				t.Errorf("TransferEncoding = %v, want [chunked]", gotTE)
+			if len(gotTE) != 0 {
+				t.Errorf("TransferEncoding = %v, want none", gotTE)
 			}
 			if gotProto != "HTTP/1.1" {
 				t.Errorf("Proto = %q, want HTTP/1.1", gotProto)
@@ -139,8 +139,56 @@ func TestDoMultipart_NeverDeclaresContentLength(t *testing.T) {
 	}
 }
 
+// A reader whose size cannot be known is refused before any request goes out,
+// rather than sent chunked — including a NewSizedReader with a negative length.
+// The refusal is not a transport error, so it is not retried either.
+func TestDoMultipart_RefusesUnknownSize(t *testing.T) {
+	readers := map[string]io.Reader{
+		"plain io.Reader":         unseekableReader{r: strings.NewReader("payload")},
+		"negative NewSizedReader": NewSizedReader(unseekableReader{r: strings.NewReader("payload")}, -1),
+	}
+	for name, r := range readers {
+		t.Run(name, func(t *testing.T) {
+			c, _, mux := newTestClient(t)
+			var calls atomic.Int32
+			mux.HandleFunc("/api/up", func(w http.ResponseWriter, r *http.Request) {
+				calls.Add(1)
+				w.WriteHeader(http.StatusCreated)
+			})
+			err := c.DoMultipart(context.Background(), http.MethodPost, "/api/up", []MultipartField{
+				{Name: "file", Filename: "x.bin", Content: r},
+			}, http.StatusCreated, nil)
+			if !errors.Is(err, ErrUnknownUploadSize) {
+				t.Fatalf("err = %v, want ErrUnknownUploadSize", err)
+			}
+			if !strings.Contains(err.Error(), `"file"`) {
+				t.Errorf("err = %v, want it to name the part", err)
+			}
+			if got := calls.Load(); got != 0 {
+				t.Errorf("server saw %d requests, want 0", got)
+			}
+		})
+	}
+}
+
+// A NewSizedReader whose reader yields fewer bytes than declared fails the
+// request instead of sending a short body the server would take as complete.
+func TestDoMultipart_SizedReaderShortBodyFails(t *testing.T) {
+	c, _, mux := newTestClient(t)
+	mux.HandleFunc("/api/up", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.Copy(io.Discard, r.Body)
+		w.WriteHeader(http.StatusCreated)
+	})
+	err := c.DoMultipart(context.Background(), http.MethodPost, "/api/up", []MultipartField{
+		{Name: "file", Filename: "x.bin", Content: NewSizedReader(unseekableReader{r: strings.NewReader("short")}, 100)},
+	}, http.StatusCreated, nil)
+	if err == nil {
+		t.Fatal("DoMultipart succeeded with a body shorter than its declared length")
+	}
+}
+
 // unseekableReader is an io.Reader that deliberately does not implement
-// io.Seeker — used to assert the not-rewindable path.
+// io.Seeker — used to assert the unknown-size and not-rewindable paths.
 type unseekableReader struct{ r io.Reader }
 
 func (u unseekableReader) Read(p []byte) (int, error) { return u.r.Read(p) }
@@ -233,12 +281,12 @@ func TestNewHTTP1Transport_DisablesHTTP2ButKeepsTheTuning(t *testing.T) {
 
 // A client supplied through WithHTTPClient keeps its own transport, and so its
 // own protocol; the framing still applies to it.
-func TestDoMultipart_CallerSuppliedClientStillGetsNoContentLength(t *testing.T) {
+func TestDoMultipart_CallerSuppliedClientStillGetsContentLength(t *testing.T) {
 	srv, mux := newTestServer(t)
-	var gotCL int64
+	var gotCL, gotBody int64
 	mux.HandleFunc("/api/up", func(w http.ResponseWriter, r *http.Request) {
 		gotCL = r.ContentLength
-		_, _ = io.Copy(io.Discard, r.Body)
+		gotBody, _ = io.Copy(io.Discard, r.Body)
 		w.WriteHeader(http.StatusCreated)
 	})
 	c := NewTransportWithUserAgent(srv.URL, "id", "secret", "ua/1",
@@ -249,8 +297,8 @@ func TestDoMultipart_CallerSuppliedClientStillGetsNoContentLength(t *testing.T) 
 	}, http.StatusCreated, nil); err != nil {
 		t.Fatalf("DoMultipart: %v", err)
 	}
-	if gotCL != -1 {
-		t.Errorf("ContentLength = %d, want -1", gotCL)
+	if gotCL != gotBody {
+		t.Errorf("ContentLength = %d, want the %d body bytes actually sent", gotCL, gotBody)
 	}
 }
 
@@ -394,7 +442,7 @@ func TestDoMultipart_NoRetryWhenNotRewindable(t *testing.T) {
 	})
 
 	err := c.DoMultipart(context.Background(), http.MethodPut, "/api/unseekable-upload", []MultipartField{
-		{Name: "file", Filename: "pkg.bin", Content: unseekableReader{r: strings.NewReader("payload")}},
+		{Name: "file", Filename: "pkg.bin", Content: NewSizedReader(unseekableReader{r: strings.NewReader("payload")}, int64(len("payload")))},
 	}, http.StatusCreated, nil)
 	if err == nil {
 		t.Fatal("expected error, got nil")

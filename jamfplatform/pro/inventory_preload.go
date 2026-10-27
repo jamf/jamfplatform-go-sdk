@@ -37,11 +37,13 @@ func (c *Client) DownloadInventoryPreloadCsvV2(ctx context.Context) ([]byte, err
 // All of them are required, not alternatives.
 // The scoped and legacy lists are independent sets, not pairs: do not match them by position.
 //
-// For file parts, pass an *os.File or *bytes.Reader (anything that
-// implements io.Seeker) so the SDK can rewind the file and retry on a
-// 429/Retry-After. A plain io.Reader is accepted too but is not retried.
-// Whatever the reader, the upload is sent over HTTP/1.1 with chunked
-// transfer encoding and no declared Content-Length.
+// The upload is sent over HTTP/1.1 with an exact Content-Length, never
+// chunked, so the SDK must be able to size each file part. Pass an *os.File
+// or *bytes.Reader (anything that implements io.Seeker) so it can also rewind
+// the file and retry on a 429/Retry-After; a *bytes.Buffer is sized but not
+// retried. Wrap any other reader with jamfplatform.SizedReader, giving its
+// length, or the call fails with jamfplatform.ErrUnknownUploadSize before
+// anything is sent.
 func (c *Client) UploadInventoryPreloadCsvV2(ctx context.Context, fileFilename string, file io.Reader) (*[]HrefResponse, error) {
 	prefix := c.transport.APIPrefix("pro", "v2")
 	var result []HrefResponse
@@ -72,11 +74,13 @@ func (c *Client) DownloadInventoryPreloadCsvTemplateV2(ctx context.Context) ([]b
 //
 // Required privileges: inventory-preload-records:create. Legacy Jamf Pro privilege name(s): Create Inventory Preload Records.
 //
-// For file parts, pass an *os.File or *bytes.Reader (anything that
-// implements io.Seeker) so the SDK can rewind the file and retry on a
-// 429/Retry-After. A plain io.Reader is accepted too but is not retried.
-// Whatever the reader, the upload is sent over HTTP/1.1 with chunked
-// transfer encoding and no declared Content-Length.
+// The upload is sent over HTTP/1.1 with an exact Content-Length, never
+// chunked, so the SDK must be able to size each file part. Pass an *os.File
+// or *bytes.Reader (anything that implements io.Seeker) so it can also rewind
+// the file and retry on a 429/Retry-After; a *bytes.Buffer is sized but not
+// retried. Wrap any other reader with jamfplatform.SizedReader, giving its
+// length, or the call fails with jamfplatform.ErrUnknownUploadSize before
+// anything is sent.
 func (c *Client) ValidateInventoryPreloadCsvV2(ctx context.Context, fileFilename string, file io.Reader) (*InventoryPreloadCsvValidationSuccess, error) {
 	prefix := c.transport.APIPrefix("pro", "v2")
 	var result InventoryPreloadCsvValidationSuccess
