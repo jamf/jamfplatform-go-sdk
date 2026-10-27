@@ -20,9 +20,10 @@ import (
 // surface. They expose S3-based upload credentials and file metadata for the JCDS
 // storage backend. All six endpoints are marked deprecated in the Jamf API spec.
 //
-// The full JCDS upload flow (InitiateUpload → S3 PutObject → RefreshInventory)
-// requires a direct S3 client which is outside the SDK's scope, so mutating tests
-// are limited to probes and lifecycle steps that don't require S3 interaction.
+// The S3 leg of the upload flow (InitiateUpload → S3 → RefreshInventory) is the
+// jcdsupload package's, and its live tests are in acc_pro_jcds_upload_test.go.
+// The tests here cover the endpoints one at a time, with probes and lifecycle
+// steps that need no S3 interaction.
 
 // TestAcceptance_Pro_JCDS_ListFilesV1 exercises the read-only file list endpoint.
 func TestAcceptance_Pro_JCDS_ListFilesV1(t *testing.T) {
@@ -49,8 +50,8 @@ func TestAcceptance_Pro_JCDS_ListFilesV1(t *testing.T) {
 
 // TestAcceptance_Pro_JCDS_InitiateUploadV1 verifies that upload credential
 // generation works. The returned credentials are S3 temporary credentials
-// that would be used with the AWS SDK to PUT an object — the SDK doesn't
-// exercise the S3 leg.
+// that jcdsupload.Upload uses to write the object — this test does not exercise
+// the S3 leg.
 func TestAcceptance_Pro_JCDS_InitiateUploadV1(t *testing.T) {
 	c := accClient(t)
 

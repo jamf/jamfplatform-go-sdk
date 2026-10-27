@@ -1695,6 +1695,45 @@ silently not negotiated.
 
 ---
 
+## `jcdsupload`: the S3 upload route
+
+`jcdsupload.Upload(ctx, api, fileName, body, opts...)` sends a file to the Jamf Cloud
+Distribution Service through the credentials `InitiateJCDSUploadV1` issues, directly to
+S3. It is **handwritten and sits outside `jamfplatform/`** because that tree is
+generated and pruned, and it is the **only package that depends on the AWS SDK**, so a
+consumer that never imports it never compiles it. The wire behaviour is in
+[WIRE-FACTS.md](WIRE-FACTS.md#jcds-direct-s3-upload-initiate-put-refresh-2026-10-27).
+
+- **It moves bytes and nothing else.** No package record, no refresh, no poll. Those are
+  the caller's, as is the choice between this route and `UploadPackageV1`.
+- **`API` is an interface over the two deprecated methods** (`InitiateJCDSUploadV1`,
+  `RenewJCDSCredentialsV1`), satisfied by `*pro.Client`. A test fakes it, and the
+  deprecated calls are named in one place.
+- **The uploader is `feature/s3/transfermanager`**, not `feature/s3/manager`, which AWS
+  deprecated in its favour. The module is v0.x, so a bump is a review, not a routine
+  update.
+- **Renewal is lazy.** `renewingProvider` hands back the initiate's credentials on its
+  first `Retrieve` and asks for replacements on every later one; the AWS credentials
+  cache decides when, from `WithRenewMargin` (default five minutes before expiry). **A
+  renewal contributes only key, secret, token and expiry**: its `region`, `bucketName`
+  and `path` are empty by design and the upload keeps the initiate's. A renewal already
+  past its expiry is an error, so a service handing back stale credentials cannot make
+  the cache renew in a loop.
+- **The part size grows with the body.** `fitPartSize` raises it to the smallest whole
+  MiB that keeps the upload within S3's 10,000 parts, using `client.ReaderSize`, the same
+  detection `SizedReader` uses. An unknown size keeps the default, which caps the upload
+  near 80 GiB. The multipart threshold is the part size, so `WithPartSize` means what it
+  says.
+- **The S3 traffic bypasses the transport.** `WithHeaders`, the scope header, the
+  rate-limit throttle and the tuned transport do not apply. The default client honours
+  `HTTPS_PROXY`; `WithHTTPClient` replaces it.
+- **Unit tests run against an `httptest` TLS server** that answers the five operations a
+  transfer manager upload uses, path style, and records which access key signed each
+  request, so the renewal test proves renewed credentials were used. Acceptance tests
+  (`acc_pro_jcds_upload_test.go`) upload 1 MiB and 20 MiB, poll the package record to
+  `READY` at the right size and, for the single-part file, the right MD5, and are gated
+  by `requirePackageStore`.
+
 ## Apple schemas generator
 
 `appleschemas/` is the one place this repo carries data that does not come from
