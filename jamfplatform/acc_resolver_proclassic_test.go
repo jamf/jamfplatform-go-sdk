@@ -1516,7 +1516,7 @@ func TestAcceptance_Classic_ResolveAccountGroupByName(t *testing.T) {
 	created, err := pc.CreateAccountGroupByID(ctx, "0", &proclassic.Group{
 		Name:         new(name),
 		AccessLevel:  new(proclassic.GroupAccessLevelFullAccess),
-		PrivilegeSet: new(proclassic.GroupPrivilegeSetAdministrator),
+		PrivilegeSet: new(proclassic.GroupPrivilegeSetCustom),
 	})
 	if err != nil {
 		skipOnServerError(t, err)
