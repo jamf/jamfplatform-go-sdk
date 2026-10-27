@@ -1,12 +1,12 @@
 {
  "source": "https://github.com/apple/device-management",
  "commits": {
-  "release": "09f249a06e7e3289930bf6d05f38fb562f748ebf"
+  "release": "9e7fdbe23990b2551c4b29b39bc8b0de956805eb"
  },
  "refs": [
   "release"
  ],
- "release": "Release-v27.0",
+ "release": "Release-v27.2",
  "declarations": {
   "com.apple.activation.simple": {
    "title": "Activation:Simple",
@@ -1102,6 +1102,29 @@
     },
     "VisibleName": {
      "type": "string",
+     "refs": [
+      "release"
+     ]
+    }
+   },
+   "refs": [
+    "release"
+   ]
+  },
+  "com.apple.configuration.account.settings": {
+   "title": "Account Settings",
+   "kind": "CONFIGURATION",
+   "keys": {
+    "Exchange": {
+     "type": "dictionary",
+     "keys": {
+      "AllowEWSRetirementAlerts": {
+       "type": "boolean",
+       "refs": [
+        "release"
+       ]
+      }
+     },
      "refs": [
       "release"
      ]
@@ -2334,6 +2357,18 @@
         "release"
        ]
       },
+      "AdditionalHTTPHeaders": {
+       "type": "dictionary",
+       "any": {
+        "type": "string",
+        "refs": [
+         "release"
+        ]
+       },
+       "refs": [
+        "release"
+       ]
+      },
       "AllowDeviceIdentifiersInAttestation": {
        "type": "boolean",
        "refs": [
@@ -2423,6 +2458,12 @@
       "Policies": {
        "type": "dictionary",
        "keys": {
+        "AlwaysUseLoginUI": {
+         "type": "boolean",
+         "refs": [
+          "release"
+         ]
+        },
         "AuthenticationGracePeriod": {
          "type": "integer",
          "refs": [
@@ -7306,6 +7347,7 @@
   "device.system.health",
   "diskmanagement.filevault.enabled",
   "enhanced-logging.applecare-token",
+  "enhanced-logging.noninteractive-eligibility",
   "enhanced-logging.status",
   "enhanced-logging.timestamp",
   "management.client-capabilities",

@@ -1,12 +1,12 @@
 {
  "source": "https://github.com/apple/device-management",
  "commits": {
-  "release": "09f249a06e7e3289930bf6d05f38fb562f748ebf"
+  "release": "9e7fdbe23990b2551c4b29b39bc8b0de956805eb"
  },
  "refs": [
   "release"
  ],
- "release": "Release-v27.0",
+ "release": "Release-v27.2",
  "payloads": {
   ".GlobalPreferences": {
    "title": "Global Preferences",
@@ -10435,6 +10435,18 @@
         "release"
        ]
       },
+      "AdditionalHTTPHeaders": {
+       "type": "dictionary",
+       "any": {
+        "type": "string",
+        "refs": [
+         "release"
+        ]
+       },
+       "refs": [
+        "release"
+       ]
+      },
       "AdministratorGroups": {
        "type": "array",
        "item": {
@@ -10460,6 +10472,12 @@
        ]
       },
       "AllowWebLoginPasswordSync": {
+       "type": "boolean",
+       "refs": [
+        "release"
+       ]
+      },
+      "AlwaysUseLoginUI": {
        "type": "boolean",
        "refs": [
         "release"
