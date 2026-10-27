@@ -1717,8 +1717,23 @@ consumer that never imports it never compiles it. The wire behaviour is in
   cache decides when, from `WithRenewMargin` (default five minutes before expiry). **A
   renewal contributes only key, secret, token and expiry**: its `region`, `bucketName`
   and `path` are empty by design and the upload keeps the initiate's. A renewal already
-  past its expiry is an error, so a service handing back stale credentials cannot make
-  the cache renew in a loop.
+  past its expiry, or already inside the renew margin, is an error, so neither stale
+  credentials nor a margin as long as their hour can make the cache renew before every
+  request.
+- **The abort has a context of its own.** `transfermanager` sends
+  `AbortMultipartUpload` on the caller's context unless `FailTimeout` is set, and a
+  cancelled or expired context sends nothing, leaving the parts behind. `abortTimeout`
+  (10 s) is that setting. **It is not an SDK-imposed request timeout** and does not
+  conflict with the caller's context being the deadline: the upload still ends when
+  the caller's context does, and only the cleanup after a failure gets its own bound.
+- **A declared length is enforced.** A body whose length was declared rather than
+  measured — `SizedReader`, a `*bytes.Buffer` — is wrapped in `exactReader`, which
+  turns ending early or running past the length into a read error, so the upload is
+  aborted instead of completing an object of the wrong size. A seeker is not wrapped:
+  its length is measured, and wrapping it would hide `io.Seeker` from the transfer
+  manager.
+- **No `// Deprecated:` on `Upload`.** The route is deprecated upstream, but the only
+  successor is the gateway route, and a marker would steer every caller onto it.
 - **The part size grows with the body.** `fitPartSize` raises it to the smallest whole
   MiB that keeps the upload within S3's 10,000 parts, using `client.ReaderSize`, the same
   detection `SizedReader` uses. An unknown size keeps the default, which caps the upload
@@ -1729,10 +1744,16 @@ consumer that never imports it never compiles it. The wire behaviour is in
   `HTTPS_PROXY`; `WithHTTPClient` replaces it.
 - **Unit tests run against an `httptest` TLS server** that answers the five operations a
   transfer manager upload uses, path style, and records which access key signed each
-  request, so the renewal test proves renewed credentials were used. Acceptance tests
+  request, so the renewal test proves renewed credentials were used. The abort after a
+  cancellation, the declared-length check and a body read from a non-zero offset each
+  have a test that fails without the code they cover. Acceptance tests
   (`acc_pro_jcds_upload_test.go`) upload 1 MiB and 20 MiB, poll the package record to
   `READY` at the right size and, for the single-part file, the right MD5, and are gated
-  by `requirePackageStore`.
+  by `requirePackageStore`. Their poll treats a refresh `504` as "still processing",
+  which is the poll the package godoc tells callers to write: the refresh is a POST, so
+  the transport does not retry it, and the 504 is the edge timing out a refresh that
+  finishes anyway. Adding an opt-in retry for one idempotent POST was considered and
+  not done; one endpoint does not justify a config mechanism.
 
 ## Apple schemas generator
 

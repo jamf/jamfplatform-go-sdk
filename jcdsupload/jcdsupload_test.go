@@ -11,6 +11,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -64,13 +65,15 @@ type s3Request struct {
 }
 
 // fakeS3 answers the five operations a transfer manager upload uses, path style, and records
-// each request. failPart makes UploadPart answer a non-retryable 403.
+// each request. failPart makes UploadPart answer a non-retryable 403; onPart, when set, runs
+// before UploadPart is answered.
 type fakeS3 struct {
 	t        *testing.T
 	srv      *httptest.Server
 	mu       sync.Mutex
 	reqs     []s3Request
 	failPart bool
+	onPart   func(*http.Request)
 }
 
 var credentialRE = regexp.MustCompile(`Credential=([^/]+)/`)
@@ -108,6 +111,9 @@ func (f *fakeS3) handle(w http.ResponseWriter, r *http.Request) {
 	case r.Method == http.MethodPost && q.Has("uploads"):
 		_, _ = fmt.Fprint(w, `<?xml version="1.0" encoding="UTF-8"?><InitiateMultipartUploadResult><Bucket>b</Bucket><Key>k</Key><UploadId>up-1</UploadId></InitiateMultipartUploadResult>`)
 	case r.Method == http.MethodPut && q.Has("partNumber"):
+		if f.onPart != nil {
+			f.onPart(r)
+		}
 		if f.failPart {
 			w.WriteHeader(http.StatusForbidden)
 			_, _ = fmt.Fprint(w, `<?xml version="1.0" encoding="UTF-8"?><Error><Code>AccessDenied</Code><Message>denied</Message></Error>`)
@@ -273,11 +279,11 @@ func TestUploadRenewFailureFailsTheUpload(t *testing.T) {
 }
 
 func TestUploadRejectsAnExpiredRenewal(t *testing.T) {
-	p := newRenewingProvider(&fakeAPI{renew: creds("AKIDOLD", time.Now().Add(-time.Minute))}, nil)
+	p := newRenewingProvider(&fakeAPI{renew: creds("AKIDOLD", time.Now().Add(-time.Minute))}, nil, 0)
 	if _, err := p.Retrieve(t.Context()); err == nil || !strings.Contains(err.Error(), "already expired") {
 		t.Fatalf("want an already-expired error, got %v", err)
 	}
-	p = newRenewingProvider(&fakeAPI{renew: &pro.Credentials{Expiration: time.Now().Add(time.Hour).Unix()}}, nil)
+	p = newRenewingProvider(&fakeAPI{renew: &pro.Credentials{Expiration: time.Now().Add(time.Hour).Unix()}}, nil, 0)
 	if _, err := p.Retrieve(t.Context()); err == nil || !strings.Contains(err.Error(), "no credentials") {
 		t.Fatalf("want a no-credentials error, got %v", err)
 	}
@@ -285,7 +291,7 @@ func TestUploadRejectsAnExpiredRenewal(t *testing.T) {
 
 func TestProviderFirstRetrieveIsTheInitiateCredentials(t *testing.T) {
 	api := &fakeAPI{renew: creds("AKIDNEW", time.Now().Add(time.Hour))}
-	p := newRenewingProvider(api, creds("AKIDINIT", time.Now().Add(time.Hour)))
+	p := newRenewingProvider(api, creds("AKIDINIT", time.Now().Add(time.Hour)), 0)
 
 	first, err := p.Retrieve(t.Context())
 	if err != nil || first.AccessKeyID != "AKIDINIT" || !first.CanExpire {
@@ -373,6 +379,8 @@ func TestUploadRefusesIncompleteInitiate(t *testing.T) {
 		"path no slash": func(c *pro.Credentials) { c.Path = "tmp/abc" },
 		"no access key": func(c *pro.Credentials) { c.AccessKeyID = "" },
 		"no secret":     func(c *pro.Credentials) { c.SecretAccessKey = "" },
+		"expired":       func(c *pro.Credentials) { c.Expiration = time.Now().Add(-time.Second).Unix() },
+		"no expiration": func(c *pro.Credentials) { c.Expiration = 0 },
 	} {
 		t.Run(name, func(t *testing.T) {
 			s3 := newFakeS3(t)
@@ -396,7 +404,7 @@ func TestUploadValidatesArguments(t *testing.T) {
 	api := &fakeAPI{initiate: creds("AKIDINIT", time.Now().Add(time.Hour))}
 	body := strings.NewReader("x")
 
-	for _, name := range []string{"", "a/b.pkg", `a\b.pkg`, ".", ".."} {
+	for _, name := range []string{"", "a/b.pkg", `a\b.pkg`, ".", "..", "a\nb.pkg", "a\x00b.pkg", "a\x7fb.pkg", "a\xffb.pkg"} {
 		if err := Upload(t.Context(), api, name, body); err == nil {
 			t.Errorf("file name %q was accepted", name)
 		}
@@ -412,6 +420,9 @@ func TestUploadValidatesArguments(t *testing.T) {
 	}
 	if err := Upload(t.Context(), api, "a.pkg", body, WithConcurrency(0)); err == nil {
 		t.Error("zero concurrency was accepted")
+	}
+	if err := Upload(t.Context(), api, "a.pkg", body, WithRenewMargin(-time.Second)); err == nil {
+		t.Error("a negative renew margin was accepted")
 	}
 	if api.initCalls != 0 {
 		t.Errorf("initiate was called %d times for invalid arguments", api.initCalls)
@@ -441,5 +452,136 @@ func TestFitPartSize(t *testing.T) {
 				t.Errorf("%d bytes at %d needs more than %d parts", tc.size, got, maxParts)
 			}
 		})
+	}
+}
+
+func TestUploadRefusesAKeyOverS3sLimit(t *testing.T) {
+	s3 := newFakeS3(t)
+	api := &fakeAPI{initiate: creds("AKIDINIT", time.Now().Add(time.Hour))}
+	path := len(api.initiate.Path)
+
+	err := Upload(t.Context(), api, strings.Repeat("a", maxKeyBytes-path+1), strings.NewReader("x"), s3.options()...)
+	if err == nil || !strings.Contains(err.Error(), "over S3's") {
+		t.Fatalf("want a key-length error, got %v", err)
+	}
+	if n := len(s3.requests()); n != 0 {
+		t.Errorf("%d S3 requests", n)
+	}
+	if err := Upload(t.Context(), api, strings.Repeat("a", maxKeyBytes-path), strings.NewReader("x"), s3.options()...); err != nil {
+		t.Errorf("a key of exactly %d bytes: %v", maxKeyBytes, err)
+	}
+}
+
+// The transfer manager sends its abort on the caller's context unless FailTimeout gives it one of
+// its own, and a cancelled context sends nothing.
+func TestUploadAbortsAfterCancellation(t *testing.T) {
+	s3 := newFakeS3(t)
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	var once sync.Once
+	s3.onPart = func(r *http.Request) {
+		once.Do(cancel)
+		<-r.Context().Done()
+	}
+	api := &fakeAPI{initiate: creds("AKIDINIT", time.Now().Add(time.Hour))}
+	body := bytes.NewReader(make([]byte, 2*MinPartSize+1))
+
+	err := Upload(ctx, api, "big.pkg", body, s3.options(WithPartSize(MinPartSize), WithConcurrency(1))...)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("want context.Canceled, got %v", err)
+	}
+	var aborted bool
+	for _, r := range s3.requests() {
+		if r.method == http.MethodDelete && strings.Contains(r.query, "uploadId") {
+			aborted = true
+		}
+	}
+	if !aborted {
+		t.Error("the cancelled multipart upload was not aborted")
+	}
+}
+
+// A declared length is held to: a body that ends early or runs on fails, and the multipart upload
+// it started is aborted rather than completed.
+func TestUploadEnforcesADeclaredLength(t *testing.T) {
+	const size = 2*MinPartSize + 17
+	for name, tc := range map[string]struct {
+		declared, actual int64
+		want             string
+	}{
+		"short, multipart":  {size, size - 1, "ended after"},
+		"long, multipart":   {size, size + 1, "more than its declared"},
+		"short, one part":   {1024, 1000, "ended after"},
+		"long, one part":    {1000, 1024, "more than its declared"},
+		"short, empty body": {10, 0, "ended after"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			s3 := newFakeS3(t)
+			api := &fakeAPI{initiate: creds("AKIDINIT", time.Now().Add(time.Hour))}
+			body := jamfplatform.SizedReader(io.MultiReader(bytes.NewReader(make([]byte, tc.actual))), tc.declared)
+
+			err := Upload(t.Context(), api, "s.pkg", body, s3.options(WithPartSize(MinPartSize), WithConcurrency(1))...)
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("want %q, got %v", tc.want, err)
+			}
+			for _, r := range s3.requests() {
+				if r.method == http.MethodPost && strings.Contains(r.query, "uploadId") {
+					t.Error("the multipart upload was completed")
+				}
+				if r.method == http.MethodPut && !strings.Contains(r.query, "partNumber") {
+					t.Error("a single-part object was written")
+				}
+			}
+		})
+	}
+}
+
+// Upload reads from the body's current position, and sizes the upload from what remains.
+func TestUploadReadsFromTheCurrentOffset(t *testing.T) {
+	const size, offset = 2*MinPartSize + 17, 100
+	content := make([]byte, size)
+	f, err := os.CreateTemp(t.TempDir(), "body")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = f.Close() }()
+	if _, err := f.Write(content); err != nil {
+		t.Fatal(err)
+	}
+	for name, body := range map[string]func() io.Reader{
+		"bytes.Reader": func() io.Reader {
+			r := bytes.NewReader(content)
+			_, _ = r.Seek(offset, io.SeekStart)
+			return r
+		},
+		"os.File": func() io.Reader {
+			_, _ = f.Seek(offset, io.SeekStart)
+			return f
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			s3 := newFakeS3(t)
+			api := &fakeAPI{initiate: creds("AKIDINIT", time.Now().Add(time.Hour))}
+
+			if err := Upload(t.Context(), api, "s.pkg", body(), s3.options(WithPartSize(MinPartSize), WithConcurrency(2))...); err != nil {
+				t.Fatalf("Upload: %v", err)
+			}
+			var total int64
+			for _, r := range s3.requests() {
+				if r.method == http.MethodPut {
+					total += r.bytes
+				}
+			}
+			if total != size-offset {
+				t.Errorf("uploaded %d bytes, want %d", total, int64(size-offset))
+			}
+		})
+	}
+}
+
+func TestProviderRejectsARenewalInsideTheMargin(t *testing.T) {
+	p := newRenewingProvider(&fakeAPI{renew: creds("AKIDNEW", time.Now().Add(30*time.Minute))}, nil, time.Hour)
+	if _, err := p.Retrieve(t.Context()); err == nil || !strings.Contains(err.Error(), "inside the renew margin") {
+		t.Fatalf("want an inside-the-margin error, got %v", err)
 	}
 }

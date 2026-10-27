@@ -10,8 +10,10 @@ import (
 	"context"
 	"crypto/md5"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"math/rand/v2"
+	"net/http"
 	"strconv"
 	"testing"
 	"time"
@@ -65,7 +67,12 @@ func uploadViaJCDS(t *testing.T, c *jamfplatform.Client, size int) (*pro.Package
 
 	var got *pro.Package
 	err = jamfplatform.PollUntil(pollCtx, 3*time.Second, func(ctx context.Context) (bool, error) {
-		if err := p.RefreshJCDSInventoryV1(ctx, fileName); err != nil {
+		// A 504 here is the edge giving up on a refresh that is still processing the file and
+		// will finish anyway; see WIRE-FACTS.md. Anything else ends the poll.
+		var apiErr *jamfplatform.APIResponseError
+		if err := p.RefreshJCDSInventoryV1(ctx, fileName); errors.As(err, &apiErr) && apiErr.StatusCode == http.StatusGatewayTimeout {
+			t.Logf("RefreshJCDSInventoryV1(%s): 504, still processing", fileName)
+		} else if err != nil {
 			return false, fmt.Errorf("RefreshJCDSInventoryV1(%s): %w", fileName, err)
 		}
 		pkg, err := p.GetPackageV1(ctx, created.ID)

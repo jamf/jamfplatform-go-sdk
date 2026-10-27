@@ -2056,15 +2056,15 @@ point in the US, one with an Amazon S3 distribution point in the EU. Fixtures ar
 placeholders.
 
 - **Initiate is `201`** with `accessKeyID`, `secretAccessKey`, `sessionToken`,
-  `region`, `bucketName`, `path` and `uuid`. The bucket is `{region}-prod-jcds2-file-objects`
-  and the path always `tmp/{uuid}/`, trailing slash included. The object key is
+  `region`, `bucketName`, `path` and `uuid`. The path is always `tmp/{uuid}/`,
+  trailing slash included. The object key is
   `path + fileName`. `expiration` is Unix seconds, **3600 s after the call**. The
   bucket is regional, whatever the distribution point is set to.
 - **Renew takes no parameters and answers `200` with empty location fields.**
   `region`, `bucketName` and `path` are `""` and `uuid` is the zero UUID; only the
   key, secret, token and `expiration` are usable, and the access key is different
   from the initiate's. A renew made with no initiate on the client answers the
-  same shape for no upload. **Renewed credentials write to the initiate's path**:
+  same shape. **Renewed credentials write to the initiate's path**:
   initiate, renew, then a put with the renewed credentials succeeded and the file
   registered.
 - **The credentials can put and run a multipart upload under the issued path, and
@@ -2078,6 +2078,24 @@ placeholders.
   in the first minute or two after the last byte and present at the next look,
   about two minutes after it landed. The exact lag was not measured. A poll has
   to wait minutes for a large file.
+- **The first refresh after a large upload is synchronous, and races the edge's
+  30 s timeout.** It holds the request open while Jamf Pro processes the file.
+  Four 1 GiB uploads through `jcdsupload` on an EU JCDS environment, each
+  followed at once by `POST /jcds/refresh-inventory?file-name=…`:
+  two answered `204` (one after 30.04 s), two answered a CloudFront
+  `504 Gateway Timeout` (one after 30.21 s). **The 504 is not a failed refresh**:
+  the file was listed at full size afterwards, and in the timed run the next
+  refresh answered in 228 ms and the record was `READY` at once. Whether a 1 GiB
+  refresh 504s is a coin toss. **At 8 GiB it is certain**: uploaded in 12m52s
+  (the same ~11 MiB/s as 1 GiB, 1024 parts of 8 MiB), then six refreshes in a
+  row each held for 30 s and answered `504` — a refresh sent while processing is
+  under way waits on it too, not only the first — and the seventh answered `204`
+  after 14 s, at 3m15s, with the record `READY` at 8589934592 bytes. Processing
+  runs at roughly 24 s per GiB, which fits the 2 GiB observation above. The
+  transport does not retry it — a POST is never retried on a 5xx — so a caller's
+  poll treats a refresh 504 as "keep polling". A `DELETE /jcds/files/{name}`
+  sent while that refresh is still running answered `400` with empty `errors`,
+  and succeeded once it had finished.
 - **Order does not matter on a JCDS environment.** Upload, refresh, create the
   package record, refresh converged to `cloudTransferStatus: READY` with `size`,
   `md5` (the S3 ETag, for a single-part object), `sha256` and a `SHA3_512`

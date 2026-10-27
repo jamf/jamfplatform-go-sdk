@@ -19,6 +19,18 @@
 // READY — with the refresh being POST /jcds/refresh-inventory, or the cloud-distribution-point
 // equivalent.
 //
+// Treat a 504 from the refresh as "still processing" and keep polling. The first refresh after a
+// large upload holds the request open while Jamf Pro processes the file, roughly 24 seconds per
+// GiB, and so does every refresh sent before processing ends. The edge answers 504 at 30
+// seconds whether or not the refresh finished, so an 8 GiB file sees about three minutes of
+// 504s; processing finishes regardless, and the first refresh after it returns normally. The SDK does not retry it, because the
+// refresh is a POST and the transport never retries a POST on a 5xx.
+//
+// Bound that poll with a deadline. On a tenant whose distribution point is not JCDS the record
+// never reaches READY (see below), and nothing Upload returns says so; a caller that finds the
+// distribution point is not JCDS (GetCloudDistributionPointV1's cdnType) should use
+// UploadPackageV1 instead.
+//
 // # Wire behaviour
 //
 // Probed 2026-10-27 against two environments: one with a JCDS distribution point (US) and one
@@ -30,13 +42,14 @@
 //     The bucket is regional, whatever the tenant's distribution point is set to.
 //   - Renewal takes no parameters and returns new credentials with region, bucketName and path
 //     empty and a zero uuid. Only the key, secret, token and expiration are usable: bucket, region
-//     and path stay those of the initiate. A renewal made before any initiate returns credentials
-//     for no upload. Renewed credentials write to the initiate path.
+//     and path stay those of the initiate. A renewal made before any initiate answers the same
+//     shape. Renewed credentials write to the initiate path.
 //   - The credentials can put and complete a multipart upload under the issued path and cannot
 //     read: HeadObject is 403. An upload therefore cannot be verified from this side, and the
 //     caller's poll of the package record is the check.
 //   - Objects under tmp/ are removed daily by a bucket lifecycle rule, so a file that is never
-//     registered does not accumulate.
+//     registered does not accumulate. Whether that rule also clears the parts of an unfinished
+//     multipart upload is not observable with these credentials, which is why Upload aborts one.
 //   - The file appears in GET /jcds/files and the package record fills in only after a
 //     refresh-inventory. A 1 MiB file registered within 3 seconds; a 2 GiB file took about two
 //     minutes after the last byte landed. A caller's poll has to be patient about large files.
@@ -61,6 +74,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager"
@@ -87,6 +102,15 @@ const (
 
 	// maxParts is S3's ceiling on the parts of one multipart upload.
 	maxParts int64 = 10000
+
+	// maxKeyBytes is S3's ceiling on an object key, path included.
+	maxKeyBytes = 1024
+
+	// abortTimeout bounds the AbortMultipartUpload that follows a failed upload. The transfer
+	// manager otherwise sends it on the caller's context, which is already done when the failure
+	// was a cancellation or a deadline, so the abort never leaves and the parts stay behind. It
+	// lengthens nothing that succeeds: the upload itself still ends when the caller's context does.
+	abortTimeout = 10 * time.Second
 )
 
 // API is the part of *pro.Client that Upload needs. It is an interface so a test can supply a
@@ -94,7 +118,8 @@ const (
 type API interface {
 	// InitiateJCDSUploadV1 returns temporary credentials and the bucket path for one upload.
 	InitiateJCDSUploadV1(ctx context.Context) (*pro.Credentials, error)
-	// RenewJCDSCredentialsV1 returns replacement credentials for the upload last initiated.
+	// RenewJCDSCredentialsV1 returns replacement credentials. Its region, bucket and path are
+	// empty, so the upload keeps those of the initiate.
 	RenewJCDSCredentialsV1(ctx context.Context) (*pro.Credentials, error)
 }
 
@@ -124,7 +149,9 @@ func WithPartSize(n int64) Option { return func(c *config) { c.partSize = n } }
 func WithConcurrency(n int) Option { return func(c *config) { c.concurrency = n } }
 
 // WithRenewMargin sets how long before the credentials expire that they are replaced through
-// RenewJCDSCredentialsV1. Zero waits for the expiry itself.
+// RenewJCDSCredentialsV1. Zero waits for the expiry itself. A margin as long as the credentials'
+// lifetime (an hour) would renew before every request, so a renewal that is already inside the
+// margin fails the upload instead.
 func WithRenewMargin(d time.Duration) Option { return func(c *config) { c.renewMargin = d } }
 
 // WithHTTPClient sets the HTTP client for the S3 requests. The default honours HTTPS_PROXY.
@@ -136,7 +163,17 @@ func WithHTTPClient(hc *http.Client) Option { return func(c *config) { c.httpCli
 // body is read once, from its current position. When its length is knowable (an *os.File, an
 // io.Seeker, a *bytes.Buffer, or a reader wrapped with jamfplatform.SizedReader) the part size is
 // chosen so the upload fits S3's 10,000-part limit; otherwise the default part size caps it at
-// about 80 GiB. A failed multipart upload is aborted so no parts are left behind.
+// about 80 GiB. A length that is declared rather than measured (SizedReader, a *bytes.Buffer) is
+// enforced: a body that ends early or runs past it fails the upload rather than completing an
+// object of the wrong size.
+//
+// A failed multipart upload is aborted, on a context of its own so that a cancelled or expired
+// ctx does not stop the abort from being sent. The abort can itself fail, and then its error is
+// part of the one returned.
+//
+// The route is deprecated upstream (see the package documentation). Upload carries no
+// Deprecated marker: no successor uploads to the bucket directly, and a marker would point every
+// caller at the gateway route this package exists to avoid.
 //
 // Upload initiates one upload per call, so a caller that retries after a failure calls it again
 // and gets a new path.
@@ -164,6 +201,9 @@ func Upload(ctx context.Context, api API, fileName string, body io.Reader, opts 
 	if cfg.concurrency < 1 {
 		return fmt.Errorf("jcdsupload.Upload(%q): concurrency %d must be at least 1", fileName, cfg.concurrency)
 	}
+	if cfg.renewMargin < 0 {
+		return fmt.Errorf("jcdsupload.Upload(%q): renew margin %s must not be negative", fileName, cfg.renewMargin)
+	}
 
 	creds, err := api.InitiateJCDSUploadV1(ctx)
 	if err != nil {
@@ -172,8 +212,11 @@ func Upload(ctx context.Context, api API, fileName string, body io.Reader, opts 
 	if err := validateInitiate(creds); err != nil {
 		return fmt.Errorf("jcdsupload.Upload(%q): %w", fileName, err)
 	}
+	if n := len(creds.Path) + len(fileName); n > maxKeyBytes {
+		return fmt.Errorf("jcdsupload.Upload(%q): object key is %d bytes, over S3's %d", fileName, n, maxKeyBytes)
+	}
 
-	cache := aws.NewCredentialsCache(newRenewingProvider(api, creds), func(o *aws.CredentialsCacheOptions) {
+	cache := aws.NewCredentialsCache(newRenewingProvider(api, creds, cfg.renewMargin), func(o *aws.CredentialsCacheOptions) {
 		o.ExpiryWindow = cfg.renewMargin
 	})
 	s3Opts := s3.Options{
@@ -189,12 +232,18 @@ func Upload(ctx context.Context, api API, fileName string, body io.Reader, opts 
 		s3Opts.BaseEndpoint = aws.String(cfg.endpoint)
 	}
 
-	size, _ := client.ReaderSize(body)
+	size, known := client.ReaderSize(body)
 	partSize := fitPartSize(cfg.partSize, size)
+	// A seeker's length is measured, and the transfer manager measures it again. Any other known
+	// length was declared, and only reading the body shows whether the declaration holds.
+	if _, seekable := body.(io.Seeker); known && !seekable {
+		body = &exactReader{r: body, want: size}
+	}
 	tm := transfermanager.New(s3.New(s3Opts), func(o *transfermanager.Options) {
 		o.PartSizeBytes = partSize
 		o.MultipartUploadThreshold = partSize
 		o.Concurrency = cfg.concurrency
+		o.FailTimeout = abortTimeout
 	})
 	if _, err := tm.UploadObject(ctx, &transfermanager.UploadObjectInput{
 		Bucket: aws.String(creds.BucketName),
@@ -217,6 +266,26 @@ func fitPartSize(want, size int64) int64 {
 	return max(want, need)
 }
 
+// exactReader holds a body to the length it declared. Ending early or running past it is a read
+// error, so the transfer manager fails and aborts the upload before it completes an object of
+// the wrong size.
+type exactReader struct {
+	r       io.Reader
+	want, n int64
+}
+
+func (e *exactReader) Read(p []byte) (int, error) {
+	n, err := e.r.Read(p)
+	e.n += int64(n)
+	switch {
+	case e.n > e.want:
+		return n, fmt.Errorf("body yielded more than its declared %d bytes", e.want)
+	case errors.Is(err, io.EOF) && e.n < e.want:
+		return n, fmt.Errorf("body ended after %d of its declared %d bytes: %w", e.n, e.want, io.ErrUnexpectedEOF)
+	}
+	return n, err
+}
+
 // validateFileName rejects what cannot be one S3 key segment under the issued path. The service
 // lists and addresses files by this name alone, so a separator would put the object where the
 // inventory does not look.
@@ -228,6 +297,10 @@ func validateFileName(name string) error {
 		return errors.New("file name must not contain a path separator")
 	case name == "." || name == "..":
 		return errors.New("file name must not be a relative path component")
+	case !utf8.ValidString(name):
+		return errors.New("file name must be valid UTF-8")
+	case strings.ContainsFunc(name, unicode.IsControl):
+		return errors.New("file name must not contain a control character")
 	}
 	return nil
 }
@@ -239,16 +312,16 @@ func validateInitiate(c *pro.Credentials) error {
 		return errors.New("initiate returned no credentials")
 	}
 	var missing []string
-	for name, v := range map[string]string{
-		"accessKeyID":     c.AccessKeyID,
-		"secretAccessKey": c.SecretAccessKey,
-		"sessionToken":    c.SessionToken,
-		"region":          c.Region,
-		"bucketName":      c.BucketName,
-		"path":            c.Path,
+	for _, f := range []struct{ name, v string }{
+		{"accessKeyID", c.AccessKeyID},
+		{"secretAccessKey", c.SecretAccessKey},
+		{"sessionToken", c.SessionToken},
+		{"region", c.Region},
+		{"bucketName", c.BucketName},
+		{"path", c.Path},
 	} {
-		if v == "" {
-			missing = append(missing, name)
+		if f.v == "" {
+			missing = append(missing, f.name)
 		}
 	}
 	if len(missing) > 0 {
@@ -256,6 +329,9 @@ func validateInitiate(c *pro.Credentials) error {
 	}
 	if !strings.HasSuffix(c.Path, "/") {
 		return fmt.Errorf("initiate path %q does not end in a slash", c.Path)
+	}
+	if !time.Unix(c.Expiration, 0).After(time.Now()) {
+		return fmt.Errorf("initiate credentials are already expired (expiration %d)", c.Expiration)
 	}
 	return nil
 }
