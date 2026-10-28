@@ -2045,6 +2045,77 @@ do not reshape a multipart body or escape plist content to placate a WAF.
 
 ---
 
+### JCDS direct S3 upload: initiate, put, refresh (2026-10-27)
+
+`POST /pro/v1/jcds/files` issues temporary AWS credentials and the upload goes to
+S3 directly, instead of through `UploadPackageV1`. The whole route is deprecated
+upstream (2025-08-28) and was still served. Probed on two environments, each with
+a bogus path in the same namespace as the control (`403 BAD_PERMISSIONS`) and a
+`GET /pro/v1/packages` control (`200`): one with a Jamf Cloud (JCDS) distribution
+point in the US, one with an Amazon S3 distribution point in the EU. Fixtures are
+placeholders.
+
+- **Initiate is `201`** with `accessKeyID`, `secretAccessKey`, `sessionToken`,
+  `region`, `bucketName`, `path` and `uuid`. The path is always `tmp/{uuid}/`,
+  trailing slash included. The object key is
+  `path + fileName`. `expiration` is Unix seconds, **3600 s after the call**. The
+  bucket is regional, whatever the distribution point is set to.
+- **Renew takes no parameters and answers `200` with empty location fields.**
+  `region`, `bucketName` and `path` are `""` and `uuid` is the zero UUID; only the
+  key, secret, token and `expiration` are usable, and the access key is different
+  from the initiate's. A renew made with no initiate on the client answers the
+  same shape. **Renewed credentials write to the initiate's path**:
+  initiate, renew, then a put with the renewed credentials succeeded and the file
+  registered.
+- **The credentials can put and run a multipart upload under the issued path, and
+  cannot read.** `HeadObject` is `403`. An upload cannot be verified from the
+  client's side; the package record is the check. The bucket removes objects under
+  `tmp/` daily (`rule-id="Remove temp files from S3 daily"` on the PutObject
+  response).
+- **The file reaches the inventory only after a refresh**, and registration lag
+  grows with size: 1 MiB listed within 3 s of the first refresh; 2 GiB, uploaded
+  in 3m15s with `aws s3 cp`, was absent from `GET /jcds/files` at four refreshes
+  in the first minute or two after the last byte and present at the next look,
+  about two minutes after it landed. The exact lag was not measured. A poll has
+  to wait minutes for a large file.
+- **The first refresh after a large upload is synchronous, and races the edge's
+  30 s timeout.** It holds the request open while Jamf Pro processes the file.
+  Four 1 GiB uploads through `jcdsupload` on an EU JCDS environment, each
+  followed at once by `POST /jcds/refresh-inventory?file-name=…`:
+  two answered `204` (one after 30.04 s), two answered a CloudFront
+  `504 Gateway Timeout` (one after 30.21 s). **The 504 is not a failed refresh**:
+  the file was listed at full size afterwards, and in the timed run the next
+  refresh answered in 228 ms and the record was `READY` at once. Whether a 1 GiB
+  refresh 504s is a coin toss. **At 8 GiB it is certain**: uploaded in 12m52s
+  (the same ~11 MiB/s as 1 GiB, 1024 parts of 8 MiB), then six refreshes in a
+  row each held for 30 s and answered `504` — a refresh sent while processing is
+  under way waits on it too, not only the first — and the seventh answered `204`
+  after 14 s, at 3m15s, with the record `READY` at 8589934592 bytes. Processing
+  runs at roughly 24 s per GiB, which fits the 2 GiB observation above. The
+  transport does not retry it — a POST is never retried on a 5xx — so a caller's
+  poll treats a refresh 504 as "keep polling". A `DELETE /jcds/files/{name}`
+  sent while that refresh is still running answered `400` with empty `errors`,
+  and succeeded once it had finished.
+- **Order does not matter on a JCDS environment.** Upload, refresh, create the
+  package record, refresh converged to `cloudTransferStatus: READY` with `size`,
+  `md5` (the S3 ETag, for a single-part object), `sha256` and a `SHA3_512`
+  `hashValue`. Creating the record first and uploading after converged the same
+  way, so the Jamf Pro UI's order is a convention rather than a requirement.
+  `POST /packages` itself needs `suppressRegistration`, `suppressUpdates`,
+  `suppressFromDock` and `suppressEula`, each answered `400 INVALID_FIELD` when
+  absent.
+- **On an Amazon S3 distribution point the upload and the inventory entry work
+  and the package record never links to the file.** `GET /jcds/files` lists it
+  (`region: eu-west-2`), and the record stayed `cloudTransferStatus: ""` with no
+  hashes or size through refreshes every 15 s for a minute (and 5 s after the
+  record was created on an earlier run). Longer waits were not tried.
+  `requirePackageStore` already skips such tenants.
+- **`GET /jcds/files/{name}` answers `200 {uri}`**, a CloudFront URL.
+
+The SDK implements the S3 leg as `jcdsupload`
+([STYLE.md](STYLE.md#jcdsupload-the-s3-upload-route)). Acceptance:
+`TestAcceptance_Pro_JCDS_UploadSinglePart` and `TestAcceptance_Pro_JCDS_UploadMultipart`.
+
 ## PATCH content types (2026-10-04)
 
 **Every PATCH content type the specs declare is the one the server enforces,

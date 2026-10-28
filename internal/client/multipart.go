@@ -417,6 +417,10 @@ func readerSize(r io.Reader) (int64, bool) {
 	return 0, false
 }
 
+// ReaderSize is readerSize for callers outside the transport that stream a body
+// of their own and want the same answer an upload here would act on.
+func ReaderSize(r io.Reader) (int64, bool) { return readerSize(r) }
+
 // multipartRewindable reports whether every file part's Content can be
 // seeked back to its start — required for a safe 429 retry.
 func multipartRewindable(fields []MultipartField) bool {

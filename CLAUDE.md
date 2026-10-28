@@ -155,6 +155,13 @@ of `make generate`). It is outside `jamfplatform/` on purpose: that tree is
 generated and pruned. See
 [docs/STYLE.md](docs/STYLE.md#apple-schemas-generator).
 
+**`jcdsupload/` is handwritten as well, and the only package that depends on the AWS
+SDK.** It uploads to the Jamf Cloud Distribution Service through the temporary S3
+credentials `InitiateJCDSUploadV1` issues, and nothing more: the package record,
+the refresh and the poll stay with the caller. The route is deprecated upstream.
+See [docs/STYLE.md](docs/STYLE.md#jcdsupload-the-s3-upload-route) and
+[WIRE-FACTS.md](docs/WIRE-FACTS.md#jcds-direct-s3-upload-initiate-put-refresh-2026-10-27).
+
 **`appstore/` is handwritten too, and its upstream is not a Jamf service** (Apple's
 unauthenticated content-metadata lookup). It shares nothing with the transport —
 no credentials, no scope header, no retries — and is standard library only. Its
