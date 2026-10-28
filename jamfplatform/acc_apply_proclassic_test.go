@@ -74,10 +74,14 @@ func TestAcceptance_ApplyAccountGroup(t *testing.T) {
 	}
 	t.Logf("created account group id=%s", id)
 
+	// The second apply resends the same body: the gateway refuses an API client
+	// every privilege set but Custom (Administrator, Auditor and Enrollment Only
+	// answer "Only an administrator can assign …"), so the update path is
+	// exercised without changing the set.
 	id2, created2, err := pc.ApplyAccountGroup(ctx, &proclassic.Group{
 		Name:         new(name),
 		AccessLevel:  new("Full Access"),
-		PrivilegeSet: new("Administrator"),
+		PrivilegeSet: new("Custom"),
 	})
 	if err != nil {
 		t.Fatalf("apply update: %v", err)

@@ -5304,3 +5304,35 @@ repeated `403 BAD_PERMISSIONS`).
   one — already pinned); with `uuid==<id>` it finds a queued command.
 - **Reported, not a bug here:** `recovery-lock:execute` is enforced but absent
   from the published permissions map.
+
+### Classic accounts: an API client may assign only the `Custom` privilege set (2026-10-27)
+
+Probed with `curl` on three API-client credentials (two EU environments, one US),
+each with a `GET /pro/v1/jamf-pro-version` 200 control in the same invocation.
+Identical on all three.
+
+| request | answer |
+|---|---|
+| `POST /proclassic/accounts/groupid/0`, `privilege_set` `Administrator` | `409` `Only an administrator can assign the ADMINISTRATOR privilege level` |
+| same, `Auditor` | `409` `… the AUDITOR privilege level` |
+| same, `Enrollment Only` | `409` `… the ENROLLMENT privilege level` |
+| `POST /proclassic/accounts/userid/0`, `Administrator` or `Auditor` | `409`, same messages |
+| same paths, `Custom` | `201` — the control: only the set differs |
+| same paths, an unknown set (`Enrollment`, `Not A Set`) | `409` `Invalid privilege_set` — so `Enrollment Only` is the real name |
+| `PUT /proclassic/accounts/groupid/{id}` moving a `Custom` group to `Administrator` or `Enrollment Only` | `403`, same messages |
+
+- **Create is `409`, update is `403`.** The refusal is an authorization one; the
+  create status is the odd one out.
+- **The spec still lists all four values**, and the generated enum constants
+  (`AccountPrivilegeSet…`, `GroupPrivilegeSet…`) keep offering them. The spec is
+  followed; a consumer driving these endpoints from an API client can use only
+  `Custom`.
+- **Pro `POST /v1/accounts` does not behave this way yet.** The same credentials
+  created accounts with `privilegeLevel` `ADMINISTRATOR`, `AUDITOR`, `CUSTOM` and
+  `ENROLLMENT` (all `201`), and a `PUT` moving an `AUDITOR` account to
+  `ADMINISTRATOR` was accepted. Expect that to change; nothing is pinned for it.
+- **Not probed:** `PUT /proclassic/accounts/userid/{id}`, and whether a
+  credential granted a different role changes any of this.
+- Pinned by `TestAcceptance_Classic_AccountPrivilegeSetRefusedForAPIClient`. The
+  CRUD and resolver tests for accounts and groups create with `Custom` for this
+  reason.

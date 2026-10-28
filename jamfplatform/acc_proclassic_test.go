@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/jamf/jamfplatform-go-sdk/jamfplatform"
@@ -1571,7 +1572,7 @@ func TestAcceptance_Classic_AccountUserCRUD(t *testing.T) {
 		Email:        new(name + "@sdk.test"),
 		Password:     new("SDK-acc-pw-" + runSuffix() + "!"),
 		AccessLevel:  new(proclassic.AccountAccessLevelFullAccess),
-		PrivilegeSet: new(proclassic.AccountPrivilegeSetAdministrator),
+		PrivilegeSet: new(proclassic.AccountPrivilegeSetCustom),
 	})
 	if err != nil {
 		skipOnServerError(t, err)
@@ -1615,7 +1616,7 @@ func TestAcceptance_Classic_AccountGroupCRUD(t *testing.T) {
 	created, err := pc.CreateAccountGroupByID(ctx, "0", &proclassic.Group{
 		Name:         new(name),
 		AccessLevel:  new(proclassic.GroupAccessLevelFullAccess),
-		PrivilegeSet: new(proclassic.GroupPrivilegeSetAdministrator),
+		PrivilegeSet: new(proclassic.GroupPrivilegeSetCustom),
 	})
 	if err != nil {
 		skipOnServerError(t, err)
@@ -1639,6 +1640,112 @@ func TestAcceptance_Classic_AccountGroupCRUD(t *testing.T) {
 	if !errors.As(err, &apiErr) || !apiErr.HasStatus(404) {
 		t.Fatalf("after delete: want 404, got %v", err)
 	}
+}
+
+// TestAcceptance_Classic_AccountPrivilegeSetRefusedForAPIClient pins that an
+// API client may assign only the Custom privilege set on a Classic account or
+// account group. Administrator, Auditor and Enrollment Only are refused with
+// "Only an administrator can assign the … privilege level": 409 on create
+// (POST), 403 on update (PUT). Observed on three environments, 2026-10-27,
+// while the published spec still lists all four values and Pro's
+// POST /v1/accounts accepts ADMINISTRATOR and AUDITOR from the same credential.
+//
+// Custom is the control in the same invocation: the same request with only the
+// privilege set changed succeeds, so the refusal is the set and not the body.
+// The test fails the day an API client can assign a refused set, or the status
+// codes change, which is the cue to revisit the CRUD tests that use Custom for
+// this reason and the standing disagreement in CLAUDE.md.
+func TestAcceptance_Classic_AccountPrivilegeSetRefusedForAPIClient(t *testing.T) {
+	c := accClient(t)
+	ctx := context.Background()
+	pc := proclassic.New(c)
+
+	const refusal = "Only an administrator can assign the"
+	wantRefusal := func(t *testing.T, what string, err error, status int) {
+		t.Helper()
+		if err == nil {
+			t.Fatalf("%s: succeeded, want %d %q (the refusal has lifted: update CLAUDE.md, WIRE-FACTS and the Custom-only tests)", what, status, refusal)
+		}
+		apiErr := jamfplatform.AsAPIError(err)
+		if apiErr == nil || !apiErr.HasStatus(status) {
+			t.Fatalf("%s: want status %d, got %v", what, status, err)
+		}
+		if !strings.Contains(err.Error(), refusal) {
+			t.Fatalf("%s: want %q in the error, got %v", what, refusal, err)
+		}
+	}
+
+	t.Run("group create", func(t *testing.T) {
+		for _, set := range []string{
+			proclassic.GroupPrivilegeSetAdministrator,
+			proclassic.GroupPrivilegeSetAuditor,
+			proclassic.GroupPrivilegeSetEnrollmentOnly,
+		} {
+			created, err := pc.CreateAccountGroupByID(ctx, "0", &proclassic.Group{
+				Name:         new("sdk-acc-refused-" + runSuffix()),
+				AccessLevel:  new(proclassic.GroupAccessLevelFullAccess),
+				PrivilegeSet: new(set),
+			})
+			if err == nil && created != nil && created.ID != nil {
+				id := *created.ID
+				cleanupDelete(t, "AccountGroup "+intToStr(id), func() error { return pc.DeleteAccountGroupByID(ctx, intToStr(id)) })
+			}
+			wantRefusal(t, "create group "+set, err, 409)
+		}
+	})
+
+	t.Run("user create", func(t *testing.T) {
+		for _, set := range []string{
+			proclassic.AccountPrivilegeSetAdministrator,
+			proclassic.AccountPrivilegeSetAuditor,
+			proclassic.AccountPrivilegeSetEnrollmentOnly,
+		} {
+			name := "sdk-acc-refused-" + runSuffix()
+			created, err := pc.CreateAccountByUserID(ctx, "0", &proclassic.Account{
+				Name:         new(name),
+				FullName:     new("SDK Acceptance Refused"),
+				Email:        new(name + "@sdk.test"),
+				Password:     new("SDK-acc-pw-" + runSuffix() + "!"),
+				AccessLevel:  new(proclassic.AccountAccessLevelFullAccess),
+				PrivilegeSet: new(set),
+			})
+			if err == nil && created != nil && created.ID != nil {
+				id := *created.ID
+				cleanupDelete(t, "Account "+intToStr(id), func() error { return pc.DeleteAccountByUserID(ctx, intToStr(id)) })
+			}
+			wantRefusal(t, "create user "+set, err, 409)
+		}
+	})
+
+	t.Run("group update", func(t *testing.T) {
+		name := "sdk-acc-refused-upd-" + runSuffix()
+		created, err := pc.CreateAccountGroupByID(ctx, "0", &proclassic.Group{
+			Name:         new(name),
+			AccessLevel:  new(proclassic.GroupAccessLevelFullAccess),
+			PrivilegeSet: new(proclassic.GroupPrivilegeSetCustom),
+		})
+		if err != nil {
+			t.Fatalf("control create with Custom: %v", err)
+		}
+		if created == nil || created.ID == nil {
+			t.Fatalf("control create: no ID: %+v", created)
+		}
+		id := *created.ID
+		cleanupDelete(t, "AccountGroup "+intToStr(id), func() error { return pc.DeleteAccountGroupByID(ctx, intToStr(id)) })
+
+		for _, set := range []string{
+			proclassic.GroupPrivilegeSetAdministrator,
+			proclassic.GroupPrivilegeSetAuditor,
+			proclassic.GroupPrivilegeSetEnrollmentOnly,
+		} {
+			err := pc.UpdateAccountGroupByID(ctx, intToStr(id), &proclassic.Group{
+				Name:         new(name),
+				AccessLevel:  new(proclassic.GroupAccessLevelFullAccess),
+				PrivilegeSet: new(set),
+			})
+			wantRefusal(t, "update group to "+set, err, 403)
+		}
+	})
 }
 
 // TestAcceptance_Classic_ComputerInvitationCRUD exercises the
