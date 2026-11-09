@@ -66,11 +66,11 @@ type DeviceListReadRepresentationV1 struct {
 	// The ID of the device, in UUID format.
 	ID string `json:"id"`
 	// The last time the device checked in, in ISO 8601 format, or `null` if the device is not a computer.
-	LastCheckInTime *time.Time `json:"lastCheckInTime,omitempty"`
+	LastCheckInTime *time.Time `json:"lastCheckInTime,omitzero"`
 	// The last time the device was enrolled, in ISO 8601 format.
-	LastEnrollmentTime *time.Time `json:"lastEnrollmentTime,omitempty"`
+	LastEnrollmentTime *time.Time `json:"lastEnrollmentTime,omitzero"`
 	// The last time the device inventory was updated, in ISO 8601 format.
-	LastInventoryUpdateTime *time.Time `json:"lastInventoryUpdateTime,omitempty"`
+	LastInventoryUpdateTime *time.Time `json:"lastInventoryUpdateTime,omitzero"`
 	// Model of the device.
 	Model string `json:"model"`
 	// Unique identifier of the device model.
@@ -82,17 +82,17 @@ type DeviceListReadRepresentationV1 struct {
 	// Serial number of the device.
 	SerialNumber string `json:"serialNumber"`
 	// The ID of the user associated with the device, in UUID format, if assigned; otherwise, null.
-	UserID *string `json:"userId,omitempty"`
+	UserID *string `json:"userId,omitzero"`
 }
 
 // DeviceNetworkReadRepresentationV1 represents a device network read representation v1.
 type DeviceNetworkReadRepresentationV1 struct {
 	// The last observed IP address of the device, in either IPv4 or IPv6 format.
-	LastIPAddress *string `json:"lastIpAddress,omitempty"`
+	LastIPAddress *string `json:"lastIpAddress,omitzero"`
 	// The last reported IPv4 address of the device, or null if not available or applicable.
-	LastReportedIPV4Address *string `json:"lastReportedIpV4Address,omitempty"`
+	LastReportedIPV4Address *string `json:"lastReportedIpV4Address,omitzero"`
 	// The last reported IPv6 address of the device, or null if not available or applicable.
-	LastReportedIPV6Address *string `json:"lastReportedIpV6Address,omitempty"`
+	LastReportedIPV6Address *string `json:"lastReportedIpV6Address,omitzero"`
 }
 
 // DeviceOperatingSystemReadRepresentationV1 represents a device operating system read representation v1.
@@ -102,9 +102,9 @@ type DeviceOperatingSystemReadRepresentationV1 struct {
 	// Name of the operating system.
 	Name string `json:"name"`
 	// Rapid security response version of the operating system, if applicable.
-	RapidSecurityResponse *string `json:"rapidSecurityResponse,omitempty"`
+	RapidSecurityResponse *string `json:"rapidSecurityResponse,omitzero"`
 	// Supplemental build version of the operating system, if applicable.
-	SupplementalBuildVersion *string `json:"supplementalBuildVersion,omitempty"`
+	SupplementalBuildVersion *string `json:"supplementalBuildVersion,omitzero"`
 	// Version of the operating system.
 	Version string `json:"version"`
 }
@@ -113,15 +113,15 @@ type DeviceOperatingSystemReadRepresentationV1 struct {
 type DeviceReadRepresentationV1 struct {
 	// The type of enrollment of a device.
 	EnrollmentType string                              `json:"enrollmentType"`
-	Hardware       *DeviceHardwareReadRepresentationV1 `json:"hardware,omitempty"`
+	Hardware       *DeviceHardwareReadRepresentationV1 `json:"hardware,omitzero"`
 	// The ID of the device, in UUID format.
 	ID string `json:"id"`
 	// The last time the device checked in, in ISO 8601 format, or `null` if the device is not a computer.
-	LastCheckInTime *time.Time `json:"lastCheckInTime,omitempty"`
+	LastCheckInTime *time.Time `json:"lastCheckInTime,omitzero"`
 	// The last time the device was enrolled, in ISO 8601 format.
-	LastEnrollmentTime *time.Time `json:"lastEnrollmentTime,omitempty"`
+	LastEnrollmentTime *time.Time `json:"lastEnrollmentTime,omitzero"`
 	// The last time the device inventory was updated, in ISO 8601 format.
-	LastInventoryUpdateTime *time.Time `json:"lastInventoryUpdateTime,omitempty"`
+	LastInventoryUpdateTime *time.Time `json:"lastInventoryUpdateTime,omitzero"`
 	// Whether the device is managed.
 	Managed bool `json:"managed"`
 	// Whether the device is capable of communicating via MDM.
@@ -130,13 +130,13 @@ type DeviceReadRepresentationV1 struct {
 	MDMCapable bool `json:"mdmCapable"`
 	// Name of the device.
 	Name            string                                     `json:"name"`
-	Network         *DeviceNetworkReadRepresentationV1         `json:"network,omitempty"`
-	OperatingSystem *DeviceOperatingSystemReadRepresentationV1 `json:"operatingSystem,omitempty"`
-	Security        *DeviceSecurityReadRepresentationV1        `json:"security,omitempty"`
+	Network         *DeviceNetworkReadRepresentationV1         `json:"network,omitzero"`
+	OperatingSystem *DeviceOperatingSystemReadRepresentationV1 `json:"operatingSystem,omitzero"`
+	Security        *DeviceSecurityReadRepresentationV1        `json:"security,omitzero"`
 	// Whether the device is supervised.
 	Supervised bool `json:"supervised"`
 	// The ID of the user associated with the device, in UUID format, if assigned; otherwise, null.
-	UserID *string `json:"userId,omitempty"`
+	UserID *string `json:"userId,omitzero"`
 }
 
 // DeviceSecurityReadRepresentationV1 represents a device security read representation v1.
@@ -145,23 +145,23 @@ type DeviceSecurityReadRepresentationV1 struct {
 	// Allowed values: see the DeviceSecurityReadRepresentationV1BootstrapTokenEscrowedStatus constants.
 	BootstrapTokenEscrowedStatus string `json:"bootstrapTokenEscrowedStatus"`
 	// Whether hardware encryption is enabled on the device, or null if the device is a computer.
-	HardwareEncryption *bool `json:"hardwareEncryption,omitempty"`
+	HardwareEncryption *bool `json:"hardwareEncryption,omitzero"`
 	// Whether Lost Mode is enabled on the device, or null if the device is a computer.
-	LostModeEnabled *bool `json:"lostModeEnabled,omitempty"`
+	LostModeEnabled *bool `json:"lostModeEnabled,omitzero"`
 	// Whether the passcode on the device is compliant with the passcode policy, or null if the device is a
 	// computer.
-	PasscodeCompliant *bool `json:"passcodeCompliant,omitempty"`
+	PasscodeCompliant *bool `json:"passcodeCompliant,omitzero"`
 	// Whether a passcode is present on the device, or null if the device is a computer.
-	PasscodePresent *bool `json:"passcodePresent,omitempty"`
+	PasscodePresent *bool `json:"passcodePresent,omitzero"`
 }
 
 // DeviceUpdateRepresentationV1 represents a device update representation v1.
 type DeviceUpdateRepresentationV1 struct {
 	// Name of the device. If provided, must not be empty.
-	Name *string `json:"name,omitempty"`
+	Name *string `json:"name,omitzero"`
 	// The ID of the user to associate with the device, in UUID format. Set to null to unassign the device
 	// from any user. Defaults to empty string (no change to current assignment).
-	UserID *string `json:"userId,omitempty"`
+	UserID *string `json:"userId,omitzero"`
 }
 
 // PaginatedDeviceInstalledApplicationReadRepresentationV1 represents a paginated device installed application read representation v1.

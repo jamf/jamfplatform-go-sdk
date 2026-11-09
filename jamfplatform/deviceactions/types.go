@@ -37,16 +37,16 @@ type DeviceCommandResponse struct {
 // EraseDeviceRequest Options that control how a device is erased.
 type EraseDeviceRequest struct {
 	// Clear the activation lock on the device. Applies to mobile devices only.
-	ClearActivationLock *bool `json:"clearActivationLock,omitempty"`
+	ClearActivationLock *bool `json:"clearActivationLock,omitzero"`
 	// If 'true', disable Proximity Setup on the next reboot and skip the pane in Setup Assistant. Applies
 	// to mobile devices only.
-	DisallowProximitySetup *bool `json:"disallowProximitySetup,omitempty"`
+	DisallowProximitySetup *bool `json:"disallowProximitySetup,omitzero"`
 	// The six-character PIN for Find My. Applies to computers only.
-	Pin *string `json:"pin,omitempty"`
+	Pin *string `json:"pin,omitzero"`
 	// If 'true', preserve the data plan on an iPhone or iPad with eSIM functionality, if one exists.
 	// Applies to mobile devices only.
-	PreserveDataPlan *bool `json:"preserveDataPlan,omitempty"`
+	PreserveDataPlan *bool `json:"preserveDataPlan,omitzero"`
 	// If 'true', the device will be returned to service after the erase is complete. Applies to mobile
 	// devices only.
-	ReturnToService *bool `json:"returnToService,omitempty"`
+	ReturnToService *bool `json:"returnToService,omitzero"`
 }

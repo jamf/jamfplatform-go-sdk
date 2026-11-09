@@ -33,7 +33,7 @@ type BlueprintDeployment struct {
 	// ID of the blueprint referencing this policy.
 	BlueprintID string `json:"blueprintId"`
 	// Present when state is DEPLOYED or OUT_OF_DATE; null when NOT_DEPLOYED.
-	LastDeployment *DeploymentRun `json:"lastDeployment,omitempty"`
+	LastDeployment *DeploymentRun `json:"lastDeployment,omitzero"`
 	// Deployment state of the blueprint.
 	// Allowed values: see the BlueprintDeploymentState constants.
 	State string `json:"state"`
@@ -41,7 +41,7 @@ type BlueprintDeployment struct {
 
 // CreatePolicyRequest Request body for creating a new AI governance policy with initial draft settings.
 type CreatePolicyRequest struct {
-	Description *string `json:"description,omitempty"`
+	Description *string `json:"description,omitzero"`
 	Name        string  `json:"name"`
 	// Vendor schema version the settings were authored against. Must be a known version for the tool.
 	// Returns 422 if not found.
@@ -85,8 +85,8 @@ type PolicyDetail struct {
 	// Actor ID.
 	CreatedBy string `json:"createdBy"`
 	// Latest published version number. Null if never published.
-	CurrentVersionNumber *int    `json:"currentVersionNumber,omitempty"`
-	Description          *string `json:"description,omitempty"`
+	CurrentVersionNumber *int    `json:"currentVersionNumber,omitzero"`
+	Description          *string `json:"description,omitzero"`
 	// True if unpublished changes exist.
 	HasDraft bool   `json:"hasDraft"`
 	ID       string `json:"id"`
@@ -108,7 +108,7 @@ type PolicyDetail struct {
 	UpdatedBy string `json:"updatedBy"`
 	// Optimistic-lock counter, incremented on each PATCH. Surfaced as the strong ETag response header and
 	// used as the If-Match precondition. Null for legacy documents that predate versioning.
-	Version *int64 `json:"version,omitempty"`
+	Version *int64 `json:"version,omitzero"`
 }
 
 // PolicyListResponse Paginated list of policy summaries.
@@ -123,7 +123,7 @@ type PolicySummary struct {
 	// Actor ID.
 	CreatedBy string `json:"createdBy"`
 	// Latest published version number. Null if never published.
-	CurrentVersionNumber *int `json:"currentVersionNumber,omitempty"`
+	CurrentVersionNumber *int `json:"currentVersionNumber,omitzero"`
 	// True if unpublished changes exist.
 	HasDraft bool   `json:"hasDraft"`
 	ID       string `json:"id"`
@@ -204,9 +204,9 @@ type ToolSummary struct {
 // UpdatePolicyRequest Saves draft settings on the policy. Does NOT create a published version. Call POST /policies/{policyId}/publish to create an immutable version. toolId is immutable after creation. name and description are optional — omit them to leave the existing values unchanged.
 type UpdatePolicyRequest struct {
 	// New description for the policy. Omit to leave unchanged.
-	Description *string `json:"description,omitempty"`
+	Description *string `json:"description,omitzero"`
 	// New display name for the policy. Omit to leave unchanged.
-	Name          *string `json:"name,omitempty"`
+	Name          *string `json:"name,omitzero"`
 	SchemaVersion string  `json:"schemaVersion"`
 	// Vendor tool settings payload. Shape is tool-specific and defined by the vendor's JSON Schema, which
 	// is served by GET /v1/tools/{toolId}/schemas/{schemaVersion} (see the ToolSchemaResponse schema).

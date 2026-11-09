@@ -43,14 +43,14 @@ type BaselinesResponse struct {
 // BenchmarkRequestV2 Request body for creating a new compliance benchmark from a source baseline.
 type BenchmarkRequestV2 struct {
 	// A detailed description of the benchmark.
-	Description *string `json:"description,omitempty"`
+	Description *string `json:"description,omitzero"`
 	// The enforcement mode for this benchmark.
 	// Allowed values: see the BenchmarkRequestV2EnforcementMode constants.
 	EnforcementMode string `json:"enforcementMode"`
 	// The rules that make up this benchmark.
 	Rules []RuleRequest `json:"rules"`
 	// The selected OS versions for this benchmark, default is all available baseline OS versions.
-	SelectedOsVersions *[]OsVersion `json:"selectedOsVersions,omitempty"`
+	SelectedOsVersions *[]OsVersion `json:"selectedOsVersions,omitzero"`
 	// The identifier of the source baseline from which this benchmark is derived.
 	SourceBaselineID string `json:"sourceBaselineId"`
 	// The target device group IDs to which a benchmark is deployed.
@@ -76,7 +76,7 @@ type BenchmarkResponseV2 struct {
 	SelectedOsVersions []OsVersion `json:"selectedOsVersions"`
 	Sources            []Source    `json:"sources"`
 	// The target device group IDs to which a benchmark is deployed.
-	Target          *TargetV2 `json:"target,omitempty"`
+	Target          *TargetV2 `json:"target,omitzero"`
 	TenantID        string    `json:"tenantId"`
 	Title           string    `json:"title"`
 	UpdateAvailable bool      `json:"updateAvailable"`
@@ -102,7 +102,7 @@ type BenchmarkV2 struct {
 	// Allowed values: see the BenchmarkV2SyncState constants.
 	SyncState string `json:"syncState"`
 	// The target device group IDs to which a benchmark is deployed.
-	Target          *TargetV2 `json:"target,omitempty"`
+	Target          *TargetV2 `json:"target,omitzero"`
 	Title           string    `json:"title"`
 	UpdateAvailable bool      `json:"updateAvailable"`
 }
@@ -121,7 +121,7 @@ type CompliancePercentage struct {
 type DeviceRuleResult struct {
 	// Device Platform ID.
 	DeviceID   string          `json:"deviceId"`
-	DeviceName *string         `json:"deviceName,omitempty"`
+	DeviceName *string         `json:"deviceName,omitzero"`
 	State      RuleResultState `json:"state"`
 }
 
@@ -144,7 +144,7 @@ type OrganizationDefinedValue struct {
 	Type string `json:"type"`
 	// Validation constraints for an organization-defined value (ODV), specifying allowed range, enum
 	// values, or regex pattern.
-	Validation *ValidationConstraints `json:"validation,omitempty"`
+	Validation *ValidationConstraints `json:"validation,omitzero"`
 	Value      string                 `json:"value"`
 }
 
@@ -161,7 +161,7 @@ type OsInfo struct {
 type OsSpecificRuleInfo struct {
 	Description string `json:"description"`
 	// Recommended value and hint for an organization-defined value (ODV) field.
-	ODV   *ODVRecommendation `json:"odv,omitempty"`
+	ODV   *ODVRecommendation `json:"odv,omitzero"`
 	Title string             `json:"title"`
 }
 
@@ -180,12 +180,12 @@ type RuleInfo struct {
 	Enabled     bool   `json:"enabled"`
 	ID          string `json:"id"`
 	// An organization-defined value (ODV) that customizes a parameterized compliance rule.
-	ODV                *OrganizationDefinedValue     `json:"odv,omitempty"`
+	ODV                *OrganizationDefinedValue     `json:"odv,omitzero"`
 	OsSpecificDefaults map[string]OsSpecificRuleInfo `json:"osSpecificDefaults"`
-	References         *[]string                     `json:"references,omitempty"`
+	References         *[]string                     `json:"references,omitzero"`
 	Reportable         bool                          `json:"reportable"`
 	// Dependency and conflict relationships between compliance rules.
-	RuleRelation *RuleRelation `json:"ruleRelation,omitempty"`
+	RuleRelation *RuleRelation `json:"ruleRelation,omitzero"`
 	SectionName  string        `json:"sectionName"`
 	SmartCard    bool          `json:"smartCard"`
 	SupportedOs  []OsInfo      `json:"supportedOs"`
@@ -204,7 +204,7 @@ type RuleRequest struct {
 	Enabled bool   `json:"enabled"`
 	ID      string `json:"id"`
 	// User-supplied value for an organization-defined value (ODV) rule parameter.
-	ODV *ODVRequest `json:"odv,omitempty"`
+	ODV *ODVRequest `json:"odv,omitzero"`
 }
 
 // RuleResult represents a rule result.

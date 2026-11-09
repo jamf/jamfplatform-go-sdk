@@ -2851,6 +2851,15 @@ func schemaToGoType(name string, schema *openapi3.Schema, isRequest bool, format
 		needsPtr := isNullable || (isStructRef && !isRequest) || (!isRequired && !isScalar(goType)) ||
 			(isRequest && !isRequired) || format == "xml"
 
+		// JSON specs spell "omit when nil" as ",omitzero", XML specs keep
+		// ",omitempty" because encoding/xml has no omitzero. On a pointer the
+		// two agree under encoding/json v1; under v2 "omitempty" is defined on
+		// the encoded value, so it would drop &"", &[]T{} and &map[K]V{} —
+		// exactly the "clear" intent the pointer exists to carry.
+		omitOpt := ",omitzero"
+		if format == "xml" {
+			omitOpt = ",omitempty"
+		}
 		if format == "xml" && !strings.HasPrefix(goType, "*") && goType != "any" {
 			// XML mode: every field is `*T` with `,omitempty`, including
 			// slices/maps. Matches the three-state null/empty/value
@@ -2859,18 +2868,18 @@ func schemaToGoType(name string, schema *openapi3.Schema, isRequest bool, format
 			// distinguishable from an empty slice so the provider can
 			// send "omit" vs "clear" to the server.
 			goType = "*" + goType
-			jsonTag += ",omitempty"
+			jsonTag += omitOpt
 		} else if isRequest && !isRequired && !strings.HasPrefix(goType, "*") && (strings.HasPrefix(goType, "[]") || strings.HasPrefix(goType, "map[")) {
 			// For request types, unrequired slices/maps get pointer-wrapped so
 			// callers can distinguish "omit field" (nil) from "send empty" (&[]T{}).
 			goType = "*" + goType
-			jsonTag += ",omitempty"
+			jsonTag += omitOpt
 		} else if needsPtr && !strings.HasPrefix(goType, "*") && !strings.HasPrefix(goType, "[]") && !strings.HasPrefix(goType, "map[") && goType != "any" {
 			goType = "*" + goType
-			jsonTag += ",omitempty"
+			jsonTag += omitOpt
 		} else if isNullable && !strings.HasPrefix(goType, "*") && goType != "any" {
 			goType = "*" + goType
-			jsonTag += ",omitempty"
+			jsonTag += omitOpt
 		}
 
 		// Field godoc: the property's own description first, then the
@@ -2907,7 +2916,7 @@ func schemaToGoType(name string, schema *openapi3.Schema, isRequest bool, format
 		// marshal behaviour shifts from "omit when nil" to "emit null when
 		// nil". See SpecDef.EmitNullForOptional for full rationale.
 		if currentEmitNullForOptional[specName] {
-			jsonTag = strings.TrimSuffix(jsonTag, ",omitempty")
+			jsonTag = strings.TrimSuffix(strings.TrimSuffix(jsonTag, ",omitempty"), ",omitzero")
 		}
 
 		gt.Fields = append(gt.Fields, GoField{

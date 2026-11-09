@@ -34,7 +34,7 @@ type ErrorDto struct {
 	// Name of the field that caused the error.
 	Field string `json:"field"`
 	// id of object with error.
-	ID *string `json:"id,omitempty"`
+	ID *string `json:"id,omitzero"`
 }
 
 // FilteredDeclarationReportDto represents a filtered declaration report dto.
@@ -64,13 +64,13 @@ type FilteredResultDto struct {
 	// The channel of the client from which the report is sent.
 	Channel string `json:"channel"`
 	// The timestamp when this declaration status was last updated for the device.
-	DateUpdated *time.Time `json:"dateUpdated,omitempty"`
+	DateUpdated *time.Time `json:"dateUpdated,omitzero"`
 	// The identifier of the declaration.
 	DeclarationIdentifier string `json:"declarationIdentifier"`
 	// The platform deviceId.
 	DeviceID string `json:"deviceId"`
 	// The timestamp of the device's last status report.
-	LastReportTime *time.Time `json:"lastReportTime,omitempty"`
+	LastReportTime *time.Time `json:"lastReportTime,omitzero"`
 	// Reasons associated with the declaration, if any.
 	Reasons []StatusReportDeclarationReasonDto `json:"reasons"`
 	// The server token for the declaration.

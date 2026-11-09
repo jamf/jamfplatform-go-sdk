@@ -20,7 +20,7 @@ type ApiError struct {
 	HttpStatus int `json:"httpStatus"`
 	// Trace identifier correlating the response with Jamf server-side logs. Quote it when reporting a
 	// failure. Null when the request carried no active trace.
-	TraceID *string `json:"traceId,omitempty"`
+	TraceID *string `json:"traceId,omitzero"`
 }
 
 // ApiErrorItem A single problem with the request.
@@ -33,41 +33,41 @@ type ApiErrorItem struct {
 	// server-side failures, which are correlated through `traceId` instead.
 	Description string `json:"description"`
 	// Request field the problem relates to. Null when the problem is not about one field.
-	Field *string `json:"field,omitempty"`
+	Field *string `json:"field,omitzero"`
 }
 
 // License A single license held by the organization.
 type License struct {
 	// Activation code for the licensed product, where the product uses one.
-	ActivationCode *string `json:"activationCode,omitempty"`
+	ActivationCode *string `json:"activationCode,omitzero"`
 	// Add-on classification. Populated only for add-on products whose type is computed by bundle
 	// purchases; null otherwise.
-	AddOnType *AddOnType `json:"addOnType,omitempty"`
+	AddOnType *AddOnType `json:"addOnType,omitzero"`
 	// Identifier of the license asset in Jamf systems.
-	AssetID *string `json:"assetId,omitempty"`
+	AssetID *string `json:"assetId,omitzero"`
 	// Code of the bundle this license was sold under, when it was sold as part of a bundle.
-	BundleProductCode *string `json:"bundleProductCode,omitempty"`
+	BundleProductCode *string `json:"bundleProductCode,omitzero"`
 	// Identifier of the contact the license is registered against.
-	ContactID *string `json:"contactId,omitempty"`
+	ContactID *string `json:"contactId,omitzero"`
 	// Date the license term ends.
-	EndDate *time.Time `json:"endDate,omitempty"`
+	EndDate *time.Time `json:"endDate,omitzero"`
 	// Commercial type of the license.
-	LicenseType *LicenseType `json:"licenseType,omitempty"`
+	LicenseType *LicenseType `json:"licenseType,omitzero"`
 	// Name of the licensed product.
-	ProductName *string `json:"productName,omitempty"`
+	ProductName *string `json:"productName,omitzero"`
 	// Product family the `productTopLine` rolls up to. Derived from `productTopLine`; null when
 	// `productTopLine` is null.
-	ProductParent *ProductParent `json:"productParent,omitempty"`
+	ProductParent *ProductParent `json:"productParent,omitzero"`
 	// Product top line the license belongs to. Null when the source record is not mapped to a top line.
-	ProductTopLine *ProductTopLine `json:"productTopLine,omitempty"`
+	ProductTopLine *ProductTopLine `json:"productTopLine,omitzero"`
 	// Number of seats purchased under this license. Zero when the source record specifies no seat count.
 	PurchasedSeats int `json:"purchasedSeats"`
 	// Date the license renews. Null when the source record carries no end date.
-	RenewalDate *time.Time `json:"renewalDate,omitempty"`
+	RenewalDate *time.Time `json:"renewalDate,omitzero"`
 	// Stock-keeping unit the license was sold under.
-	Sku *string `json:"sku,omitempty"`
+	Sku *string `json:"sku,omitzero"`
 	// Date the license term begins.
-	StartDate *time.Time `json:"startDate,omitempty"`
+	StartDate *time.Time `json:"startDate,omitzero"`
 	// Display title of the license.
 	Title string `json:"title"`
 }
@@ -83,14 +83,14 @@ type LicenseList struct {
 // DealRegistration A deal registration submitted by a reseller partner against a prospective end customer.
 type DealRegistration struct {
 	// Address of the prospective end customer.
-	Address *DealRegistrationAddress `json:"address,omitempty"`
+	Address *DealRegistrationAddress `json:"address,omitzero"`
 	// Market segment of the prospective end customer.
-	BusinessType *BusinessType `json:"businessType,omitempty"`
+	BusinessType *BusinessType `json:"businessType,omitzero"`
 	// Email address of the contact at the prospective end customer.
 	Email string `json:"email"`
 	// Date the registration expires. Null while the registration is pending, since an expiry is set on
 	// approval.
-	ExpirationDate *time.Time `json:"expirationDate,omitempty"`
+	ExpirationDate *time.Time `json:"expirationDate,omitzero"`
 	// Given name of the contact at the prospective end customer.
 	FirstName string `json:"firstName"`
 	// Family name of the contact at the prospective end customer.
@@ -100,73 +100,73 @@ type DealRegistration struct {
 	// Identifier Jamf assigned to the deal registration.
 	PartnerRegistrationID string `json:"partnerRegistrationId"`
 	// Telephone number of the contact, as submitted.
-	Phone *string `json:"phone,omitempty"`
+	Phone *string `json:"phone,omitzero"`
 	// Jamf products the prospective end customer is interested in.
-	ProductInterests *[]string `json:"productInterests,omitempty"`
+	ProductInterests *[]string `json:"productInterests,omitzero"`
 	// Current status of the deal registration.
-	RegistrationStatus *DealRegistrationStatus `json:"registrationStatus,omitempty"`
+	RegistrationStatus *DealRegistrationStatus `json:"registrationStatus,omitzero"`
 	// Website of the prospective end customer organization.
-	Website *string `json:"website,omitempty"`
+	Website *string `json:"website,omitzero"`
 }
 
 // DealRegistrationAddress Address of a prospective end customer on a deal registration.
 type DealRegistrationAddress struct {
 	// First line of the street address.
-	AddressLine1 *string `json:"addressLine1,omitempty"`
+	AddressLine1 *string `json:"addressLine1,omitzero"`
 	// Second line of the street address, such as a suite or unit.
-	AddressLine2 *string `json:"addressLine2,omitempty"`
+	AddressLine2 *string `json:"addressLine2,omitzero"`
 	// City or locality.
-	City *string `json:"city,omitempty"`
+	City *string `json:"city,omitzero"`
 	// Country name.
-	Country *string `json:"country,omitempty"`
+	Country *string `json:"country,omitzero"`
 	// Postal or ZIP code.
-	PostalCode *string `json:"postalCode,omitempty"`
+	PostalCode *string `json:"postalCode,omitzero"`
 	// State, province, or region.
-	StateProvince *string `json:"stateProvince,omitempty"`
+	StateProvince *string `json:"stateProvince,omitzero"`
 }
 
 // DealRegistrationCreate A new deal registration to submit against a prospective end customer. The partner organization is resolved from the access token, so it does not appear in the body.
 type DealRegistrationCreate struct {
 	// Free-form notes about the opportunity.
-	AdditionalNotes *string `json:"additionalNotes,omitempty"`
+	AdditionalNotes *string `json:"additionalNotes,omitzero"`
 	// Additional support the partner is requesting from Jamf for the opportunity.
-	AdditionalSupports *[]string `json:"additionalSupports,omitempty"`
+	AdditionalSupports *[]string `json:"additionalSupports,omitzero"`
 	// Address of the prospective end customer.
-	Address *DealRegistrationAddress `json:"address,omitempty"`
+	Address *DealRegistrationAddress `json:"address,omitzero"`
 	// Whether the prospective end customer has approved budget for the purchase.
-	BudgetApproved *bool `json:"budgetApproved,omitempty"`
+	BudgetApproved *bool `json:"budgetApproved,omitzero"`
 	// Market segment of the prospective end customer.
-	BusinessType *BusinessType `json:"businessType,omitempty"`
+	BusinessType *BusinessType `json:"businessType,omitzero"`
 	// Estimated device count for the opportunity, as a range.
-	DeviceCntRange *string `json:"deviceCntRange,omitempty"`
+	DeviceCntRange *string `json:"deviceCntRange,omitzero"`
 	// Email address of the contact at the prospective end customer.
-	Email *string `json:"email,omitempty"`
+	Email *string `json:"email,omitzero"`
 	// Number of employees or students at the prospective end customer organization.
-	EmployeeStudentCnt *int `json:"employeeStudentCnt,omitempty"`
+	EmployeeStudentCnt *int `json:"employeeStudentCnt,omitzero"`
 	// Date the partner expects the opportunity to close, as submitted.
-	ExpectedCloseDate *string `json:"expectedCloseDate,omitempty"`
+	ExpectedCloseDate *string `json:"expectedCloseDate,omitzero"`
 	// Given name of the contact at the prospective end customer.
-	FirstName *string `json:"firstName,omitempty"`
+	FirstName *string `json:"firstName,omitzero"`
 	// Job title of the contact at the prospective end customer.
-	JobTitle *string `json:"jobTitle,omitempty"`
+	JobTitle *string `json:"jobTitle,omitzero"`
 	// Family name of the contact at the prospective end customer.
-	LastName *string `json:"lastName,omitempty"`
+	LastName *string `json:"lastName,omitzero"`
 	// Whether the prospective end customer is new to Jamf rather than an existing customer.
-	NewCustomer *bool `json:"newCustomer,omitempty"`
+	NewCustomer *bool `json:"newCustomer,omitzero"`
 	// Whether the opportunity introduces a Jamf product line the customer does not already own.
-	NewProductLine *bool `json:"newProductLine,omitempty"`
+	NewProductLine *bool `json:"newProductLine,omitzero"`
 	// Name of the prospective end customer organization.
-	OrganizationName *string `json:"organizationName,omitempty"`
+	OrganizationName *string `json:"organizationName,omitzero"`
 	// Telephone number of the contact.
-	Phone *string `json:"phone,omitempty"`
+	Phone *string `json:"phone,omitzero"`
 	// Identifier of the primary distributor for the opportunity.
-	PrimaryDistributorAccountID *string `json:"primaryDistributorAccountId,omitempty"`
+	PrimaryDistributorAccountID *string `json:"primaryDistributorAccountId,omitzero"`
 	// Jamf products the prospective end customer is interested in.
-	ProductInterests *[]string `json:"productInterests,omitempty"`
+	ProductInterests *[]string `json:"productInterests,omitzero"`
 	// Identifier of the secondary distributor for the opportunity, if any.
-	SecondaryDistributorAccountID *string `json:"secondaryDistributorAccountId,omitempty"`
+	SecondaryDistributorAccountID *string `json:"secondaryDistributorAccountId,omitzero"`
 	// Website of the prospective end customer organization.
-	Website *string `json:"website,omitempty"`
+	Website *string `json:"website,omitzero"`
 }
 
 // DealRegistrationCreated A reference to a newly created deal registration.
@@ -189,195 +189,195 @@ type DealRegistrationList struct {
 // DistributorAddress A billing or shipping address on a distributor quote or purchase order.
 type DistributorAddress struct {
 	// City or locality.
-	City *string `json:"city,omitempty"`
+	City *string `json:"city,omitzero"`
 	// Full country name.
-	Country *string `json:"country,omitempty"`
+	Country *string `json:"country,omitzero"`
 	// ISO 3166-1 alpha-2 country code.
-	CountryCode *string `json:"countryCode,omitempty"`
+	CountryCode *string `json:"countryCode,omitzero"`
 	// First line of the street address.
-	Line1 *string `json:"line1,omitempty"`
+	Line1 *string `json:"line1,omitzero"`
 	// Second line of the street address, such as a suite or unit.
-	Line2 *string `json:"line2,omitempty"`
+	Line2 *string `json:"line2,omitzero"`
 	// Third line of the street address, where one is used.
-	Line3 *string `json:"line3,omitempty"`
+	Line3 *string `json:"line3,omitzero"`
 	// Fourth line of the street address, where one is used.
-	Line4 *string `json:"line4,omitempty"`
+	Line4 *string `json:"line4,omitzero"`
 	// Postal or ZIP code.
-	PostalCode *string `json:"postalCode,omitempty"`
+	PostalCode *string `json:"postalCode,omitzero"`
 	// Full name of the state, province, or region.
-	StateProvince *string `json:"stateProvince,omitempty"`
+	StateProvince *string `json:"stateProvince,omitzero"`
 	// Abbreviated code for the state, province, or region.
-	StateProvinceCode *string `json:"stateProvinceCode,omitempty"`
+	StateProvinceCode *string `json:"stateProvinceCode,omitzero"`
 }
 
 // DistributorConfiguration Integration configuration for a distributor organization: how it is permitted to submit purchase orders and where Jamf delivers its webhooks.
 type DistributorConfiguration struct {
 	// Details Jamf maintains about the distributor. Read-only; ignored if supplied on update. Null when
 	// the distributor platform holds no Jamf-maintained details for the organization.
-	JamfInfo *DistributorJamfInfo `json:"jamfInfo,omitempty"`
+	JamfInfo *DistributorJamfInfo `json:"jamfInfo,omitzero"`
 	// How the distributor is permitted to submit purchase orders. Values are human-readable phrases and
 	// may contain spaces, such as `API only`, `Email only`, or `API and email`. Null when the distributor
 	// platform has no submission permission recorded.
-	PoSubmissionPermission *string `json:"poSubmissionPermission,omitempty"`
+	PoSubmissionPermission *string `json:"poSubmissionPermission,omitzero"`
 	// Webhook delivery settings for events raised on the distributor's purchase orders. Null when no
 	// webhook has been configured.
-	Webhook *DistributorWebhook `json:"webhook,omitempty"`
+	Webhook *DistributorWebhook `json:"webhook,omitzero"`
 }
 
 // DistributorJamfInfo Details Jamf maintains about a distributor. Read-only.
 type DistributorJamfInfo struct {
 	// Registered name of the distributor.
-	DistributorName *string `json:"distributorName,omitempty"`
+	DistributorName *string `json:"distributorName,omitzero"`
 	// CIDR ranges that API requests from the distributor are permitted to originate from.
-	OriginCidr *[]string `json:"originCidr,omitempty"`
+	OriginCidr *[]string `json:"originCidr,omitzero"`
 }
 
 // DistributorPurchaseOrder A distributor purchase order raised against a quote. The schema is shared by requests and responses. On submission, supply the quote being ordered against, the distributor's own purchase order details, and the lines; the Jamf-assigned fields (`jamfPoNumber`, `jamfOrderNumber`, `orderNumber`, `status`, `createdOn`, `lastModifiedOn`, `legalEntity`) are populated by Jamf during processing and are ignored if supplied.
 type DistributorPurchaseOrder struct {
 	// Address the order is billed to. Defaults to the quote's billing address when omitted.
-	BillingAddress *DistributorAddress `json:"billingAddress,omitempty"`
+	BillingAddress *DistributorAddress `json:"billingAddress,omitzero"`
 	// When Jamf received the purchase order. Assigned by Jamf; ignored on submission.
-	CreatedOn *time.Time `json:"createdOn,omitempty"`
+	CreatedOn *time.Time `json:"createdOn,omitzero"`
 	// ISO 4217 currency code that `totalAmount` and all line amounts are denominated in. Must match the
 	// quote.
-	CurrencyCode *string `json:"currencyCode,omitempty"`
+	CurrencyCode *string `json:"currencyCode,omitzero"`
 	// Sales order Jamf raised from this purchase order. Null until the purchase order has been processed.
 	// Assigned by Jamf; ignored on submission.
-	JamfOrderNumber *string `json:"jamfOrderNumber,omitempty"`
+	JamfOrderNumber *string `json:"jamfOrderNumber,omitzero"`
 	// Purchase order number Jamf assigned during processing. Use it to read the purchase order back.
 	// Assigned by Jamf; ignored on submission.
-	JamfPoNumber *string `json:"jamfPoNumber,omitempty"`
+	JamfPoNumber *string `json:"jamfPoNumber,omitzero"`
 	// When the purchase order last changed. Assigned by Jamf; ignored on submission.
-	LastModifiedOn *time.Time `json:"lastModifiedOn,omitempty"`
+	LastModifiedOn *time.Time `json:"lastModifiedOn,omitzero"`
 	// Jamf legal entity contracting on the order. Taken from the quote; ignored on submission.
-	LegalEntity *string `json:"legalEntity,omitempty"`
+	LegalEntity *string `json:"legalEntity,omitzero"`
 	// Line items on the purchase order.
-	Lines *[]DistributorPurchaseOrderLine `json:"lines,omitempty"`
+	Lines *[]DistributorPurchaseOrderLine `json:"lines,omitzero"`
 	// Order reference within the distributor platform. Assigned during processing; ignored on submission.
-	OrderNumber *string `json:"orderNumber,omitempty"`
+	OrderNumber *string `json:"orderNumber,omitzero"`
 	// Payment terms that apply to the order.
-	PaymentTerms *string `json:"paymentTerms,omitempty"`
+	PaymentTerms *string `json:"paymentTerms,omitzero"`
 	// Date the distributor raised the purchase order.
-	PoDate *string `json:"poDate,omitempty"`
+	PoDate *string `json:"poDate,omitzero"`
 	// The distributor's own purchase order number.
-	PoNumber *string `json:"poNumber,omitempty"`
+	PoNumber *string `json:"poNumber,omitzero"`
 	// Quote this purchase order is raised against, as returned by `GET /distributor/quotes/{quoteNumber}`.
-	QuoteNumber *string `json:"quoteNumber,omitempty"`
+	QuoteNumber *string `json:"quoteNumber,omitzero"`
 	// Address the order ships to. Defaults to the quote's shipping address when omitted.
-	ShippingAddress *DistributorAddress `json:"shippingAddress,omitempty"`
+	ShippingAddress *DistributorAddress `json:"shippingAddress,omitzero"`
 	// Processing status of the purchase order. Assigned by Jamf; ignored on submission.
-	Status *string `json:"status,omitempty"`
+	Status *string `json:"status,omitzero"`
 	// Total value of the purchase order in `currencyCode`. Validated against the quote total.
-	TotalAmount *float64 `json:"totalAmount,omitempty"`
+	TotalAmount *float64 `json:"totalAmount,omitzero"`
 }
 
 // DistributorPurchaseOrderLine A single line item on a distributor purchase order.
 type DistributorPurchaseOrderLine struct {
 	// Description of the ordered product.
-	Description *string `json:"description,omitempty"`
+	Description *string `json:"description,omitzero"`
 	// Value of this line in the purchase order's `currencyCode`.
-	LineAmount *float64 `json:"lineAmount,omitempty"`
+	LineAmount *float64 `json:"lineAmount,omitzero"`
 	// Number of units ordered.
-	Quantity *int `json:"quantity,omitempty"`
+	Quantity *int `json:"quantity,omitzero"`
 	// Stock-keeping unit being ordered. Must appear on the quote.
-	Sku *string `json:"sku,omitempty"`
+	Sku *string `json:"sku,omitzero"`
 }
 
 // DistributorQuote A quote issued to a distributor, priced with the distributor's and partner's contracted discounts.
 type DistributorQuote struct {
 	// Address the resulting order is billed to.
-	BillingAddress *DistributorAddress `json:"billingAddress,omitempty"`
+	BillingAddress *DistributorAddress `json:"billingAddress,omitzero"`
 	// How often the resulting subscription is billed.
-	BillingFrequency *string `json:"billingFrequency,omitempty"`
+	BillingFrequency *string `json:"billingFrequency,omitzero"`
 	// When the quote was created.
-	CreatedOn *time.Time `json:"createdOn,omitempty"`
+	CreatedOn *time.Time `json:"createdOn,omitzero"`
 	// ISO 4217 currency code that `totalAmount` and all line amounts are denominated in.
 	CurrencyCode string `json:"currencyCode"`
 	// Date after which the quote can no longer be ordered against.
-	ExpiresOn *string `json:"expiresOn,omitempty"`
+	ExpiresOn *string `json:"expiresOn,omitzero"`
 	// When the quote was last changed.
-	LastModifiedOn *time.Time `json:"lastModifiedOn,omitempty"`
+	LastModifiedOn *time.Time `json:"lastModifiedOn,omitzero"`
 	// Jamf legal entity that will contract on the resulting order.
-	LegalEntity *string `json:"legalEntity,omitempty"`
+	LegalEntity *string `json:"legalEntity,omitzero"`
 	// Line items on the quote.
-	Lines *[]DistributorQuoteLine `json:"lines,omitempty"`
+	Lines *[]DistributorQuoteLine `json:"lines,omitzero"`
 	// Payment terms that apply to orders placed against the quote.
-	PaymentTerms *string `json:"paymentTerms,omitempty"`
+	PaymentTerms *string `json:"paymentTerms,omitzero"`
 	// Jamf-assigned quote number. Reference this when validating or submitting a purchase order against
 	// the quote.
 	QuoteNumber string `json:"quoteNumber"`
 	// Address the resulting order ships to.
-	ShippingAddress *DistributorAddress `json:"shippingAddress,omitempty"`
+	ShippingAddress *DistributorAddress `json:"shippingAddress,omitzero"`
 	// Status of the quote in the distributor platform, such as whether it is still in draft or has been
 	// approved for ordering.
-	Status *string `json:"status,omitempty"`
+	Status *string `json:"status,omitzero"`
 	// Total value of the quote in `currencyCode`, after all discounts.
-	TotalAmount *float64 `json:"totalAmount,omitempty"`
+	TotalAmount *float64 `json:"totalAmount,omitzero"`
 }
 
 // DistributorQuoteLine A single line item on a distributor quote.
 type DistributorQuoteLine struct {
 	// Additional discount applied to this line, as a percentage, beyond the contracted partner and
 	// distributor discounts.
-	AdditionalDiscountPct *float64 `json:"additionalDiscountPct,omitempty"`
+	AdditionalDiscountPct *float64 `json:"additionalDiscountPct,omitzero"`
 	// Description of the quoted product.
-	Description *string `json:"description,omitempty"`
+	Description *string `json:"description,omitzero"`
 	// Distributor's contracted discount on this line, as a percentage.
-	DistributorDiscountPct *float64 `json:"distributorDiscountPct,omitempty"`
+	DistributorDiscountPct *float64 `json:"distributorDiscountPct,omitzero"`
 	// Date the quoted term for this line ends.
-	EndDate *string `json:"endDate,omitempty"`
+	EndDate *string `json:"endDate,omitzero"`
 	// Value of this line in the quote's `currencyCode`, after all discounts.
-	LineAmount *float64 `json:"lineAmount,omitempty"`
+	LineAmount *float64 `json:"lineAmount,omitzero"`
 	// Reseller partner's contracted discount on this line, as a percentage.
-	PartnerDiscountPct *float64 `json:"partnerDiscountPct,omitempty"`
+	PartnerDiscountPct *float64 `json:"partnerDiscountPct,omitzero"`
 	// Fraction of a full term this line is priced for, used when the line is co-termed with an existing
 	// subscription. `1` for a full term.
-	ProrateMultiplier *float64 `json:"prorateMultiplier,omitempty"`
+	ProrateMultiplier *float64 `json:"prorateMultiplier,omitzero"`
 	// Number of units quoted.
-	Quantity *int `json:"quantity,omitempty"`
+	Quantity *int `json:"quantity,omitzero"`
 	// Stock-keeping unit being quoted.
 	Sku string `json:"sku"`
 	// Date the quoted term for this line begins.
-	StartDate *string `json:"startDate,omitempty"`
+	StartDate *string `json:"startDate,omitzero"`
 }
 
 // DistributorWebhook Webhook delivery settings for events raised on a distributor's purchase orders.
 type DistributorWebhook struct {
 	// How the delivery is authenticated to the distributor's endpoint, such as a bearer token or a
 	// signature header.
-	AuthType *string `json:"authType,omitempty"`
+	AuthType *string `json:"authType,omitzero"`
 	// Whether Jamf delivers webhooks to `url`. When false, the remaining settings are retained but no
 	// deliveries are made.
-	Enabled *bool `json:"enabled,omitempty"`
+	Enabled *bool `json:"enabled,omitzero"`
 	// Name of the header the secret is sent in.
-	SecretName *string `json:"secretName,omitempty"`
+	SecretName *string `json:"secretName,omitzero"`
 	// Secret used to authenticate webhook deliveries. Write-only: supply it to set or rotate the secret,
 	// and expect it to be omitted from every response.
 	// Write-only. Servers MUST NOT return this field in responses; the SDK preserves it only so the caller
 	// can supply a value on update.
-	SecretValue *string `json:"secretValue,omitempty"`
+	SecretValue *string `json:"secretValue,omitzero"`
 	// Event types the distributor receives. An empty list means no events are delivered even when
 	// `enabled` is true.
-	SubscribedTo *[]string `json:"subscribedTo,omitempty"`
+	SubscribedTo *[]string `json:"subscribedTo,omitzero"`
 	// HTTPS endpoint Jamf delivers webhooks to. Required when `enabled` is true.
-	URL *string `json:"url,omitempty"`
+	URL *string `json:"url,omitzero"`
 }
 
 // PurchaseOrderValidationResult Outcome of validating a distributor purchase order, with a rule-by-rule breakdown.
 type PurchaseOrderValidationResult struct {
 	// Overall outcome, being the most severe outcome across all evaluated rules.
-	Result *ValidationOutcome `json:"result,omitempty"`
+	Result *ValidationOutcome `json:"result,omitzero"`
 	// Outcome of each validation rule that was evaluated.
-	Rules *[]ValidationRule `json:"rules,omitempty"`
+	Rules *[]ValidationRule `json:"rules,omitzero"`
 }
 
 // ValidationRule Outcome of a single validation rule.
 type ValidationRule struct {
 	// Explanation of the outcome, suitable for showing to the submitting distributor. Null when the rule
 	// passed with nothing to report.
-	Message *string `json:"message,omitempty"`
+	Message *string `json:"message,omitzero"`
 	// Outcome of this rule.
-	Result *ValidationOutcome `json:"result,omitempty"`
+	Result *ValidationOutcome `json:"result,omitzero"`
 	// Name of the validation rule that was evaluated.
 	RuleName string `json:"ruleName"`
 }
@@ -389,37 +389,37 @@ type BaseConnectionSettings struct {
 	AliasLoginHintToIdp bool `json:"aliasLoginHintToIdp"`
 	// JSON document, as a string, mapping provider claims onto Jamf user attributes. Null to use the
 	// provider's default mapping.
-	AttributeMap *string `json:"attributeMap,omitempty"`
+	AttributeMap *string `json:"attributeMap,omitzero"`
 	// Client identifier of the application registered with the provider.
-	ClientID *string `json:"clientId,omitempty"`
+	ClientID *string `json:"clientId,omitzero"`
 	// Client secret of the application registered with the provider. Write-only: supply it to set or
 	// rotate the secret, omit it on update to keep the stored value, and expect it to be omitted from
 	// every response.
 	// Write-only. Servers MUST NOT return this field in responses; the SDK preserves it only so the caller
 	// can supply a value on update.
-	ClientSecret *string `json:"clientSecret,omitempty"`
+	ClientSecret *string `json:"clientSecret,omitzero"`
 	// Claim to read the username from, when the provider does not put it in the standard claim.
-	CustomUsernameClaimName *string `json:"customUsernameClaimName,omitempty"`
+	CustomUsernameClaimName *string `json:"customUsernameClaimName,omitzero"`
 	// Pattern limiting which provider groups are passed through to Jamf, for directories with more groups
 	// than Jamf needs.
-	GroupNameFilter *string `json:"groupNameFilter,omitempty"`
+	GroupNameFilter *string `json:"groupNameFilter,omitzero"`
 	// Display name for the connection, shown to administrators in Jamf Account.
 	Name string `json:"name"`
 	// Proof Key for Code Exchange method used with the provider. Defaults to `DISABLED`.
-	PkceAuthType *PkceAuthType `json:"pkceAuthType,omitempty"`
+	PkceAuthType *PkceAuthType `json:"pkceAuthType,omitzero"`
 	// Region to create the connection in. Cannot be changed once the connection exists.
 	Region Region `json:"region"`
 	// Whether a nonce is sent on the authentication request. Leave unset unless the provider requires it.
-	SendNonce *bool `json:"sendNonce,omitempty"`
+	SendNonce *bool `json:"sendNonce,omitzero"`
 	// Session lifetime limits for users signing in through this connection. Null to use the Jamf defaults.
-	SessionInfo *SessionInfo `json:"sessionInfo,omitempty"`
+	SessionInfo *SessionInfo `json:"sessionInfo,omitzero"`
 	// Whether the user's profile attributes are refreshed from the provider on every sign-in. Defaults to
 	// true.
-	SyncUserProfileAttributesAtLogin *bool `json:"syncUserProfileAttributesAtLogin,omitempty"`
+	SyncUserProfileAttributesAtLogin *bool `json:"syncUserProfileAttributesAtLogin,omitzero"`
 	// How Jamf authenticates to the provider's token endpoint. Defaults to `CLIENT_SECRET_POST`.
-	TokenEndpointAuthMethod *TokenEndpointAuthMethod `json:"tokenEndpointAuthMethod,omitempty"`
+	TokenEndpointAuthMethod *TokenEndpointAuthMethod `json:"tokenEndpointAuthMethod,omitzero"`
 	// Domain appended to a bare username from the provider to form the user's email address.
-	UsernameDomain *string `json:"usernameDomain,omitempty"`
+	UsernameDomain *string `json:"usernameDomain,omitzero"`
 }
 
 // Connection A connection as returned by a read. Client secrets are never included. The provider settings appear in the options object matching `type`; the others are null.
@@ -428,53 +428,53 @@ type Connection struct {
 	AliasLoginHintToIdp bool `json:"aliasLoginHintToIdp"`
 	// JSON document, as a string, mapping provider claims onto Jamf user attributes. Null when the
 	// provider's default mapping is used.
-	AttributeMap *string `json:"attributeMap,omitempty"`
+	AttributeMap *string `json:"attributeMap,omitzero"`
 	// Entra-specific settings. Present only when `type` is `WAAD`.
-	AzureOptions *EntraOptions `json:"azureOptions,omitempty"`
+	AzureOptions *EntraOptions `json:"azureOptions,omitzero"`
 	// Client identifier of the application registered with the provider. Null for a connection using Entra
 	// admin consent, which has no client of its own.
-	ClientID *string `json:"clientId,omitempty"`
+	ClientID *string `json:"clientId,omitzero"`
 	// Whether the connection authenticates through Entra admin consent rather than a client registered by
 	// the administrator. Managed by Jamf; `clientId` is null when true.
 	ConsentFlow bool `json:"consentFlow"`
 	// Claim the username is read from, when it is not the standard one.
-	CustomUsernameClaimName *string `json:"customUsernameClaimName,omitempty"`
+	CustomUsernameClaimName *string `json:"customUsernameClaimName,omitzero"`
 	// Verified domains the connection signs users in for.
 	Domains []string `json:"domains"`
 	// Whether the connection was created by Jamf's guided setup rather than configured directly.
 	EasyConfig bool `json:"easyConfig"`
 	// Google Workspace-specific settings. Present only when `type` is `GOOGLE_APPS`.
-	GoogleOptions *GoogleOptions `json:"googleOptions,omitempty"`
+	GoogleOptions *GoogleOptions `json:"googleOptions,omitzero"`
 	// Pattern limiting which provider groups are passed through to Jamf.
-	GroupNameFilter *string `json:"groupNameFilter,omitempty"`
+	GroupNameFilter *string `json:"groupNameFilter,omitzero"`
 	// Identifier of the connection.
 	ID string `json:"id"`
 	// Display name of the connection.
 	Name string `json:"name"`
 	// Generic OIDC endpoints. Present only when `type` is `OIDC`.
-	OidcOptions *OidcOptions `json:"oidcOptions,omitempty"`
+	OidcOptions *OidcOptions `json:"oidcOptions,omitzero"`
 	// Okta-specific settings. Present only when `type` is `OKTA`.
-	OktaOptions *OktaOptions `json:"oktaOptions,omitempty"`
+	OktaOptions *OktaOptions `json:"oktaOptions,omitzero"`
 	// Proof Key for Code Exchange method used with the provider.
-	PkceAuthType *PkceAuthType `json:"pkceAuthType,omitempty"`
+	PkceAuthType *PkceAuthType `json:"pkceAuthType,omitzero"`
 	// Region the connection lives in.
-	Region *Region `json:"region,omitempty"`
+	Region *Region `json:"region,omitzero"`
 	// Space-separated OAuth scopes requested from the provider. Null for types that do not use
 	// configurable scopes.
-	Scopes *string `json:"scopes,omitempty"`
+	Scopes *string `json:"scopes,omitzero"`
 	// Whether a nonce is sent on the authentication request.
 	SendNonce bool `json:"sendNonce"`
 	// Session lifetime limits for users signing in through this connection. Null when the Jamf defaults
 	// apply.
-	SessionInfo *SessionInfo `json:"sessionInfo,omitempty"`
+	SessionInfo *SessionInfo `json:"sessionInfo,omitzero"`
 	// Whether the user's profile attributes are refreshed from the provider on every sign-in.
 	SyncUserProfileAttributesAtLogin bool `json:"syncUserProfileAttributesAtLogin"`
 	// How Jamf authenticates to the provider's token endpoint.
-	TokenEndpointAuthMethod *TokenEndpointAuthMethod `json:"tokenEndpointAuthMethod,omitempty"`
+	TokenEndpointAuthMethod *TokenEndpointAuthMethod `json:"tokenEndpointAuthMethod,omitzero"`
 	// Provider type of the connection.
-	Type *ConnectionType `json:"type,omitempty"`
+	Type *ConnectionType `json:"type,omitzero"`
 	// Domain appended to a bare username from the provider to form the user's email address.
-	UsernameDomain *string `json:"usernameDomain,omitempty"`
+	UsernameDomain *string `json:"usernameDomain,omitzero"`
 }
 
 // ConnectionRequest A connection to create or replace, together with the domains and products it serves.
@@ -487,7 +487,7 @@ type ConnectionRequest struct {
 	// organization.
 	Domains []string `json:"domains"`
 	// Products scoped by environment rather than by tenant, if any. Omit unless a product requires it.
-	EnabledEnvironments *[]EnabledEnvironment `json:"enabledEnvironments,omitempty"`
+	EnabledEnvironments *[]EnabledEnvironment `json:"enabledEnvironments,omitzero"`
 	// Products, and the tenants of those products, the connection is enabled for. Send an empty array to
 	// enable the connection for no tenant-scoped product.
 	EnabledProducts []EnabledProduct `json:"enabledProducts"`
@@ -569,16 +569,16 @@ type ConnectionSummary struct {
 	// Display name of the connection.
 	Name string `json:"name"`
 	// Region the connection lives in.
-	Region *Region `json:"region,omitempty"`
+	Region *Region `json:"region,omitzero"`
 	// Whether the user's profile attributes are refreshed from the provider on every sign-in.
 	SyncUserProfileAttributesAtLogin bool `json:"syncUserProfileAttributesAtLogin"`
 	// Relative path to the Google Workspace admin consent request for the connection. Null for every type
 	// other than `GOOGLE_APPS`, and for Google connections that need no consent.
-	TicketURL *string `json:"ticketUrl,omitempty"`
+	TicketURL *string `json:"ticketUrl,omitzero"`
 	// How Jamf authenticates to the provider's token endpoint.
-	TokenEndpointAuthMethod *TokenEndpointAuthMethod `json:"tokenEndpointAuthMethod,omitempty"`
+	TokenEndpointAuthMethod *TokenEndpointAuthMethod `json:"tokenEndpointAuthMethod,omitzero"`
 	// Provider type of the connection.
-	Type *ConnectionType `json:"type,omitempty"`
+	Type *ConnectionType `json:"type,omitzero"`
 }
 
 // ConnectionSummaryList The connections enabled for the organization.
@@ -596,34 +596,34 @@ type Domain struct {
 	AccountID string `json:"accountId"`
 	// Name of the Jamf Account user who added the domain. Null when the domain was added over this API,
 	// which has no user.
-	CreatedByName *string `json:"createdByName,omitempty"`
+	CreatedByName *string `json:"createdByName,omitzero"`
 	// When the domain was claimed.
-	CreatedDate *time.Time `json:"createdDate,omitempty"`
+	CreatedDate *time.Time `json:"createdDate,omitzero"`
 	// The DNS domain, lower-cased.
 	Domain string `json:"domain"`
 	// Current verification status of the domain.
-	DomainStatus *DomainStatus `json:"domainStatus,omitempty"`
+	DomainStatus *DomainStatus `json:"domainStatus,omitzero"`
 	// Jamf-assigned identifier of the domain. Use it to verify or delete the domain. Treat it as an opaque
 	// string, even though it is currently a decimal number.
-	ID *json.Number `json:"id,omitempty"`
+	ID *json.Number `json:"id,omitzero"`
 	// When the domain last changed. Also the point the five-minute verification rate limit is measured
 	// from.
-	LastModifiedDate *time.Time `json:"lastModifiedDate,omitempty"`
+	LastModifiedDate *time.Time `json:"lastModifiedDate,omitzero"`
 	// When ownership was last successfully verified. Null for a domain that has never verified.
-	LastVerificationDate *time.Time `json:"lastVerificationDate,omitempty"`
+	LastVerificationDate *time.Time `json:"lastVerificationDate,omitzero"`
 	// Whether the domain is owned by another organization and shared with this one. A shared domain can be
 	// assigned to a connection but not changed or deleted.
 	SharedDomain bool `json:"sharedDomain"`
 	// When the current verification lapses, being 14 days after the last successful verification, or after
 	// the domain was claimed if it has never verified. Jamf will attempt to automatically reverify the
 	// domain on this date.
-	VerificationExpirationDate *time.Time `json:"verificationExpirationDate,omitempty"`
+	VerificationExpirationDate *time.Time `json:"verificationExpirationDate,omitzero"`
 	// Value to publish as a TXT record on the domain to prove ownership. Reissued if the domain is deleted
 	// and claimed again.
 	VerificationKey string `json:"verificationKey"`
 	// Identifier of the verified parent domain this subdomain inherits its verification from, in the same
 	// form as `id`. Null for a domain verified in its own right.
-	VerifiedTldID *json.Number `json:"verifiedTldId,omitempty"`
+	VerifiedTldID *json.Number `json:"verifiedTldId,omitzero"`
 }
 
 // DomainAllocation The connections a domain is currently assigned to, and whether Jamf ID sign-in is enabled for it.
@@ -676,7 +676,7 @@ type EnabledEnvironment struct {
 	// Environments of the product the connection applies to.
 	EnabledEnvironments []string `json:"enabledEnvironments"`
 	// Set only when the environments belong to a managed account rather than the caller's own.
-	ManagedAccountID *string `json:"managedAccountId,omitempty"`
+	ManagedAccountID *string `json:"managedAccountId,omitzero"`
 	// The Jamf product.
 	Product Product `json:"product"`
 }
@@ -688,7 +688,7 @@ type EnabledProduct struct {
 	EnabledTenants []string `json:"enabledTenants"`
 	// Set only when the tenants belong to a managed account rather than the caller's own, as a Jamf
 	// partner managing a customer.
-	ManagedAccountID *string `json:"managedAccountId,omitempty"`
+	ManagedAccountID *string `json:"managedAccountId,omitzero"`
 	// The Jamf product.
 	Product Product `json:"product"`
 }
@@ -700,19 +700,19 @@ type EntraConnectionSettings struct {
 	AliasLoginHintToIdp bool `json:"aliasLoginHintToIdp"`
 	// JSON document, as a string, mapping provider claims onto Jamf user attributes. Null to use the
 	// provider's default mapping.
-	AttributeMap *string `json:"attributeMap,omitempty"`
+	AttributeMap *string `json:"attributeMap,omitzero"`
 	// Whether the user's basic profile is read from Entra on sign-in.
 	BasicProfile bool `json:"basicProfile"`
 	// Client identifier of the application registered with the provider.
-	ClientID *string `json:"clientId,omitempty"`
+	ClientID *string `json:"clientId,omitzero"`
 	// Client secret of the application registered with the provider. Write-only: supply it to set or
 	// rotate the secret, omit it on update to keep the stored value, and expect it to be omitted from
 	// every response.
 	// Write-only. Servers MUST NOT return this field in responses; the SDK preserves it only so the caller
 	// can supply a value on update.
-	ClientSecret *string `json:"clientSecret,omitempty"`
+	ClientSecret *string `json:"clientSecret,omitzero"`
 	// Claim to read the username from, when the provider does not put it in the standard claim.
-	CustomUsernameClaimName *string `json:"customUsernameClaimName,omitempty"`
+	CustomUsernameClaimName *string `json:"customUsernameClaimName,omitzero"`
 	// Primary domain of the Entra tenant.
 	Domain string `json:"domain"`
 	// Whether the Microsoft Graph users API is used to read attributes the token does not carry. Requires
@@ -722,12 +722,12 @@ type EntraConnectionSettings struct {
 	ExtendedProfile bool `json:"extendedProfile"`
 	// Pattern limiting which provider groups are passed through to Jamf, for directories with more groups
 	// than Jamf needs.
-	GroupNameFilter *string `json:"groupNameFilter,omitempty"`
+	GroupNameFilter *string `json:"groupNameFilter,omitzero"`
 	// Whether the user's Entra group memberships are passed through to Jamf.
 	Groups bool `json:"groups"`
 	// Graph permission used to read groups. `GROUP_READ_ALL` is the narrower of the two and is the right
 	// choice for new connections; `DEFAULT` is `DIRECTORY_READ_ALL`, kept for existing ones.
-	GroupsScope *EntraGroupsScope `json:"groupsScope,omitempty"`
+	GroupsScope *EntraGroupsScope `json:"groupsScope,omitzero"`
 	// Microsoft identity platform version the connection targets.
 	IdentityApi EntraIdentityApi `json:"identityApi"`
 	// Maximum number of groups read for a user. Entra truncates group claims on large directories, so
@@ -739,66 +739,66 @@ type EntraConnectionSettings struct {
 	// is true.
 	NestedGroups bool `json:"nestedGroups"`
 	// Proof Key for Code Exchange method used with the provider. Defaults to `DISABLED`.
-	PkceAuthType *PkceAuthType `json:"pkceAuthType,omitempty"`
+	PkceAuthType *PkceAuthType `json:"pkceAuthType,omitzero"`
 	// Region to create the connection in. Cannot be changed once the connection exists.
 	Region Region `json:"region"`
 	// Whether a nonce is sent on the authentication request. Leave unset unless the provider requires it.
-	SendNonce *bool `json:"sendNonce,omitempty"`
+	SendNonce *bool `json:"sendNonce,omitzero"`
 	// Session lifetime limits for users signing in through this connection. Null to use the Jamf defaults.
-	SessionInfo *SessionInfo `json:"sessionInfo,omitempty"`
+	SessionInfo *SessionInfo `json:"sessionInfo,omitzero"`
 	// Whether email addresses from this provider are treated as already verified, so users are not asked
 	// to confirm them again.
 	SetEmailsVerified bool `json:"setEmailsVerified"`
 	// Whether the user's profile attributes are refreshed from the provider on every sign-in. Defaults to
 	// true.
-	SyncUserProfileAttributesAtLogin *bool `json:"syncUserProfileAttributesAtLogin,omitempty"`
+	SyncUserProfileAttributesAtLogin *bool `json:"syncUserProfileAttributesAtLogin,omitzero"`
 	// Domain identifying the Entra tenant to authenticate against. Usually the same as `domain`.
 	TenantDomain string `json:"tenantDomain"`
 	// How Jamf authenticates to the provider's token endpoint. Defaults to `CLIENT_SECRET_POST`.
-	TokenEndpointAuthMethod *TokenEndpointAuthMethod `json:"tokenEndpointAuthMethod,omitempty"`
+	TokenEndpointAuthMethod *TokenEndpointAuthMethod `json:"tokenEndpointAuthMethod,omitzero"`
 	// Whether the multi-tenant common endpoint is used instead of the tenant-specific one. Required for a
 	// multi-tenant application, in which case `clientId` may be omitted.
 	UseCommonEndpoint bool `json:"useCommonEndpoint"`
 	// Whether WS-Federation is used instead of OIDC. Leave false unless the tenant requires it.
 	UseWsfed bool `json:"useWsfed"`
 	// Domain appended to a bare username from the provider to form the user's email address.
-	UsernameDomain *string `json:"usernameDomain,omitempty"`
+	UsernameDomain *string `json:"usernameDomain,omitzero"`
 }
 
 // EntraExtendedOptions Entra group and profile options, which control what is read from the directory beyond the token's claims.
 type EntraExtendedOptions struct {
 	// Whether the user's extended profile attributes are read from Entra.
-	ExtendedProfile *bool `json:"extendedProfile,omitempty"`
+	ExtendedProfile *bool `json:"extendedProfile,omitzero"`
 	// Whether the user's Entra group memberships are passed through to Jamf.
-	Groups *bool `json:"groups,omitempty"`
+	Groups *bool `json:"groups,omitzero"`
 	// Whether groups inherited through nested group membership are included.
-	NestedGroups *bool `json:"nestedGroups,omitempty"`
+	NestedGroups *bool `json:"nestedGroups,omitzero"`
 }
 
 // EntraOptions Entra-specific settings of a connection.
 type EntraOptions struct {
 	// Whether the user's basic profile is read from Entra on sign-in.
-	BasicProfile *bool `json:"basicProfile,omitempty"`
+	BasicProfile *bool `json:"basicProfile,omitzero"`
 	// Primary domain of the Entra tenant.
-	Domain *string `json:"domain,omitempty"`
+	Domain *string `json:"domain,omitzero"`
 	// Whether the Microsoft Graph users API is used to read attributes the token does not carry.
-	EnableUsersApi *bool `json:"enableUsersApi,omitempty"`
+	EnableUsersApi *bool `json:"enableUsersApi,omitzero"`
 	// Group and profile options read from the directory.
-	ExtOptions *EntraExtendedOptions `json:"extOptions,omitempty"`
+	ExtOptions *EntraExtendedOptions `json:"extOptions,omitzero"`
 	// Graph permission used to read groups.
-	GroupsScope *EntraGroupsScope `json:"groupsScope,omitempty"`
+	GroupsScope *EntraGroupsScope `json:"groupsScope,omitzero"`
 	// Microsoft identity platform version the connection targets.
-	IdentityApi *EntraIdentityApi `json:"identityApi,omitempty"`
+	IdentityApi *EntraIdentityApi `json:"identityApi,omitzero"`
 	// Maximum number of groups read for a user.
-	MaxGroups *int `json:"maxGroups,omitempty"`
+	MaxGroups *int `json:"maxGroups,omitzero"`
 	// Whether email addresses from this provider are treated as already verified.
-	SetEmailsVerified *bool `json:"setEmailsVerified,omitempty"`
+	SetEmailsVerified *bool `json:"setEmailsVerified,omitzero"`
 	// Domain identifying the Entra tenant authenticated against.
-	TenantDomain *string `json:"tenantDomain,omitempty"`
+	TenantDomain *string `json:"tenantDomain,omitzero"`
 	// Whether the multi-tenant common endpoint is used instead of the tenant-specific one.
-	UseCommonEndpoint *bool `json:"useCommonEndpoint,omitempty"`
+	UseCommonEndpoint *bool `json:"useCommonEndpoint,omitzero"`
 	// Whether WS-Federation is used instead of OIDC.
-	UseWsfed *bool `json:"useWsfed,omitempty"`
+	UseWsfed *bool `json:"useWsfed,omitzero"`
 }
 
 // GoogleConnectionSettings Settings for a Google Workspace connection (`connectionType: GOOGLE_APPS`).
@@ -810,61 +810,61 @@ type GoogleConnectionSettings struct {
 	ApiEnableUsers bool `json:"apiEnableUsers"`
 	// JSON document, as a string, mapping provider claims onto Jamf user attributes. Null to use the
 	// provider's default mapping.
-	AttributeMap *string `json:"attributeMap,omitempty"`
+	AttributeMap *string `json:"attributeMap,omitzero"`
 	// Client identifier of the application registered with the provider.
-	ClientID *string `json:"clientId,omitempty"`
+	ClientID *string `json:"clientId,omitzero"`
 	// Client secret of the application registered with the provider. Write-only: supply it to set or
 	// rotate the secret, omit it on update to keep the stored value, and expect it to be omitted from
 	// every response.
 	// Write-only. Servers MUST NOT return this field in responses; the SDK preserves it only so the caller
 	// can supply a value on update.
-	ClientSecret *string `json:"clientSecret,omitempty"`
+	ClientSecret *string `json:"clientSecret,omitzero"`
 	// Claim to read the username from, when the provider does not put it in the standard claim.
-	CustomUsernameClaimName *string `json:"customUsernameClaimName,omitempty"`
+	CustomUsernameClaimName *string `json:"customUsernameClaimName,omitzero"`
 	// Primary domain of the Google Workspace account.
 	Domain string `json:"domain"`
 	// Whether groups are read through the Google Directory API rather than from the token, which returns
 	// groups the token omits. Defaults to false.
-	ExtendedGroups *bool `json:"extendedGroups,omitempty"`
+	ExtendedGroups *bool `json:"extendedGroups,omitzero"`
 	// Pattern limiting which provider groups are passed through to Jamf, for directories with more groups
 	// than Jamf needs.
-	GroupNameFilter *string `json:"groupNameFilter,omitempty"`
+	GroupNameFilter *string `json:"groupNameFilter,omitzero"`
 	// Whether the user's Google Workspace group memberships are passed through to Jamf.
 	Groups bool `json:"groups"`
 	// Display name for the connection, shown to administrators in Jamf Account.
 	Name string `json:"name"`
 	// Proof Key for Code Exchange method used with the provider. Defaults to `DISABLED`.
-	PkceAuthType *PkceAuthType `json:"pkceAuthType,omitempty"`
+	PkceAuthType *PkceAuthType `json:"pkceAuthType,omitzero"`
 	// Region to create the connection in. Cannot be changed once the connection exists.
 	Region Region `json:"region"`
 	// Space-separated OAuth scopes requested from Google. Null to use the defaults Jamf requests.
-	Scopes *string `json:"scopes,omitempty"`
+	Scopes *string `json:"scopes,omitzero"`
 	// Whether a nonce is sent on the authentication request. Leave unset unless the provider requires it.
-	SendNonce *bool `json:"sendNonce,omitempty"`
+	SendNonce *bool `json:"sendNonce,omitzero"`
 	// Session lifetime limits for users signing in through this connection. Null to use the Jamf defaults.
-	SessionInfo *SessionInfo `json:"sessionInfo,omitempty"`
+	SessionInfo *SessionInfo `json:"sessionInfo,omitzero"`
 	// Whether the user's profile attributes are refreshed from the provider on every sign-in. Defaults to
 	// true.
-	SyncUserProfileAttributesAtLogin *bool `json:"syncUserProfileAttributesAtLogin,omitempty"`
+	SyncUserProfileAttributesAtLogin *bool `json:"syncUserProfileAttributesAtLogin,omitzero"`
 	// How Jamf authenticates to the provider's token endpoint. Defaults to `CLIENT_SECRET_POST`.
-	TokenEndpointAuthMethod *TokenEndpointAuthMethod `json:"tokenEndpointAuthMethod,omitempty"`
+	TokenEndpointAuthMethod *TokenEndpointAuthMethod `json:"tokenEndpointAuthMethod,omitzero"`
 	// Domain appended to a bare username from the provider to form the user's email address.
-	UsernameDomain *string `json:"usernameDomain,omitempty"`
+	UsernameDomain *string `json:"usernameDomain,omitzero"`
 }
 
 // GoogleOptions Google Workspace-specific settings of a connection.
 type GoogleOptions struct {
 	// Primary domain of the Google Workspace account.
-	Domain *string `json:"domain,omitempty"`
+	Domain *string `json:"domain,omitzero"`
 	// Whether the Google Directory users API is used to read attributes the token does not carry.
-	EnableUsersApi *bool `json:"enableUsersApi,omitempty"`
+	EnableUsersApi *bool `json:"enableUsersApi,omitzero"`
 	// Whether the user's Google Workspace group memberships are passed through to Jamf.
-	ExtGroups *bool `json:"extGroups,omitempty"`
+	ExtGroups *bool `json:"extGroups,omitzero"`
 	// Whether groups are read through the Google Directory API rather than from the token.
-	ExtGroupsExtended *bool `json:"extGroupsExtended,omitempty"`
+	ExtGroupsExtended *bool `json:"extGroupsExtended,omitzero"`
 	// Relative path to the Google Workspace admin consent request for the connection. Null when no consent
 	// is outstanding.
-	TicketURL *string `json:"ticketUrl,omitempty"`
+	TicketURL *string `json:"ticketUrl,omitzero"`
 }
 
 // OidcConnectionSettings Settings for a generic OIDC connection (`connectionType: OIDC`). Use this for any provider without a dedicated type.
@@ -874,22 +874,22 @@ type OidcConnectionSettings struct {
 	AliasLoginHintToIdp bool `json:"aliasLoginHintToIdp"`
 	// JSON document, as a string, mapping provider claims onto Jamf user attributes. Null to use the
 	// provider's default mapping.
-	AttributeMap *string `json:"attributeMap,omitempty"`
+	AttributeMap *string `json:"attributeMap,omitzero"`
 	// Authorization endpoint users are redirected to.
 	AuthorizationEndpoint string `json:"authorizationEndpoint"`
 	// Client identifier of the application registered with the provider.
-	ClientID *string `json:"clientId,omitempty"`
+	ClientID *string `json:"clientId,omitzero"`
 	// Client secret of the application registered with the provider. Write-only: supply it to set or
 	// rotate the secret, omit it on update to keep the stored value, and expect it to be omitted from
 	// every response.
 	// Write-only. Servers MUST NOT return this field in responses; the SDK preserves it only so the caller
 	// can supply a value on update.
-	ClientSecret *string `json:"clientSecret,omitempty"`
+	ClientSecret *string `json:"clientSecret,omitzero"`
 	// Claim to read the username from, when the provider does not put it in the standard claim.
-	CustomUsernameClaimName *string `json:"customUsernameClaimName,omitempty"`
+	CustomUsernameClaimName *string `json:"customUsernameClaimName,omitzero"`
 	// Pattern limiting which provider groups are passed through to Jamf, for directories with more groups
 	// than Jamf needs.
-	GroupNameFilter *string `json:"groupNameFilter,omitempty"`
+	GroupNameFilter *string `json:"groupNameFilter,omitzero"`
 	// Issuer URL of the provider, as it appears in its tokens.
 	IssuerURL string `json:"issuerUrl"`
 	// JWKS endpoint the provider publishes its signing keys at.
@@ -897,42 +897,42 @@ type OidcConnectionSettings struct {
 	// Display name for the connection, shown to administrators in Jamf Account.
 	Name string `json:"name"`
 	// Proof Key for Code Exchange method used with the provider. Defaults to `DISABLED`.
-	PkceAuthType *PkceAuthType `json:"pkceAuthType,omitempty"`
+	PkceAuthType *PkceAuthType `json:"pkceAuthType,omitzero"`
 	// Region to create the connection in. Cannot be changed once the connection exists.
 	Region Region `json:"region"`
 	// Space-separated OAuth scopes requested from the provider. Must include the scopes needed for the
 	// profile attributes Jamf reads.
 	Scopes string `json:"scopes"`
 	// Whether a nonce is sent on the authentication request. Leave unset unless the provider requires it.
-	SendNonce *bool `json:"sendNonce,omitempty"`
+	SendNonce *bool `json:"sendNonce,omitzero"`
 	// Session lifetime limits for users signing in through this connection. Null to use the Jamf defaults.
-	SessionInfo *SessionInfo `json:"sessionInfo,omitempty"`
+	SessionInfo *SessionInfo `json:"sessionInfo,omitzero"`
 	// Whether the user's profile attributes are refreshed from the provider on every sign-in. Defaults to
 	// true.
-	SyncUserProfileAttributesAtLogin *bool `json:"syncUserProfileAttributesAtLogin,omitempty"`
+	SyncUserProfileAttributesAtLogin *bool `json:"syncUserProfileAttributesAtLogin,omitzero"`
 	// Token endpoint the authorization code is exchanged at.
 	TokenEndpoint string `json:"tokenEndpoint"`
 	// How Jamf authenticates to the provider's token endpoint. Defaults to `CLIENT_SECRET_POST`.
-	TokenEndpointAuthMethod *TokenEndpointAuthMethod `json:"tokenEndpointAuthMethod,omitempty"`
+	TokenEndpointAuthMethod *TokenEndpointAuthMethod `json:"tokenEndpointAuthMethod,omitzero"`
 	// Userinfo endpoint profile attributes are read from. Null when the provider returns everything needed
 	// in the ID token.
-	UserInfoEndpoint *string `json:"userInfoEndpoint,omitempty"`
+	UserInfoEndpoint *string `json:"userInfoEndpoint,omitzero"`
 	// Domain appended to a bare username from the provider to form the user's email address.
-	UsernameDomain *string `json:"usernameDomain,omitempty"`
+	UsernameDomain *string `json:"usernameDomain,omitzero"`
 }
 
 // OidcOptions Endpoints of a generic OIDC connection.
 type OidcOptions struct {
 	// Authorization endpoint users are redirected to.
-	AuthorizationEndpoint *string `json:"authorizationEndpoint,omitempty"`
+	AuthorizationEndpoint *string `json:"authorizationEndpoint,omitzero"`
 	// Issuer URL of the provider, as it appears in its tokens.
-	IssuerURL *string `json:"issuerUrl,omitempty"`
+	IssuerURL *string `json:"issuerUrl,omitzero"`
 	// JWKS endpoint the provider publishes its signing keys at.
-	JwksUri *string `json:"jwksUri,omitempty"`
+	JwksUri *string `json:"jwksUri,omitzero"`
 	// Token endpoint the authorization code is exchanged at.
-	TokenEndpoint *string `json:"tokenEndpoint,omitempty"`
+	TokenEndpoint *string `json:"tokenEndpoint,omitzero"`
 	// Userinfo endpoint profile attributes are read from.
-	UserInfoEndpoint *string `json:"userInfoEndpoint,omitempty"`
+	UserInfoEndpoint *string `json:"userInfoEndpoint,omitzero"`
 }
 
 // OktaConnectionSettings Settings for an Okta connection (`connectionType: OKTA`). Native Okta connections are preferred over configuring Okta as generic OIDC.
@@ -942,65 +942,65 @@ type OktaConnectionSettings struct {
 	AliasLoginHintToIdp bool `json:"aliasLoginHintToIdp"`
 	// JSON document, as a string, mapping provider claims onto Jamf user attributes. Null to use the
 	// provider's default mapping.
-	AttributeMap *string `json:"attributeMap,omitempty"`
+	AttributeMap *string `json:"attributeMap,omitzero"`
 	// Client identifier of the application registered with the provider.
-	ClientID *string `json:"clientId,omitempty"`
+	ClientID *string `json:"clientId,omitzero"`
 	// Client secret of the application registered with the provider. Write-only: supply it to set or
 	// rotate the secret, omit it on update to keep the stored value, and expect it to be omitted from
 	// every response.
 	// Write-only. Servers MUST NOT return this field in responses; the SDK preserves it only so the caller
 	// can supply a value on update.
-	ClientSecret *string `json:"clientSecret,omitempty"`
+	ClientSecret *string `json:"clientSecret,omitzero"`
 	// Claim to read the username from, when the provider does not put it in the standard claim.
-	CustomUsernameClaimName *string `json:"customUsernameClaimName,omitempty"`
+	CustomUsernameClaimName *string `json:"customUsernameClaimName,omitzero"`
 	// Okta org domain, without a scheme.
 	Domain string `json:"domain"`
 	// Pattern limiting which provider groups are passed through to Jamf, for directories with more groups
 	// than Jamf needs.
-	GroupNameFilter *string `json:"groupNameFilter,omitempty"`
+	GroupNameFilter *string `json:"groupNameFilter,omitzero"`
 	// Display name for the connection, shown to administrators in Jamf Account.
 	Name string `json:"name"`
 	// Proof Key for Code Exchange method used with the provider. Defaults to `DISABLED`.
-	PkceAuthType *PkceAuthType `json:"pkceAuthType,omitempty"`
+	PkceAuthType *PkceAuthType `json:"pkceAuthType,omitzero"`
 	// Region to create the connection in. Cannot be changed once the connection exists.
 	Region Region `json:"region"`
 	// Space-separated OAuth scopes requested from Okta.
 	Scopes string `json:"scopes"`
 	// Whether a nonce is sent on the authentication request. Leave unset unless the provider requires it.
-	SendNonce *bool `json:"sendNonce,omitempty"`
+	SendNonce *bool `json:"sendNonce,omitzero"`
 	// Session lifetime limits for users signing in through this connection. Null to use the Jamf defaults.
-	SessionInfo *SessionInfo `json:"sessionInfo,omitempty"`
+	SessionInfo *SessionInfo `json:"sessionInfo,omitzero"`
 	// Whether the user's profile attributes are refreshed from the provider on every sign-in. Defaults to
 	// true.
-	SyncUserProfileAttributesAtLogin *bool `json:"syncUserProfileAttributesAtLogin,omitempty"`
+	SyncUserProfileAttributesAtLogin *bool `json:"syncUserProfileAttributesAtLogin,omitzero"`
 	// How Jamf authenticates to the provider's token endpoint. Defaults to `CLIENT_SECRET_POST`.
-	TokenEndpointAuthMethod *TokenEndpointAuthMethod `json:"tokenEndpointAuthMethod,omitempty"`
+	TokenEndpointAuthMethod *TokenEndpointAuthMethod `json:"tokenEndpointAuthMethod,omitzero"`
 	// Domain appended to a bare username from the provider to form the user's email address.
-	UsernameDomain *string `json:"usernameDomain,omitempty"`
+	UsernameDomain *string `json:"usernameDomain,omitzero"`
 }
 
 // OktaOptions Okta-specific settings of a connection.
 type OktaOptions struct {
 	// Authorization endpoint users are redirected to.
-	AuthorizationEndpoint *string `json:"authorizationEndpoint,omitempty"`
+	AuthorizationEndpoint *string `json:"authorizationEndpoint,omitzero"`
 	// Okta org domain, derived from the issuer URL.
-	Domain *string `json:"domain,omitempty"`
+	Domain *string `json:"domain,omitzero"`
 	// Issuer URL of the Okta authorization server.
-	IssuerURL *string `json:"issuerUrl,omitempty"`
+	IssuerURL *string `json:"issuerUrl,omitzero"`
 	// JWKS endpoint Okta publishes its signing keys at.
-	JwksUri *string `json:"jwksUri,omitempty"`
+	JwksUri *string `json:"jwksUri,omitzero"`
 	// Token endpoint the authorization code is exchanged at.
-	TokenEndpoint *string `json:"tokenEndpoint,omitempty"`
+	TokenEndpoint *string `json:"tokenEndpoint,omitzero"`
 }
 
 // SessionInfo Session lifetime limits for users signing in through a connection.
 type SessionInfo struct {
 	// How long a session survives without activity before the user must sign in again. Null to use the
 	// Jamf default.
-	MaxInactivityTimeInMinutes *int `json:"maxInactivityTimeInMinutes,omitempty"`
+	MaxInactivityTimeInMinutes *int `json:"maxInactivityTimeInMinutes,omitzero"`
 	// How long a session lasts before the user must sign in again, regardless of activity. Null to use the
 	// Jamf default.
-	MaxSessionTimeInMinutes *int `json:"maxSessionTimeInMinutes,omitempty"`
+	MaxSessionTimeInMinutes *int `json:"maxSessionTimeInMinutes,omitzero"`
 }
 
 // AssignTenantsRequest The tenants to add to an environment. Additive: the tenants already in the environment are kept.
@@ -1017,7 +1017,7 @@ type CreateEnvironmentRequest struct {
 	Label EnvironmentLabel `json:"label"`
 	// Region every tenant assigned to this environment must be in. Omit to create a global environment,
 	// which accepts tenants from any region. Cannot be changed once the environment exists.
-	MetaRegion *MetaRegion `json:"metaRegion,omitempty"`
+	MetaRegion *MetaRegion `json:"metaRegion,omitzero"`
 	// Display name for the environment, shown to administrators in Jamf Account. Trimmed of surrounding
 	// whitespace, and not required to be unique.
 	Name string `json:"name"`
@@ -1035,10 +1035,10 @@ type Environment struct {
 	// `PRODUCTION`, `SANDBOX`, `TRIAL`). Typed as a string rather than an enum because a label Jamf
 	// introduces elsewhere is passed through unchanged rather than failing the read; match on it
 	// defensively.
-	Label *string `json:"label,omitempty"`
+	Label *string `json:"label,omitzero"`
 	// Region the environment's tenants must be in, one of the `MetaRegion` values. Null for a global
 	// environment, which accepts tenants from any region. Fixed when the environment is created.
-	MetaRegion *string `json:"metaRegion,omitempty"`
+	MetaRegion *string `json:"metaRegion,omitzero"`
 	// Display name of the environment, as supplied on create.
 	Name string `json:"name"`
 }
@@ -1055,26 +1055,26 @@ type EnvironmentList struct {
 type Tenant struct {
 	// Identifier of the environment the tenant belongs to. Null for a tenant that has not been assigned
 	// yet, which is the only kind `PUT /environments/{environmentId}/tenants` accepts.
-	EnvironmentID *string `json:"environmentId,omitempty"`
+	EnvironmentID *string `json:"environmentId,omitzero"`
 	// Jamf-assigned identifier of the tenant, as accepted by `PUT /environments/{environmentId}/tenants`.
 	// Treat it as an opaque string.
 	ID string `json:"id"`
 	// Region the tenant is hosted in, one of the `MetaRegion` values. It must match the `metaRegion` of
 	// the environment the tenant is assigned to, unless the product is global.
-	MetaRegion *string `json:"metaRegion,omitempty"`
+	MetaRegion *string `json:"metaRegion,omitzero"`
 	// Display name of the tenant. Null for a tenant Jamf holds no name for.
-	Name *string `json:"name,omitempty"`
+	Name *string `json:"name,omitzero"`
 	// Code of the Jamf product the tenant is an instance of, such as `pro` for Jamf Pro, `school`, `now`,
 	// `protect`, `jetp` for Jamf Mobile Forensics, `jsc` or `security` for Jamf Security Cloud, and `wizy`
 	// for Jamf Manager for Android. New codes are added as Jamf ships products, so treat the value as an
 	// open set.
-	Product *string `json:"product,omitempty"`
+	Product *string `json:"product,omitzero"`
 	// Classification of the product, such as `management` for the products that manage devices.
 	// Descriptive only, an open set like `product`, and null for a product Jamf holds no classification
 	// for.
-	Type *string `json:"type,omitempty"`
+	Type *string `json:"type,omitzero"`
 	// URL the tenant is reached at. Null for a product whose tenants have no per-tenant URL.
-	URL *string `json:"url,omitempty"`
+	URL *string `json:"url,omitzero"`
 }
 
 // TenantList The tenants of the organization.
