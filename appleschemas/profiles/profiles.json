@@ -1050,15 +1050,9 @@
     "release"
    ]
   },
-  "com.apple.MCX": {
+  "com.apple.MCX.Accounts": {
    "title": "Accounts",
    "keys": {
-    "DestroyFVKeyOnStandby": {
-     "type": "boolean",
-     "refs": [
-      "release"
-     ]
-    },
     "DisableGuestAccount": {
      "type": "boolean",
      "refs": [
@@ -1115,45 +1109,62 @@
      "refs": [
       "release"
      ]
-    },
-    "RequireAdminForAirPortNetworkChange": {
-     "type": "boolean",
+    }
+   },
+   "refs": [
+    "release"
+   ]
+  },
+  "com.apple.MCX.EnergySaver": {
+   "title": "Energy Saver",
+   "keys": {
+    "PayloadDescription": {
+     "type": "string",
      "refs": [
       "release"
      ]
     },
-    "RequireAdminForIBSS": {
-     "type": "boolean",
+    "PayloadDisplayName": {
+     "type": "string",
      "refs": [
       "release"
      ]
     },
-    "RequireAdminToTurnAirPortOnOff": {
-     "type": "boolean",
+    "PayloadIdentifier": {
+     "type": "string",
+     "refs": [
+      "release"
+     ]
+    },
+    "PayloadOrganization": {
+     "type": "string",
+     "refs": [
+      "release"
+     ]
+    },
+    "PayloadType": {
+     "type": "string",
+     "refs": [
+      "release"
+     ]
+    },
+    "PayloadUUID": {
+     "type": "string",
+     "refs": [
+      "release"
+     ]
+    },
+    "PayloadVersion": {
+     "type": "integer",
+     "enum": [
+      1
+     ],
      "refs": [
       "release"
      ]
     },
     "SleepDisabled": {
      "type": "boolean",
-     "refs": [
-      "release"
-     ]
-    },
-    "cachedaccounts.WarnOnCreate.allowNever": {
-     "type": "boolean",
-     "refs": [
-      "release"
-     ]
-    },
-    "cachedaccounts.askForSecureTokenAuthBypass": {
-     "type": "boolean",
-     "refs": [
-      "release"
-     ]
-    },
-    "cachedaccounts.expiry.delete.disusedSeconds": {
-     "type": "integer",
      "refs": [
       "release"
      ]
@@ -1481,42 +1492,6 @@
      "refs": [
       "release"
      ]
-    },
-    "com.apple.cachedaccounts.CreateAtLogin": {
-     "type": "boolean",
-     "refs": [
-      "release"
-     ]
-    },
-    "com.apple.cachedaccounts.WarnOnCreate": {
-     "type": "boolean",
-     "refs": [
-      "release"
-     ]
-    },
-    "dontAllowFDEDisable": {
-     "type": "boolean",
-     "refs": [
-      "release"
-     ]
-    },
-    "dontAllowFDEEnable": {
-     "type": "boolean",
-     "refs": [
-      "release"
-     ]
-    },
-    "timeServer": {
-     "type": "string",
-     "refs": [
-      "release"
-     ]
-    },
-    "timeZone": {
-     "type": "string",
-     "refs": [
-      "release"
-     ]
     }
    },
    "refs": [
@@ -1524,7 +1499,7 @@
    ]
   },
   "com.apple.MCX.FileVault2": {
-   "title": "FDE FileVault",
+   "title": "FDE FileVault Options",
    "keys": {
     "Certificate": {
      "type": "data",
@@ -1548,6 +1523,12 @@
      "type": "integer",
      "min": -1,
      "max": 9999,
+     "refs": [
+      "release"
+     ]
+    },
+    "DestroyFVKeyOnStandby": {
+     "type": "boolean",
      "refs": [
       "release"
      ]
@@ -1658,6 +1639,101 @@
     },
     "Username": {
      "type": "string",
+     "refs": [
+      "release"
+     ]
+    },
+    "dontAllowFDEDisable": {
+     "type": "boolean",
+     "refs": [
+      "release"
+     ]
+    },
+    "dontAllowFDEEnable": {
+     "type": "boolean",
+     "refs": [
+      "release"
+     ]
+    }
+   },
+   "refs": [
+    "release"
+   ]
+  },
+  "com.apple.MCX.Mobility": {
+   "title": "Mobile Accounts",
+   "keys": {
+    "PayloadDescription": {
+     "type": "string",
+     "refs": [
+      "release"
+     ]
+    },
+    "PayloadDisplayName": {
+     "type": "string",
+     "refs": [
+      "release"
+     ]
+    },
+    "PayloadIdentifier": {
+     "type": "string",
+     "refs": [
+      "release"
+     ]
+    },
+    "PayloadOrganization": {
+     "type": "string",
+     "refs": [
+      "release"
+     ]
+    },
+    "PayloadType": {
+     "type": "string",
+     "refs": [
+      "release"
+     ]
+    },
+    "PayloadUUID": {
+     "type": "string",
+     "refs": [
+      "release"
+     ]
+    },
+    "PayloadVersion": {
+     "type": "integer",
+     "enum": [
+      1
+     ],
+     "refs": [
+      "release"
+     ]
+    },
+    "cachedaccounts.WarnOnCreate.allowNever": {
+     "type": "boolean",
+     "refs": [
+      "release"
+     ]
+    },
+    "cachedaccounts.askForSecureTokenAuthBypass": {
+     "type": "boolean",
+     "refs": [
+      "release"
+     ]
+    },
+    "cachedaccounts.expiry.delete.disusedSeconds": {
+     "type": "integer",
+     "refs": [
+      "release"
+     ]
+    },
+    "com.apple.cachedaccounts.CreateAtLogin": {
+     "type": "boolean",
+     "refs": [
+      "release"
+     ]
+    },
+    "com.apple.cachedaccounts.WarnOnCreate": {
+     "type": "boolean",
      "refs": [
       "release"
      ]
@@ -1772,6 +1848,142 @@
        "release"
       ]
      },
+     "refs": [
+      "release"
+     ]
+    }
+   },
+   "refs": [
+    "release"
+   ]
+  },
+  "com.apple.MCX.TimeServer": {
+   "title": "Time Server",
+   "keys": {
+    "PayloadDescription": {
+     "type": "string",
+     "refs": [
+      "release"
+     ]
+    },
+    "PayloadDisplayName": {
+     "type": "string",
+     "refs": [
+      "release"
+     ]
+    },
+    "PayloadIdentifier": {
+     "type": "string",
+     "refs": [
+      "release"
+     ]
+    },
+    "PayloadOrganization": {
+     "type": "string",
+     "refs": [
+      "release"
+     ]
+    },
+    "PayloadType": {
+     "type": "string",
+     "refs": [
+      "release"
+     ]
+    },
+    "PayloadUUID": {
+     "type": "string",
+     "refs": [
+      "release"
+     ]
+    },
+    "PayloadVersion": {
+     "type": "integer",
+     "enum": [
+      1
+     ],
+     "refs": [
+      "release"
+     ]
+    },
+    "timeServer": {
+     "type": "string",
+     "refs": [
+      "release"
+     ]
+    },
+    "timeZone": {
+     "type": "string",
+     "refs": [
+      "release"
+     ]
+    }
+   },
+   "refs": [
+    "release"
+   ]
+  },
+  "com.apple.MCX.WiFi": {
+   "title": "Wi-Fi Managed Settings",
+   "keys": {
+    "PayloadDescription": {
+     "type": "string",
+     "refs": [
+      "release"
+     ]
+    },
+    "PayloadDisplayName": {
+     "type": "string",
+     "refs": [
+      "release"
+     ]
+    },
+    "PayloadIdentifier": {
+     "type": "string",
+     "refs": [
+      "release"
+     ]
+    },
+    "PayloadOrganization": {
+     "type": "string",
+     "refs": [
+      "release"
+     ]
+    },
+    "PayloadType": {
+     "type": "string",
+     "refs": [
+      "release"
+     ]
+    },
+    "PayloadUUID": {
+     "type": "string",
+     "refs": [
+      "release"
+     ]
+    },
+    "PayloadVersion": {
+     "type": "integer",
+     "enum": [
+      1
+     ],
+     "refs": [
+      "release"
+     ]
+    },
+    "RequireAdminForAirPortNetworkChange": {
+     "type": "boolean",
+     "refs": [
+      "release"
+     ]
+    },
+    "RequireAdminForIBSS": {
+     "type": "boolean",
+     "refs": [
+      "release"
+     ]
+    },
+    "RequireAdminToTurnAirPortOnOff": {
+     "type": "boolean",
      "refs": [
       "release"
      ]

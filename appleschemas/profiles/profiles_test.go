@@ -375,3 +375,21 @@ func TestValidate_IntegerRangeCheckedInsideNesting(t *testing.T) {
 		t.Errorf("expected an indexed path, got %q", problems[0].Path)
 	}
 }
+
+// Jamf's blueprints service keys the MCX payloads by variant — com.apple.MCX.EnergySaver is stored
+// and the bare com.apple.MCX is refused (wire-probed 2026-11-10, provider issue #565) — so the
+// table must carry the variants and not the type Apple's files declare.
+func TestMCXVariantsAreKeyedByVariant(t *testing.T) {
+	if _, ok := Lookup("com.apple.MCX"); ok {
+		t.Error("the bare com.apple.MCX is present; Jamf refuses it")
+	}
+	for _, variant := range []string{"EnergySaver", "Accounts", "TimeServer", "Mobility", "WiFi", "FileVault2", "TimeMachine"} {
+		if _, ok := Lookup("com.apple.MCX." + variant); !ok {
+			t.Errorf("com.apple.MCX.%s is missing", variant)
+		}
+	}
+	problems := Validate("com.apple.MCX.EnergySaver", settings(t, `{"com.apple.EnergySaver.desktop.ACPower":{"Wake on LAN":1}}`))
+	if len(problems) != 0 {
+		t.Errorf("an Energy Saver payload should validate, got %v", problems)
+	}
+}

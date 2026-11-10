@@ -407,8 +407,8 @@ func mergeProfiles(generated *table, source, ref string) error {
 			continue
 		}
 
-		// Several MCX files share one payload type (com.apple.MCX), each describing a different
-		// preference domain, so their key sets merge into a single entry.
+		payloadType = variantPayloadType(filepath.Base(path), payloadType)
+
 		entry := generated.Payloads[payloadType]
 		if entry == nil {
 			entry = &payload{Title: spec.Title, Keys: make(map[string]*schema)}
@@ -434,6 +434,40 @@ func mergeProfiles(generated *table, source, ref string) error {
 	}
 
 	return nil
+}
+
+// mcxPayloadType is the payload type Apple's `com.apple.MCX(<Variant>).yaml` files declare.
+const mcxPayloadType = "com.apple.MCX"
+
+// variantPayloadType returns the payload type Jamf's blueprints service knows a file by.
+//
+// Apple describes several MCX payloads in files named `com.apple.MCX(EnergySaver).yaml`,
+// `com.apple.MCX(Accounts).yaml` and so on, every one declaring `payloadtype: com.apple.MCX`. The
+// parenthesised name is a variant label, and Jamf keys on it: wire probing on 2026-11-10 showed
+// `POST /blueprints/v1/blueprints` accepting `com.apple.MCX.EnergySaver`, `com.apple.MCX.Accounts`
+// and `com.apple.MCX.TimeServer` and refusing the bare `com.apple.MCX` for every body, so folding the
+// variants into one `com.apple.MCX` entry produced a table that rejected the type the service
+// stores (provider issue #565) and accepted the one it refuses. A file named `<type>(<Variant>).yaml`
+// therefore becomes `<type>.<Variant>`; any other file keeps the type it declares.
+//
+// The rule is scoped to com.apple.MCX because that is the only family probed. Apple names other
+// files the same way — `com.apple.extensiblesso(kerberos).yaml` declares com.apple.extensiblesso —
+// and nothing shows the service keys those by variant, so they stay merged until a probe says
+// otherwise.
+func variantPayloadType(filename, declared string) string {
+	if declared != mcxPayloadType {
+		return declared
+	}
+	name := strings.TrimSuffix(filename, ".yaml")
+	prefix := declared + "("
+	if !strings.HasPrefix(name, prefix) || !strings.HasSuffix(name, ")") {
+		return declared
+	}
+	variant := strings.TrimSuffix(strings.TrimPrefix(name, prefix), ")")
+	if variant == "" {
+		return declared
+	}
+	return declared + "." + variant
 }
 
 // commonKeys reads CommonPayloadKeys.yaml, the metadata keys every payload carries. They are merged
