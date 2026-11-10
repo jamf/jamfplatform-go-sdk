@@ -29,16 +29,16 @@ type ApiErrorRepresentation struct {
 // DeviceGroupCreateRepresentationV1 represents a device group create representation v1.
 type DeviceGroupCreateRepresentationV1 struct {
 	// The criteria used to calculate the group's members. Can only be used if `groupType` is `SMART`.
-	Criteria *[]DeviceGroupCriteriaRepresentationV1 `json:"criteria,omitempty"`
+	Criteria *[]DeviceGroupCriteriaRepresentationV1 `json:"criteria,omitzero"`
 	// Description of the device group.
-	Description *string `json:"description,omitempty"`
+	Description *string `json:"description,omitzero"`
 	// Type of device.
 	DeviceType DeviceTypeV1 `json:"deviceType"`
 	// Type of the device group.
 	GroupType GroupTypeV1 `json:"groupType"`
 	// The IDs of the devices to be added to the group, in UUID format. Can only be used if `groupType` is
 	// `STATIC`.
-	Members *[]string `json:"members,omitempty"`
+	Members *[]string `json:"members,omitzero"`
 	// Name of the device group.
 	Name string `json:"name"`
 }
@@ -50,9 +50,9 @@ type DeviceGroupCriteriaRepresentationV1 struct {
 	// Value of the attribute used in the criteria.
 	AttributeValue string `json:"attributeValue"`
 	// Indicates if the criteria ends with a closing parenthesis.
-	HasClosingParenthesis *bool `json:"hasClosingParenthesis,omitempty"`
+	HasClosingParenthesis *bool `json:"hasClosingParenthesis,omitzero"`
 	// Indicates if the criteria starts with an opening parenthesis.
-	HasOpeningParenthesis *bool `json:"hasOpeningParenthesis,omitempty"`
+	HasOpeningParenthesis *bool `json:"hasOpeningParenthesis,omitzero"`
 	// Type of join for criteria.
 	JoinType JoinTypeV1 `json:"joinType"`
 	// Operator used for the criteria.
@@ -89,15 +89,15 @@ type DeviceGroupMemberOfRepresentationV1 struct {
 // DeviceGroupMemberPatchRepresentationV1 represents a device group member patch representation v1.
 type DeviceGroupMemberPatchRepresentationV1 struct {
 	// List of device IDs to be added to the group, in UUID format.
-	Added *[]string `json:"added,omitempty"`
+	Added *[]string `json:"added,omitzero"`
 	// List of device IDs to be removed from the group, in UUID format.
-	Removed *[]string `json:"removed,omitempty"`
+	Removed *[]string `json:"removed,omitzero"`
 }
 
 // DeviceGroupReadRepresentationV1 represents a device group read representation v1.
 type DeviceGroupReadRepresentationV1 struct {
 	// Criteria used to calculate the group's members, if applicable.
-	Criteria *[]DeviceGroupCriteriaRepresentationV1 `json:"criteria,omitempty"`
+	Criteria *[]DeviceGroupCriteriaRepresentationV1 `json:"criteria,omitzero"`
 	// Description of the device group.
 	Description string `json:"description"`
 	// Type of device.
@@ -115,11 +115,11 @@ type DeviceGroupReadRepresentationV1 struct {
 // DeviceGroupUpdateRepresentationV1 represents a device group update representation v1.
 type DeviceGroupUpdateRepresentationV1 struct {
 	// The criteria used to calculate the group's members. Can only be used if `groupType` is `SMART`.
-	Criteria *[]DeviceGroupCriteriaRepresentationV1 `json:"criteria,omitempty"`
+	Criteria *[]DeviceGroupCriteriaRepresentationV1 `json:"criteria,omitzero"`
 	// Description of the device group.
-	Description *string `json:"description,omitempty"`
+	Description *string `json:"description,omitzero"`
 	// Name of the device group.
-	Name *string `json:"name,omitempty"`
+	Name *string `json:"name,omitzero"`
 }
 
 // HrefRepresentation represents a href representation.

@@ -938,8 +938,16 @@ generated decoders can go.
 
 `needsPtr` in `schemaToGoType` (`tools/generate/schema.go`) includes
 `isRequest && !isRequired`: for a **request** type an unrequired scalar becomes
-`*T` with `,omitempty`, so a caller can distinguish "omit" from "send zero" —
-which PATCH depends on. For a response-only type the same field is a plain `T`.
+`*T` with `,omitzero` (`,omitempty` for XML specs, which have no `omitzero`), so
+a caller can distinguish "omit" from "send zero" — which PATCH depends on. For a
+response-only type the same field is a plain `T`.
+
+**JSON uses `omitzero`, not `omitempty`, because `encoding/json/v2` redefines
+`omitempty` on the encoded value.** v2 drops `&""`, `&[]T{}` and `&map{}` — the
+"clear this field" intent the pointer carries — where v1 sent them. On a
+pointer `omitzero` omits only nil under both versions (v1 since Go 1.24). One
+known difference from v1 `omitempty`: a non-nil `*time.Time` holding the zero
+time is omitted, because `omitzero` calls `IsZero`; v1 sent `0001-01-01T00:00:00Z`.
 
 **A named schema emitted once and shared by both kinds takes its shape from
 whichever parents are reachable, so a field can change shape with no diff in its

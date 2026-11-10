@@ -20,7 +20,7 @@ type ApiError struct {
 	HttpStatus int `json:"httpStatus"`
 	// Trace identifier correlating the response with server-side logs. May be absent on infrastructure
 	// errors such as bare 500/503.
-	TraceID *string `json:"traceId,omitempty"`
+	TraceID *string `json:"traceId,omitzero"`
 }
 
 // ApiErrorItem A single error detail within an ApiError response.
@@ -30,27 +30,27 @@ type ApiErrorItem struct {
 	Code string `json:"code"`
 	// A general description of the error for troubleshooting and debugging. Generally this text should not
 	// be displayed to a user; instead refer to the code and its localized text. May be null.
-	Description *string `json:"description,omitempty"`
+	Description *string `json:"description,omitzero"`
 	// Name of the field that caused the error. Optional.
-	Field *string `json:"field,omitempty"`
+	Field *string `json:"field,omitzero"`
 	// Identifier of the object with the error. Optional.
-	ID *string `json:"id,omitempty"`
+	ID *string `json:"id,omitzero"`
 }
 
 // Mapping A custom hostname mapping that overrides DNS resolution for a host.
 type Mapping struct {
 	// IPv4 (A record) addresses the hostname resolves to. May be null or absent when no IPv4 records are
 	// configured. Maximum 10 entries.
-	ARecords *[]string `json:"aRecords,omitempty"`
+	ARecords *[]string `json:"aRecords,omitzero"`
 	// IPv6 (AAAA record) addresses the hostname resolves to. May be null or absent when no IPv6 records
 	// are configured. Maximum 10 entries.
-	AaaaRecords *[]string `json:"aaaaRecords,omitempty"`
+	AaaaRecords *[]string `json:"aaaaRecords,omitzero"`
 	// The fully qualified hostname this mapping applies to.
 	Hostname string `json:"hostname"`
 	// Whether Secure DNS (DoH/DoT) is enabled for this mapping.
-	SecureDns *bool `json:"secureDns,omitempty"`
+	SecureDns *bool `json:"secureDns,omitzero"`
 	// Whether this mapping is routed through Zero Trust Network Access (ZTNA).
-	Ztna *bool `json:"ztna,omitempty"`
+	Ztna *bool `json:"ztna,omitzero"`
 }
 
 // MappingList A list of custom hostname mappings for the tenant, returned with the standard collection envelope. `totalCount` is server-computed and ignored on write.
@@ -99,11 +99,11 @@ type ZoneList struct {
 // ZonePatch JSON Merge Patch (RFC 7396) request body for updating a DNS Zone. Any subset of the writable Zone fields may be supplied; omitted fields are left unchanged. A field set to `null` clears it where the field is optional; setting a required field to `null` is rejected (400, per ADG-302).
 type ZonePatch struct {
 	// Updated list of domains served by this DNS Zone. Omit to leave unchanged.
-	Domains *[]string `json:"domains,omitempty"`
+	Domains *[]string `json:"domains,omitzero"`
 	// Updated name of the DNS Zone. 1 to 100 characters when supplied. Omit to leave unchanged.
-	Name *string `json:"name,omitempty"`
+	Name *string `json:"name,omitzero"`
 	// Updated list of name servers for this Zone. Omit to leave unchanged.
-	NameServers *[]NameServer `json:"nameServers,omitempty"`
+	NameServers *[]NameServer `json:"nameServers,omitzero"`
 }
 
 // ZoneRef A reference to a DNS Zone, returned upon creation.
@@ -139,7 +139,7 @@ type ApiErrorErrorsItem struct {
 // App An App (Access Policy) defining ZTNA routing for a set of hostnames/IPs.
 type App struct {
 	// User/group assignment rules for an App.
-	Assignments *Assignments `json:"assignments,omitempty"`
+	Assignments *Assignments `json:"assignments,omitzero"`
 	// IPv4 CIDR subnets (e.g. `192.168.1.0/24`). Duplicating a subnet across Apps returns 409.
 	BareIps []string `json:"bareIps"`
 	// App category name. Must exactly match a `displayName` returned by `GET /v1/categories` (e.g.
@@ -150,7 +150,7 @@ type App struct {
 	// Per-group routing overrides that take precedence over the App's default routing. Each override's
 	// `groupIds` must be a subset of `assignments.inclusions.groups` (or `allUsers: true`); references to
 	// unassigned groups return `400`.
-	GroupOverrides *GroupOverrides `json:"groupOverrides,omitempty"`
+	GroupOverrides *GroupOverrides `json:"groupOverrides,omitzero"`
 	// Hostnames/domains for traffic matching. Each entry must be a valid domain name, `"*"` (full-tunnel
 	// wildcard), or a wildcard prefix (`"*.example.com"`). Overlapping entries are rejected — e.g.
 	// `["*.example.com", "sub.example.com"]` returns `400` because `sub.example.com` is covered by
@@ -160,15 +160,15 @@ type App struct {
 	ID string `json:"id"`
 	// Null when `predefinedAppId` is set — the name is owned by the predefined app template. Present and
 	// non-null when `predefinedAppId` is absent (custom app).
-	Name *string `json:"name,omitempty"`
+	Name *string `json:"name,omitzero"`
 	// ID of the predefined SaaS app template (from `GET /predefined-apps`). Once set, cannot be changed or
 	// removed. When set, `name` is null (owned by the template); additional `hostnames` can still be
 	// appended.
-	PredefinedAppID *string `json:"predefinedAppId,omitempty"`
+	PredefinedAppID *string `json:"predefinedAppId,omitzero"`
 	// Traffic routing configuration for an App.
-	Routing *Routing `json:"routing,omitempty"`
+	Routing *Routing `json:"routing,omitzero"`
 	// Security controls applied to App traffic.
-	Security *AppSecurity `json:"security,omitempty"`
+	Security *AppSecurity `json:"security,omitzero"`
 }
 
 // AppCreateRequest Request body for creating an App.
@@ -186,7 +186,7 @@ type AppCreateRequest struct {
 	// User/group assignment rules for an App.
 	Assignments Assignments `json:"assignments"`
 	// IPv4 CIDR subnets (e.g. `192.168.1.0/24`). Duplicating a subnet across Apps returns 409.
-	BareIps *[]string `json:"bareIps,omitempty"`
+	BareIps *[]string `json:"bareIps,omitzero"`
 	// App category name. Must exactly match a `displayName` returned by `GET /v1/categories` (e.g.
 	// `"Business & Industry"`) — that endpoint is the authoritative source. Unknown values return `409
 	// MISSING_CATEGORY_NAME` — the category list is server-owned and may change, so an unrecognized name
@@ -195,23 +195,23 @@ type AppCreateRequest struct {
 	// Per-group routing overrides that take precedence over the App's default routing. Each override's
 	// `groupIds` must be a subset of `assignments.inclusions.groups` (or `allUsers: true`); references to
 	// unassigned groups return `400`.
-	GroupOverrides *GroupOverrides `json:"groupOverrides,omitempty"`
+	GroupOverrides *GroupOverrides `json:"groupOverrides,omitzero"`
 	// Unique set of hostnames/domains. Each entry must be a valid domain name, `"*"`, or `"*.domain"`.
 	// Overlapping entries (e.g. `["*.example.com", "sub.example.com"]`) return `400`. Specifying the same
 	// hostname across multiple Apps returns `409`. When `predefinedAppId` is set, additional hostnames
 	// extend the template set.
-	Hostnames *[]string `json:"hostnames,omitempty"`
+	Hostnames *[]string `json:"hostnames,omitzero"`
 	// Required (non-null) when `predefinedAppId` is absent — `400` if missing or null. Must be null or
 	// omitted when `predefinedAppId` is set.
-	Name *string `json:"name,omitempty"`
+	Name *string `json:"name,omitzero"`
 	// Optional. ID from `GET /predefined-apps`. Once set, cannot be changed or removed. When set, `name`
 	// must be null or omitted; additional `hostnames` can be appended. Presence indicates a Predefined
 	// (SaaS) App; absence indicates a Custom (Enterprise) App.
-	PredefinedAppID *string `json:"predefinedAppId,omitempty"`
+	PredefinedAppID *string `json:"predefinedAppId,omitzero"`
 	// Traffic routing configuration for an App.
 	Routing Routing `json:"routing"`
 	// Security controls applied to App traffic.
-	Security *AppSecurity `json:"security,omitempty"`
+	Security *AppSecurity `json:"security,omitzero"`
 }
 
 // AppListResponse List of Apps with a total count.
@@ -224,39 +224,39 @@ type AppListResponse struct {
 // AppPatchRequest Merge-patch body (`application/merge-patch+json`) for partial App update. All fields optional — include only what you want to change.
 type AppPatchRequest struct {
 	// User/group assignment rules for an App.
-	Assignments *Assignments `json:"assignments,omitempty"`
+	Assignments *Assignments `json:"assignments,omitzero"`
 	// Replaces the full bareIps list. IPv4 CIDR subnets (e.g. `192.168.1.0/24`).
-	BareIps *[]string `json:"bareIps,omitempty"`
+	BareIps *[]string `json:"bareIps,omitzero"`
 	// App category name. Must exactly match a `displayName` returned by `GET /v1/categories` (e.g.
 	// `"Business & Industry"`) — that endpoint is the authoritative source. Unknown values return `409
 	// MISSING_CATEGORY_NAME` — the category list is server-owned and may change, so an unrecognized name
 	// is a state conflict, not a malformed request.
-	CategoryName *CategoryName `json:"categoryName,omitempty"`
+	CategoryName *CategoryName `json:"categoryName,omitzero"`
 	// Per-group routing overrides that take precedence over the App's default routing. Each override's
 	// `groupIds` must be a subset of `assignments.inclusions.groups` (or `allUsers: true`); references to
 	// unassigned groups return `400`.
-	GroupOverrides *GroupOverrides `json:"groupOverrides,omitempty"`
+	GroupOverrides *GroupOverrides `json:"groupOverrides,omitzero"`
 	// Replaces the full hostname list. Each entry must be a valid domain name, `"*"`, or `"*.domain"`.
 	// Overlapping entries (e.g. `["*.example.com", "sub.example.com"]`) return `400`. Specifying the same
 	// hostname as another App returns `409`.
-	Hostnames *[]string `json:"hostnames,omitempty"`
+	Hostnames *[]string `json:"hostnames,omitzero"`
 	// New name. Must be non-empty — a blank string returns `400`. Ignored when `predefinedAppId` is set
 	// (name is owned by the template). Omit to leave unchanged.
-	Name *string `json:"name,omitempty"`
+	Name *string `json:"name,omitzero"`
 	// Traffic routing configuration for an App.
-	Routing *Routing `json:"routing,omitempty"`
+	Routing *Routing `json:"routing,omitzero"`
 	// Security controls applied to App traffic.
-	Security *AppSecurity `json:"security,omitempty"`
+	Security *AppSecurity `json:"security,omitzero"`
 }
 
 // AppSecurity Security controls applied to App traffic.
 type AppSecurity struct {
 	// Device management enrollment-based access control.
-	DeviceManagementBasedAccess *DeviceManagementBasedAccess `json:"deviceManagementBasedAccess,omitempty"`
+	DeviceManagementBasedAccess *DeviceManagementBasedAccess `json:"deviceManagementBasedAccess,omitzero"`
 	// DNS-over-HTTPS integration settings for the App.
-	DohIntegration *DohIntegration `json:"dohIntegration,omitempty"`
+	DohIntegration *DohIntegration `json:"dohIntegration,omitzero"`
 	// Risk-based access controls for the App.
-	RiskControls *RiskControls `json:"riskControls,omitempty"`
+	RiskControls *RiskControls `json:"riskControls,omitzero"`
 }
 
 // Assignments User/group assignment rules for an App.
@@ -275,7 +275,7 @@ type AssignmentsInclusions struct {
 	AllUsers bool `json:"allUsers"`
 	// Device Group IDs (from the Device Groups API). Used when `allUsers` is `false`. When `allUsers:
 	// false`, at least one group ID must be supplied — an empty `groups` array returns `400`.
-	Groups *[]string `json:"groups,omitempty"`
+	Groups *[]string `json:"groups,omitzero"`
 }
 
 // CategoryName is an alias for string.
@@ -307,7 +307,7 @@ type ConnectionConfigLeftRequest struct {
 	// IPSEC_SECRET_CLEAR_NOT_SUPPORTED`.
 	// Write-only. Servers MUST NOT return this field in responses; the SDK preserves it only so the caller
 	// can supply a value on update.
-	Secret *string `json:"secret,omitempty"`
+	Secret *string `json:"secret,omitzero"`
 	// Jamf-side encryption domain. Must be a private (RFC1918) CIDR in one of the ranges above. Exactly 1
 	// element.
 	Subnets []string `json:"subnets"`
@@ -329,30 +329,30 @@ type ConnectionConfigLeftResponse struct {
 // ConnectionConfigPatchLeftRequest IPSec connection endpoint for PATCH `left`. All fields optional — supply only the fields to update. `secret` is write-only; omit to preserve the existing PSK; sending `null` returns `400 IPSEC_SECRET_CLEAR_NOT_SUPPORTED`.
 type ConnectionConfigPatchLeftRequest struct {
 	// Endpoint address or `%any`.
-	Host *string `json:"host,omitempty"`
+	Host *string `json:"host,omitzero"`
 	// IKE identity (e.g. `wpa.wandera.com` or `%any`).
-	ID *string `json:"id,omitempty"`
+	ID *string `json:"id,omitzero"`
 	// Pre-shared key. Provide to set or rotate the PSK. Omit to preserve the existing secret. Sending
 	// `null` returns `400 IPSEC_SECRET_CLEAR_NOT_SUPPORTED`.
 	// Write-only. Servers MUST NOT return this field in responses; the SDK preserves it only so the caller
 	// can supply a value on update.
-	Secret *string `json:"secret,omitempty"`
+	Secret *string `json:"secret,omitzero"`
 	// Jamf-side encryption domain. Must be a private (RFC1918) CIDR in one of the ranges above. Exactly 1
 	// element.
-	Subnets *[]string `json:"subnets,omitempty"`
+	Subnets *[]string `json:"subnets,omitzero"`
 }
 
 // ConnectionConfigPatchRightRequest IPSec connection endpoint for PATCH `right` (remote peer). The secret is always derived from `left.secret` — callers never supply it here.
 type ConnectionConfigPatchRightRequest struct {
 	// Endpoint address or `%any`.
-	Host *string `json:"host,omitempty"`
+	Host *string `json:"host,omitzero"`
 	// IKE identity (e.g. `wpa.wandera.com` or `%any`).
-	ID *string `json:"id,omitempty"`
+	ID *string `json:"id,omitzero"`
 	// CIDR subnets routed through this endpoint.
-	Subnets *[]string `json:"subnets,omitempty"`
+	Subnets *[]string `json:"subnets,omitzero"`
 	// VPN vendor identifier of the remote peer. Case-sensitive.
 	// Allowed values: see the ConnectionConfigPatchRightRequestVendor constants.
-	Vendor *string `json:"vendor,omitempty"`
+	Vendor *string `json:"vendor,omitzero"`
 }
 
 // ConnectionConfigRightRequest IPSec connection endpoint for the `right` (remote peer) side. The secret is derived automatically from `left.secret` — callers never supply it here. `vendor` is **required** — use the peer's VPN vendor identifier (e.g. `cisco`, `strongSwan`, `juniper`).
@@ -398,7 +398,7 @@ type DedicatedIps struct {
 	Enabled bool `json:"enabled"`
 	// Dedicated egress IPv4 addresses provisioned by the system. Present when `enabled: true` and
 	// provisioning is complete.
-	Ips *[]string `json:"ips,omitempty"`
+	Ips *[]string `json:"ips,omitzero"`
 }
 
 // DeviceManagementBasedAccess Device management enrollment-based access control.
@@ -441,25 +441,25 @@ type Gateway struct {
 	// | `us-west-2` | North America - USA West | `163.123.174.1` | `163.123.174.2` |
 	AvailabilityZones []string `json:"availabilityZones"`
 	// Operational contact for this gateway.
-	Contact *GatewayContact `json:"contact,omitempty"`
+	Contact *GatewayContact `json:"contact,omitzero"`
 	// Datacenter this gateway is deployed to (e.g. `eu-west-1`). Can be changed on PATCH — triggers
 	// re-provisioning; `availabilityZones` must be valid IPs for the new datacenter (returns `400` on
 	// mismatch).
 	// Allowed values: see the GatewayDatacenter constants.
 	Datacenter string `json:"datacenter"`
 	// Dedicated egress IP configuration.
-	DedicatedIps *DedicatedIps `json:"dedicatedIps,omitempty"`
+	DedicatedIps *DedicatedIps `json:"dedicatedIps,omitzero"`
 	// Whether this deployment is active.
 	Enabled bool `json:"enabled"`
 	// Gateway ID. Format: 4-character lowercase hexadecimal string (e.g. `a1b2`).
 	ID string `json:"id"`
 	// IPSec tunnel configuration returned on GET. Secrets are never included in responses.
-	Ipsec *GatewayIpSec `json:"ipsec,omitempty"`
+	Ipsec *GatewayIpSec `json:"ipsec,omitzero"`
 	// Human-readable name.
 	Name string `json:"name"`
 	// Read-only operational status of the gateway. Always present — `PENDING` on creation (or `DISABLED`
 	// if `enabled: false`), then updated as infrastructure is provisioned.
-	Status *GatewayStatus `json:"status,omitempty"`
+	Status *GatewayStatus `json:"status,omitzero"`
 	// Tenant IDs that have access to this gateway.
 	TenantIds []string `json:"tenantIds"`
 }
@@ -495,19 +495,19 @@ type GatewayCreateRequest struct {
 	// | `sa-east-1` | South America - Brazil | `54.207.180.94` | `54.232.123.56` |
 	// | `us-east-1` | North America - USA East | `163.123.175.1` | `163.123.175.2` |
 	// | `us-west-2` | North America - USA West | `163.123.174.1` | `163.123.174.2` |
-	AvailabilityZones *[]string `json:"availabilityZones,omitempty"`
+	AvailabilityZones *[]string `json:"availabilityZones,omitzero"`
 	// Operational contact for this gateway.
 	Contact GatewayContact `json:"contact"`
 	// Target datacenter identifier (e.g. `eu-west-1`).
 	// Allowed values: see the GatewayCreateRequestDatacenter constants.
 	Datacenter string `json:"datacenter"`
 	// Dedicated egress IP configuration.
-	DedicatedIps *DedicatedIps `json:"dedicatedIps,omitempty"`
+	DedicatedIps *DedicatedIps `json:"dedicatedIps,omitzero"`
 	// Whether the deployment should be active on creation.
-	Enabled *bool `json:"enabled,omitempty"`
+	Enabled *bool `json:"enabled,omitzero"`
 	// IPSec tunnel configuration for POST requests. All fields required. `left.secret` sets the pre-shared
 	// key — it is automatically applied to both tunnel endpoints.
-	Ipsec *GatewayIpSecRequest `json:"ipsec,omitempty"`
+	Ipsec *GatewayIpSecRequest `json:"ipsec,omitzero"`
 	// Human-readable name.
 	Name string `json:"name"`
 	// Tenant IDs to grant access. Validated against the caller's organization — **403** if mismatched.
@@ -517,34 +517,34 @@ type GatewayCreateRequest struct {
 // GatewayIpSec IPSec tunnel configuration returned on GET. Secrets are never included in responses.
 type GatewayIpSec struct {
 	// Cipher suite configuration for an IKE or ESP phase.
-	Esp *CipherSuiteConfig `json:"esp,omitempty"`
+	Esp *CipherSuiteConfig `json:"esp,omitzero"`
 	// Cipher suite configuration for an IKE or ESP phase.
-	Ike *CipherSuiteConfig `json:"ike,omitempty"`
+	Ike *CipherSuiteConfig `json:"ike,omitzero"`
 	// IKE version.
 	// Allowed values: see the GatewayIpSecKeyExchange constants.
 	KeyExchange string `json:"keyExchange"`
 	// IPSec Jamf-side endpoint returned on GET. Secrets are never included.
-	Left *ConnectionConfigLeftResponse `json:"left,omitempty"`
+	Left *ConnectionConfigLeftResponse `json:"left,omitzero"`
 	// IPSec remote-peer endpoint returned on GET. Secrets are never included.
-	Right *ConnectionConfigRightResponse `json:"right,omitempty"`
+	Right *ConnectionConfigRightResponse `json:"right,omitzero"`
 }
 
 // GatewayIpSecPatchRequest Partial IPSec configuration for PATCH. All fields optional — fields are deep-merged. Supply only `left.secret` to rotate the pre-shared key, or the full block to replace cipher suites and endpoint addresses simultaneously. `right.secret` is derived automatically from `left.secret` — callers never set it directly.
 type GatewayIpSecPatchRequest struct {
 	// Cipher suite configuration for an IKE or ESP phase.
-	Esp *CipherSuiteConfig `json:"esp,omitempty"`
+	Esp *CipherSuiteConfig `json:"esp,omitzero"`
 	// Cipher suite configuration for an IKE or ESP phase.
-	Ike *CipherSuiteConfig `json:"ike,omitempty"`
+	Ike *CipherSuiteConfig `json:"ike,omitzero"`
 	// IKE version.
 	// Allowed values: see the GatewayIpSecPatchRequestKeyExchange constants.
-	KeyExchange *string `json:"keyExchange,omitempty"`
+	KeyExchange *string `json:"keyExchange,omitzero"`
 	// IPSec connection endpoint for PATCH `left`. All fields optional — supply only the fields to
 	// update. `secret` is write-only; omit to preserve the existing PSK; sending `null` returns `400
 	// IPSEC_SECRET_CLEAR_NOT_SUPPORTED`.
-	Left *ConnectionConfigPatchLeftRequest `json:"left,omitempty"`
+	Left *ConnectionConfigPatchLeftRequest `json:"left,omitzero"`
 	// IPSec connection endpoint for PATCH `right` (remote peer). The secret is always derived from
 	// `left.secret` — callers never supply it here.
-	Right *ConnectionConfigPatchRightRequest `json:"right,omitempty"`
+	Right *ConnectionConfigPatchRightRequest `json:"right,omitzero"`
 }
 
 // GatewayIpSecRequest IPSec tunnel configuration for POST requests. All fields required. `left.secret` sets the pre-shared key — it is automatically applied to both tunnel endpoints.
@@ -594,28 +594,28 @@ type GatewayPatchRequest struct {
 	// | `sa-east-1` | South America - Brazil | `54.207.180.94` | `54.232.123.56` |
 	// | `us-east-1` | North America - USA East | `163.123.175.1` | `163.123.175.2` |
 	// | `us-west-2` | North America - USA West | `163.123.174.1` | `163.123.174.2` |
-	AvailabilityZones *[]string `json:"availabilityZones,omitempty"`
+	AvailabilityZones *[]string `json:"availabilityZones,omitzero"`
 	// Operational contact for this gateway.
-	Contact *GatewayContact `json:"contact,omitempty"`
+	Contact *GatewayContact `json:"contact,omitzero"`
 	// New datacenter for this deployment (e.g. `eu-central-1`). When changed, `availabilityZones` must be
 	// valid IPs for the new datacenter — returns `400` on mismatch. **Destructive:** triggers
 	// re-provisioning, connectivity outage, and immediate `status.state` reset to `PENDING`.
 	// `dedicatedIps.ips` remain stale until VSC completes provisioning in the new datacenter.
 	// Allowed values: see the GatewayPatchRequestDatacenter constants.
-	Datacenter *string `json:"datacenter,omitempty"`
+	Datacenter *string `json:"datacenter,omitzero"`
 	// Whether the deployment should be active.
-	Enabled *bool `json:"enabled,omitempty"`
+	Enabled *bool `json:"enabled,omitzero"`
 	// Partial IPSec configuration for PATCH. All fields optional — fields are deep-merged. Supply only
 	// `left.secret` to rotate the pre-shared key, or the full block to replace cipher suites and endpoint
 	// addresses simultaneously. `right.secret` is derived automatically from `left.secret` — callers
 	// never set it directly.
-	Ipsec *GatewayIpSecPatchRequest `json:"ipsec,omitempty"`
+	Ipsec *GatewayIpSecPatchRequest `json:"ipsec,omitzero"`
 	// New name for the gateway.
-	Name *string `json:"name,omitempty"`
+	Name *string `json:"name,omitzero"`
 	// Replaces the full tenantIds list. Validated against the caller's organization — **403** if
 	// mismatched. Setting `tenantIds: []` (empty array) returns `400` — `minItems: 1` enforced by
 	// schema.
-	TenantIds *[]string `json:"tenantIds,omitempty"`
+	TenantIds *[]string `json:"tenantIds,omitzero"`
 }
 
 // GatewayStatus Read-only operational status of the gateway. Always present — `PENDING` on creation (or `DISABLED` if `enabled: false`), then updated as infrastructure is provisioned.
@@ -628,14 +628,14 @@ type GatewayStatus struct {
 	// IPSec tunnel health. Present only when the gateway has an IPSec configuration. `null` for non-IPSec
 	// gateways or before VSC reports the first tunnel status.
 	// Allowed values: see the GatewayStatusTunnelState constants.
-	TunnelState *string `json:"tunnelState,omitempty"`
+	TunnelState *string `json:"tunnelState,omitzero"`
 	// Timestamp of the last status update.
 	UpdatedAt time.Time `json:"updatedAt"`
 }
 
 // GroupOverrides Per-group routing overrides that take precedence over the App's default routing. Each override's `groupIds` must be a subset of `assignments.inclusions.groups` (or `allUsers: true`); references to unassigned groups return `400`.
 type GroupOverrides struct {
-	RoutingOverrides *[]RoutingOverride `json:"routingOverrides,omitempty"`
+	RoutingOverrides *[]RoutingOverride `json:"routingOverrides,omitzero"`
 }
 
 // GroupedGateway A logical group of two or more Gateways with a shared routing strategy.
@@ -694,22 +694,22 @@ type GroupedGatewayListResponse struct {
 // GroupedGatewayPatchRequest Merge-patch body (`application/merge-patch+json`) for partial Grouped Gateway update. All fields optional — include only what you want to change.
 type GroupedGatewayPatchRequest struct {
 	// Replaces the full member gateway list (minimum 2).
-	GatewayIds *[]string `json:"gatewayIds,omitempty"`
+	GatewayIds *[]string `json:"gatewayIds,omitzero"`
 	// New name for the grouped gateway.
-	Name *string `json:"name,omitempty"`
+	Name *string `json:"name,omitzero"`
 	// Recovery delay in seconds for the `ACTIVE_STANDBY` strategy. If provided, must be one of the listed
 	// durations. Omit to leave unchanged. Grouped gateways created before this constraint may hold a
 	// legacy value; `recoveryDelayInSec` is unaffected on PATCH operations that omit it.
 	// Allowed values: see the GroupedGatewayPatchRequestRecoveryDelayInSec constants.
-	RecoveryDelayInSec *int `json:"recoveryDelayInSec,omitempty"`
+	RecoveryDelayInSec *int `json:"recoveryDelayInSec,omitzero"`
 	// `ACTIVE_STANDBY` — traffic goes to the primary gateway; failover to secondary on failure. `RANDOM`
 	// — traffic is distributed randomly across gateways. `NEAREST` — traffic routes to the
 	// geographically closest gateway.
-	RoutingStrategy *RoutingStrategy `json:"routingStrategy,omitempty"`
+	RoutingStrategy *RoutingStrategy `json:"routingStrategy,omitzero"`
 	// Replaces the full tenantIds list. Validated against the caller's organization — **403** if
 	// mismatched. Setting `tenantIds: []` (empty array) returns `400` — `minItems: 1` enforced by
 	// schema.
-	TenantIds *[]string `json:"tenantIds,omitempty"`
+	TenantIds *[]string `json:"tenantIds,omitzero"`
 }
 
 // PredefinedApp A predefined SaaS application definition. Pass the `id` as `predefinedAppId` when creating an App.
@@ -867,7 +867,7 @@ type ActivationProfileDeployRequest struct {
 	// deploy can widen the scope but cannot narrow or clear it. Omitting the field or sending an empty
 	// array leaves any existing scope untouched — on the first deploy of a profile it means no group
 	// scope is set, not that the profile is scoped to every group.
-	UemGroups *[]string `json:"uemGroups,omitempty"`
+	UemGroups *[]string `json:"uemGroups,omitzero"`
 }
 
 // ApiErrorEntry A single problem with the request.
@@ -877,7 +877,7 @@ type ApiErrorEntry struct {
 	// Human-readable explanation.
 	Description string `json:"description"`
 	// The request field the error relates to, when applicable.
-	Field *string `json:"field,omitempty"`
+	Field *string `json:"field,omitzero"`
 }
 
 // CitrixCloudConfig Citrix Cloud administrator credentials for the CITRIX_CLOUD_ADMIN strategy.
@@ -922,7 +922,7 @@ type ConnectorConfig struct {
 	// Controls which UEM attribute each JSC device field is populated from. Each value is an enum of UEM
 	// attribute names whose members are vendor-specific, so the accepted values for a given key depend on
 	// the connector's `vendor`. The Google connector accepts no mappings.
-	DeviceFieldMappings *DeviceFieldMappings `json:"deviceFieldMappings,omitempty"`
+	DeviceFieldMappings *DeviceFieldMappings `json:"deviceFieldMappings,omitzero"`
 	// Whether device risk levels are sent back to the UEM platform.
 	DeviceRiskTagging bool `json:"deviceRiskTagging"`
 	// Credentials the connector authenticates to the UEM instance with, as read back off a connector.
@@ -933,7 +933,7 @@ type ConnectorConfig struct {
 	// Secrets are write-only and never returned; a read reports only `clientId`, `username` and an `empty`
 	// flag, and for an `M2M`-provisioned connector the `clientId` is the one Jamf Security Cloud minted
 	// for itself.
-	DeviceSyncAuth *DeviceSyncAuth `json:"deviceSyncAuth,omitempty"`
+	DeviceSyncAuth *DeviceSyncAuth `json:"deviceSyncAuth,omitzero"`
 	// Number of days since last check-in before a device is treated as unmanaged. `0` uses the platform
 	// default (3 days). Not applicable for JAMF_PRO — any value sent for that vendor is silently ignored
 	// (device status is taken exclusively from the UEM).
@@ -944,11 +944,11 @@ type ConnectorConfig struct {
 	// Whether the connector is enabled for synchronization.
 	Enabled bool `json:"enabled"`
 	// Group mapping configuration. Maps UEM groups to JSC groups.
-	GroupSettings *GroupSettings `json:"groupSettings,omitempty"`
+	GroupSettings *GroupSettings `json:"groupSettings,omitzero"`
 	// Unique identifier for the connector configuration.
 	ID string `json:"id"`
 	// ISO country code for the UEM instance, when applicable.
-	IsoCountry *string `json:"isoCountry,omitempty"`
+	IsoCountry *string `json:"isoCountry,omitzero"`
 	// Summary of the connector's most recent sync run, embedded in `ConnectorConfig`. The containing
 	// `latestSync` property is `null` until the connector has run its first sync.
 	// This is **not** the same shape as the `SyncRun` entries returned by `GET
@@ -958,11 +958,11 @@ type ConnectorConfig struct {
 	// `startedUtcMs` and `finishedUtcMs` are retained, deprecated epoch-millisecond duplicates of the
 	// ISO-8601 `started` and `finished`. They are still emitted for existing consumers; new consumers
 	// should read the ISO-8601 fields.
-	LatestSync *LatestSync `json:"latestSync,omitempty"`
+	LatestSync *LatestSync `json:"latestSync,omitzero"`
 	// Timestamp of the next scheduled sync (ISO 8601).
-	NextScheduledSync *time.Time `json:"nextScheduledSync,omitempty"`
+	NextScheduledSync *time.Time `json:"nextScheduledSync,omitzero"`
 	// Timestamp when the previous sync started (ISO 8601).
-	PreviousSyncStart *time.Time `json:"previousSyncStart,omitempty"`
+	PreviousSyncStart *time.Time `json:"previousSyncStart,omitzero"`
 	// Sync refresh interval in minutes.
 	// Allowed values: see the ConnectorConfigRefreshRateMinutes constants.
 	RefreshRateMinutes int64 `json:"refreshRateMinutes"`
@@ -971,7 +971,7 @@ type ConnectorConfig struct {
 	// Sync configuration settings as returned in responses. Response-only: the corresponding update
 	// request carries these two settings as **top-level** `autoDeviceDeletion` and
 	// `disableSyncOnAuthError` fields on `SyncSettings`, not nested under `syncConfig`.
-	SyncConfig *SyncConfig `json:"syncConfig,omitempty"`
+	SyncConfig *SyncConfig `json:"syncConfig,omitzero"`
 	// Platform tenant identifier of the Jamf Pro instance this connector syncs with, when it was created
 	// by naming one. Null for a connector created from caller-supplied credentials.
 	// Load-bearing beyond information: `authStrategy` reads back as `JAMF_PRO_OAUTH` whichever way the
@@ -1222,20 +1222,20 @@ type CreatedResource struct {
 // DeviceFieldMappings Controls which UEM attribute each JSC device field is populated from. Each value is an enum of UEM attribute names whose members are vendor-specific, so the accepted values for a given key depend on the connector's `vendor`. The Google connector accepts no mappings.
 type DeviceFieldMappings struct {
 	// UEM attribute the device name is read from.
-	DeviceNameMapping *string `json:"deviceNameMapping,omitempty"`
+	DeviceNameMapping *string `json:"deviceNameMapping,omitzero"`
 	// UEM attribute the phone number is read from.
-	PhoneNumberMapping *string `json:"phoneNumberMapping,omitempty"`
+	PhoneNumberMapping *string `json:"phoneNumberMapping,omitzero"`
 	// How the device email is derived. `EMAIL_ADDRESS` uses the UEM email attribute directly; any other
 	// type reads from that attribute and optionally decorates it into an address.
 	// Vendors that support the `CUSTOM` type carry an additional `fieldName` property naming the UEM
 	// attribute to read. It is not documented as a property here because the vendors that do not support
 	// `CUSTOM` do not emit it at all, and ADG-125 requires every documented field to be present in every
 	// response.
-	UserEmailMapping *EmailMapping `json:"userEmailMapping,omitempty"`
+	UserEmailMapping *EmailMapping `json:"userEmailMapping,omitzero"`
 	// UEM attribute the user identifier is read from.
-	UserIDMapping *string `json:"userIdMapping,omitempty"`
+	UserIDMapping *string `json:"userIdMapping,omitzero"`
 	// UEM attribute the user name is read from.
-	UserNameMapping *string `json:"userNameMapping,omitempty"`
+	UserNameMapping *string `json:"userNameMapping,omitzero"`
 }
 
 // DeviceSyncAuth Credentials the connector authenticates to the UEM instance with, as read back off a connector. Restored from the wire (probed 2026-08-21, re-verified 2026-08-31) because the published spec omits `deviceSyncAuth` from the *response* schema; the request side is upstream's own `JamfProCredentials` as of v1882, which carries the same four members. Which of them apply depends on `authStrategy` — OAuth strategies use `clientId`/`clientSecret`, basic-auth strategies use `username`/`password`. Secrets are write-only and never returned; a read reports only `clientId`, `username` and an `empty` flag, and for an `M2M`-provisioned connector the `clientId` is the one Jamf Security Cloud minted for itself.
@@ -1258,15 +1258,15 @@ type DeviceSyncAuth struct {
 // EmailMapping How the device email is derived. `EMAIL_ADDRESS` uses the UEM email attribute directly; any other type reads from that attribute and optionally decorates it into an address. Vendors that support the `CUSTOM` type carry an additional `fieldName` property naming the UEM attribute to read. It is not documented as a property here because the vendors that do not support `CUSTOM` do not emit it at all, and ADG-125 requires every documented field to be present in every response.
 type EmailMapping struct {
 	// Prepended to the resolved value. Ignored when `type` is `EMAIL_ADDRESS`.
-	FieldPrefix *string `json:"fieldPrefix,omitempty"`
+	FieldPrefix *string `json:"fieldPrefix,omitzero"`
 	// Appended to the resolved value to form a full address; an `@` is inserted when the suffix does not
 	// already start with one. Ignored when `type` is `EMAIL_ADDRESS`.
-	FieldSuffix *string `json:"fieldSuffix,omitempty"`
+	FieldSuffix *string `json:"fieldSuffix,omitzero"`
 	// UEM attribute the email is derived from.
 	// Allowed values: see the EmailMappingType constants.
 	Type string `json:"type"`
 	// Apply this mapping only when the UEM email attribute is empty, rather than always.
-	UseOnlyIfEmailMissing *bool `json:"useOnlyIfEmailMissing,omitempty"`
+	UseOnlyIfEmailMissing *bool `json:"useOnlyIfEmailMissing,omitzero"`
 }
 
 // EnablementRequest Desired enablement state for a connector.
@@ -1282,17 +1282,17 @@ type GoogleApiSettings struct {
 	// OAuth client secret.
 	// Write-only. Servers MUST NOT return this field in responses; the SDK preserves it only so the caller
 	// can supply a value on update.
-	ClientSecret *string `json:"clientSecret,omitempty"`
+	ClientSecret *string `json:"clientSecret,omitzero"`
 }
 
 // GoogleConnectorCreateRequest Connector creation request for Google (Chrome / Android Enterprise). The OAuth client credentials (`apiSettings`) and the `authUrl` override are optional; JSC falls back to Google defaults when they are omitted.
 type GoogleConnectorCreateRequest struct {
 	// OAuth client credentials for the Google API.
-	ApiSettings *GoogleApiSettings `json:"apiSettings,omitempty"`
+	ApiSettings *GoogleApiSettings `json:"apiSettings,omitzero"`
 	// Override for the Google authentication URL.
-	AuthURL *string `json:"authUrl,omitempty"`
+	AuthURL *string `json:"authUrl,omitzero"`
 	// ISO country code for the UEM instance, when applicable.
-	IsoCountry *string `json:"isoCountry,omitempty"`
+	IsoCountry *string `json:"isoCountry,omitzero"`
 	// Google API URL.
 	URL string `json:"url"`
 	// UEM vendor discriminator.
@@ -1314,12 +1314,12 @@ type GroupMapping struct {
 // GroupSettings Group mapping configuration. Maps UEM groups to JSC groups.
 type GroupSettings struct {
 	// JSC group that devices are assigned to when no explicit mapping matches.
-	DefaultGroupID *string `json:"defaultGroupId,omitempty"`
+	DefaultGroupID *string `json:"defaultGroupId,omitzero"`
 	// Whether group mapping is applied during sync.
-	GroupMappingEnabled *bool `json:"groupMappingEnabled,omitempty"`
+	GroupMappingEnabled *bool `json:"groupMappingEnabled,omitzero"`
 	// Explicit UEM-group-to-JSC-group assignments. Replaces the existing set on update; send an empty
 	// array to clear all mappings.
-	GroupMappings *[]GroupMapping `json:"groupMappings,omitempty"`
+	GroupMappings *[]GroupMapping `json:"groupMappings,omitzero"`
 }
 
 // IntuneApiCredentials OAuth client credentials for a single Intune API.
@@ -1329,27 +1329,27 @@ type IntuneApiCredentials struct {
 	// OAuth client secret.
 	// Write-only. Servers MUST NOT return this field in responses; the SDK preserves it only so the caller
 	// can supply a value on update.
-	ClientSecret *string `json:"clientSecret,omitempty"`
+	ClientSecret *string `json:"clientSecret,omitzero"`
 }
 
 // IntuneConnectorCreateRequest Connector creation request for Microsoft Intune. JSC talks to three Intune APIs — lifecycle management (`lcm`), Mobile Threat Defense (`mtd`), and device tagging (`tag`) — each authenticated with its own OAuth client credentials. The endpoint-URL overrides are optional and default to Microsoft's public endpoints when omitted.
 type IntuneConnectorCreateRequest struct {
 	// Override for the Microsoft Graph authentication URL.
-	GraphAuthURL *string `json:"graphAuthUrl,omitempty"`
+	GraphAuthURL *string `json:"graphAuthUrl,omitzero"`
 	// Override for the Microsoft Graph API URL.
-	GraphURL *string `json:"graphUrl,omitempty"`
+	GraphURL *string `json:"graphUrl,omitzero"`
 	// ISO country code for the UEM instance, when applicable.
-	IsoCountry *string `json:"isoCountry,omitempty"`
+	IsoCountry *string `json:"isoCountry,omitzero"`
 	// OAuth client credentials for a single Intune API.
-	Lcm *IntuneApiCredentials `json:"lcm,omitempty"`
+	Lcm *IntuneApiCredentials `json:"lcm,omitzero"`
 	// OAuth client credentials for a single Intune API.
-	Mtd *IntuneApiCredentials `json:"mtd,omitempty"`
+	Mtd *IntuneApiCredentials `json:"mtd,omitzero"`
 	// Override for the Mobile Threat Defense API URL.
-	MtdURL *string `json:"mtdUrl,omitempty"`
+	MtdURL *string `json:"mtdUrl,omitzero"`
 	// Override for the authentication URL of the non-Graph Intune APIs.
-	OtherApisAuthURL *string `json:"otherApisAuthUrl,omitempty"`
+	OtherApisAuthURL *string `json:"otherApisAuthUrl,omitzero"`
 	// OAuth client credentials for a single Intune API.
-	Tag *IntuneApiCredentials `json:"tag,omitempty"`
+	Tag *IntuneApiCredentials `json:"tag,omitzero"`
 	// Intune (Microsoft Graph) server URL.
 	URL string `json:"url"`
 	// UEM vendor discriminator.
@@ -1366,14 +1366,14 @@ type JamfProConnectorCreateRequest struct {
 	// Jamf Pro connection credentials. Provide the OAuth pair (`clientId` + `clientSecret`) when
 	// `authStrategy` is `JAMF_PRO_OAUTH`, or the basic pair (`username` + `password`) when `authStrategy`
 	// is `BASIC`. Omit entirely for `M2M`.
-	DeviceSyncAuth *JamfProCredentials `json:"deviceSyncAuth,omitempty"`
+	DeviceSyncAuth *JamfProCredentials `json:"deviceSyncAuth,omitzero"`
 	// ISO country code for the UEM instance, when applicable.
-	IsoCountry *string `json:"isoCountry,omitempty"`
+	IsoCountry *string `json:"isoCountry,omitzero"`
 	// Jamf Pro tenant identifier. Required when `authStrategy` is `M2M`; must be omitted for the other
 	// strategies.
 	// Write-only. Servers MUST NOT return this field in responses; the SDK preserves it only so the caller
 	// can supply a value on update.
-	TenantID *string `json:"tenantId,omitempty"`
+	TenantID *string `json:"tenantId,omitzero"`
 	// Jamf Pro server URL.
 	URL string `json:"url"`
 	// UEM vendor discriminator.
@@ -1384,17 +1384,17 @@ type JamfProConnectorCreateRequest struct {
 // JamfProCredentials Jamf Pro connection credentials. Provide the OAuth pair (`clientId` + `clientSecret`) when `authStrategy` is `JAMF_PRO_OAUTH`, or the basic pair (`username` + `password`) when `authStrategy` is `BASIC`. Omit entirely for `M2M`.
 type JamfProCredentials struct {
 	// Jamf Pro API-role OAuth client id (JAMF_PRO_OAUTH strategy).
-	ClientID *string `json:"clientId,omitempty"`
+	ClientID *string `json:"clientId,omitzero"`
 	// Jamf Pro API-role OAuth client secret (JAMF_PRO_OAUTH strategy).
 	// Write-only. Servers MUST NOT return this field in responses; the SDK preserves it only so the caller
 	// can supply a value on update.
-	ClientSecret *string `json:"clientSecret,omitempty"`
+	ClientSecret *string `json:"clientSecret,omitzero"`
 	// Jamf Pro password (BASIC strategy).
 	// Write-only. Servers MUST NOT return this field in responses; the SDK preserves it only so the caller
 	// can supply a value on update.
-	Password *string `json:"password,omitempty"`
+	Password *string `json:"password,omitzero"`
 	// Jamf Pro username (BASIC strategy).
-	Username *string `json:"username,omitempty"`
+	Username *string `json:"username,omitzero"`
 }
 
 // JamfSchoolConnectorCreateRequest Connector creation request for Jamf School.
@@ -1404,7 +1404,7 @@ type JamfSchoolConnectorCreateRequest struct {
 	// can supply a value on update.
 	ApiKey string `json:"apiKey"`
 	// ISO country code for the UEM instance, when applicable.
-	IsoCountry *string `json:"isoCountry,omitempty"`
+	IsoCountry *string `json:"isoCountry,omitzero"`
 	// Jamf School network id.
 	NetworkID string `json:"networkId"`
 	// Jamf School server URL.
@@ -1417,21 +1417,21 @@ type JamfSchoolConnectorCreateRequest struct {
 // LatestSync Summary of the connector's most recent sync run, embedded in `ConnectorConfig`. The containing `latestSync` property is `null` until the connector has run its first sync. This is **not** the same shape as the `SyncRun` entries returned by `GET /connectors/{configId}/sync/runs`: it carries `lastSeen` and `errorDetails`, and has no per-run device counters, because the connector record keeps only the current transaction's state and not its tallies. Use the sync-runs endpoint for run history and counts. `startedUtcMs` and `finishedUtcMs` are retained, deprecated epoch-millisecond duplicates of the ISO-8601 `started` and `finished`. They are still emitted for existing consumers; new consumers should read the ISO-8601 fields.
 type LatestSync struct {
 	// Why the most recent sync failed. Always present, with null members when the sync did not fail.
-	ErrorDetails *SyncErrorDetails `json:"errorDetails,omitempty"`
+	ErrorDetails *SyncErrorDetails `json:"errorDetails,omitzero"`
 	// Timestamp when sync completed (ISO 8601), null if still running.
-	Finished *time.Time `json:"finished,omitempty"`
+	Finished *time.Time `json:"finished,omitzero"`
 	// `finished` as epoch milliseconds. Deprecated duplicate — prefer the ISO-8601 `finished`.
-	FinishedUtcMs *int64 `json:"finishedUtcMs,omitempty"`
+	FinishedUtcMs *int64 `json:"finishedUtcMs,omitzero"`
 	// Timestamp of the last progress heartbeat from the running sync (ISO 8601), used to detect stalled
 	// syncs.
-	LastSeen *time.Time `json:"lastSeen,omitempty"`
+	LastSeen *time.Time `json:"lastSeen,omitzero"`
 	// What triggered this sync.
 	// Allowed values: see the LatestSyncRefreshType constants.
-	RefreshType *string `json:"refreshType,omitempty"`
+	RefreshType *string `json:"refreshType,omitzero"`
 	// Timestamp when sync started (ISO 8601).
-	Started *time.Time `json:"started,omitempty"`
+	Started *time.Time `json:"started,omitzero"`
 	// `started` as epoch milliseconds. Deprecated duplicate — prefer the ISO-8601 `started`.
-	StartedUtcMs *int64 `json:"startedUtcMs,omitempty"`
+	StartedUtcMs *int64 `json:"startedUtcMs,omitzero"`
 	// Current sync status.
 	// Allowed values: see the LatestSyncStatus constants.
 	Status string `json:"status"`
@@ -1460,7 +1460,7 @@ type Maas360ConnectorCreateRequest struct {
 	// MaaS360 API username.
 	EmmUsername string `json:"emmUsername"`
 	// ISO country code for the UEM instance, when applicable.
-	IsoCountry *string `json:"isoCountry,omitempty"`
+	IsoCountry *string `json:"isoCountry,omitzero"`
 	// MaaS360 server URL.
 	URL string `json:"url"`
 	// UEM vendor discriminator.
@@ -1477,7 +1477,7 @@ type MobileIronCloudConnectorCreateRequest struct {
 	// MobileIron Cloud API username.
 	EmmUsername string `json:"emmUsername"`
 	// ISO country code for the UEM instance, when applicable.
-	IsoCountry *string `json:"isoCountry,omitempty"`
+	IsoCountry *string `json:"isoCountry,omitzero"`
 	// MobileIron Cloud server URL.
 	URL string `json:"url"`
 	// UEM vendor discriminator.
@@ -1494,9 +1494,9 @@ type MobileIronCoreConnectorCreateRequest struct {
 	// MobileIron Core API username.
 	EmmUsername string `json:"emmUsername"`
 	// ISO country code for the UEM instance, when applicable.
-	IsoCountry *string `json:"isoCountry,omitempty"`
+	IsoCountry *string `json:"isoCountry,omitzero"`
 	// Optional PEM-encoded root certificate for TLS verification.
-	RootCertificate *string `json:"rootCertificate,omitempty"`
+	RootCertificate *string `json:"rootCertificate,omitzero"`
 	// MobileIron Core server URL.
 	URL string `json:"url"`
 	// UEM vendor discriminator.
@@ -1516,10 +1516,10 @@ type SyncConfig struct {
 // SyncErrorDetails Why the most recent sync failed. Always present, with null members when the sync did not fail.
 type SyncErrorDetails struct {
 	// Human-readable failure detail.
-	Description *string `json:"description,omitempty"`
+	Description *string `json:"description,omitzero"`
 	// Coarse failure category.
 	// Allowed values: see the SyncErrorDetailsReason constants.
-	Reason *string `json:"reason,omitempty"`
+	Reason *string `json:"reason,omitzero"`
 }
 
 // SyncRun Details of a single sync run.
@@ -1531,12 +1531,12 @@ type SyncRun struct {
 	// Number of devices that encountered errors during this run.
 	Errored int `json:"errored"`
 	// Timestamp when sync completed (ISO 8601), null if still running.
-	Finished *time.Time `json:"finished,omitempty"`
+	Finished *time.Time `json:"finished,omitzero"`
 	// What triggered this sync.
 	// Allowed values: see the SyncRunRefreshType constants.
 	RefreshType string `json:"refreshType"`
 	// Timestamp when sync started (ISO 8601).
-	Started *time.Time `json:"started,omitempty"`
+	Started *time.Time `json:"started,omitzero"`
 	// Current sync status.
 	// Allowed values: see the SyncRunStatus constants.
 	Status string `json:"status"`
@@ -1570,27 +1570,27 @@ type SyncSettings struct {
 	// `PUT` carrying `false` persists (wire-verified 2026-08-28). Because the update is a full
 	// replacement, a request built from the unpatched spec could not express the field and therefore reset
 	// it to `true` on every write, silently discarding an operator's choice.
-	ConcurrentSyncEnabled *bool `json:"concurrentSyncEnabled,omitempty"`
+	ConcurrentSyncEnabled *bool `json:"concurrentSyncEnabled,omitzero"`
 	// Controls which UEM attribute each JSC device field is populated from. Each value is an enum of UEM
 	// attribute names whose members are vendor-specific, so the accepted values for a given key depend on
 	// the connector's `vendor`. The Google connector accepts no mappings.
 	DeviceFieldMappings DeviceFieldMappings `json:"deviceFieldMappings"`
 	// Whether device risk levels are sent back to UEM.
-	DeviceRiskTagging *bool `json:"deviceRiskTagging,omitempty"`
+	DeviceRiskTagging *bool `json:"deviceRiskTagging,omitzero"`
 	// Number of days since last check-in before a device is treated as unmanaged. `0` uses the platform
 	// default (3 days). Not applicable for JAMF_PRO — any value sent for that vendor is silently ignored
 	// (device status is taken exclusively from the UEM).
 	// Allowed values: see the SyncSettingsDeviceUnmanagedThreshold constants.
-	DeviceUnmanagedThreshold *int `json:"deviceUnmanagedThreshold,omitempty"`
+	DeviceUnmanagedThreshold *int `json:"deviceUnmanagedThreshold,omitzero"`
 	// Whether to automatically disable sync after repeated authentication failures.
-	DisableSyncOnAuthError *bool `json:"disableSyncOnAuthError,omitempty"`
+	DisableSyncOnAuthError *bool `json:"disableSyncOnAuthError,omitzero"`
 	// Group mapping configuration. Maps UEM groups to JSC groups.
-	GroupSettings *GroupSettings `json:"groupSettings,omitempty"`
+	GroupSettings *GroupSettings `json:"groupSettings,omitzero"`
 	// Sync refresh interval in minutes.
 	// Allowed values: see the SyncSettingsRefreshRateMinutes constants.
-	RefreshRateMinutes *int64 `json:"refreshRateMinutes,omitempty"`
+	RefreshRateMinutes *int64 `json:"refreshRateMinutes,omitzero"`
 	// Whether scheduled sync is enabled.
-	Scheduled *bool `json:"scheduled,omitempty"`
+	Scheduled *bool `json:"scheduled,omitzero"`
 	// UEM vendor name — determines the shape of vendor-specific fields. Must match the stored
 	// connector's vendor; a value that disagrees with it is rejected with `422 VENDOR_MISMATCH`. This
 	// field selects the applicable vendor-specific fields, it does not change which connector is updated
@@ -1602,7 +1602,7 @@ type SyncSettings struct {
 // WizyConnectorCreateRequest Connector creation request for Wizy.
 type WizyConnectorCreateRequest struct {
 	// ISO country code for the UEM instance, when applicable.
-	IsoCountry *string `json:"isoCountry,omitempty"`
+	IsoCountry *string `json:"isoCountry,omitzero"`
 	// Wizy namespace.
 	Namespace string `json:"namespace"`
 	// Wizy server URL.
@@ -1621,9 +1621,9 @@ type WorkspaceOneConnectorCreateRequest struct {
 	// Workspace ONE API username.
 	EmmUsername string `json:"emmUsername"`
 	// ISO country code for the UEM instance, when applicable.
-	IsoCountry *string `json:"isoCountry,omitempty"`
+	IsoCountry *string `json:"isoCountry,omitzero"`
 	// Optional PEM-encoded root certificate for TLS verification.
-	RootCertificate *string `json:"rootCertificate,omitempty"`
+	RootCertificate *string `json:"rootCertificate,omitzero"`
 	// Workspace ONE REST API tenant code (aw-tenant-code).
 	// Write-only. Servers MUST NOT return this field in responses; the SDK preserves it only so the caller
 	// can supply a value on update.
@@ -1642,17 +1642,17 @@ type XenMobileConnectorCreateRequest struct {
 	// Allowed values: see the XenMobileConnectorCreateRequestAuthStrategy constants.
 	AuthStrategy string `json:"authStrategy"`
 	// Citrix Cloud administrator credentials for the CITRIX_CLOUD_ADMIN strategy.
-	CitrixCloudConfig *CitrixCloudConfig `json:"citrixCloudConfig,omitempty"`
+	CitrixCloudConfig *CitrixCloudConfig `json:"citrixCloudConfig,omitzero"`
 	// Citrix Cloud OAuth credentials for the CITRIX_CLOUD_ADMIN_OAUTH strategy.
-	CitrixCloudOauthConfig *CitrixCloudOauthConfig `json:"citrixCloudOauthConfig,omitempty"`
+	CitrixCloudOauthConfig *CitrixCloudOauthConfig `json:"citrixCloudOauthConfig,omitzero"`
 	// XenMobile password (USERNAME_PASSWORD strategy).
 	// Write-only. Servers MUST NOT return this field in responses; the SDK preserves it only so the caller
 	// can supply a value on update.
-	EmmPassword *string `json:"emmPassword,omitempty"`
+	EmmPassword *string `json:"emmPassword,omitzero"`
 	// XenMobile username (USERNAME_PASSWORD strategy).
-	EmmUsername *string `json:"emmUsername,omitempty"`
+	EmmUsername *string `json:"emmUsername,omitzero"`
 	// ISO country code for the UEM instance, when applicable.
-	IsoCountry *string `json:"isoCountry,omitempty"`
+	IsoCountry *string `json:"isoCountry,omitzero"`
 	// XenMobile server URL.
 	URL string `json:"url"`
 	// UEM vendor discriminator.
@@ -1721,13 +1721,13 @@ type BulkDeleteActivationProfilesRequest struct {
 // the `ApiError` shape the spec declares for this status, so nothing here decodes it.
 type PublicApiCapabilities struct {
 	// Enable data policy capability.
-	DataPolicy *bool `json:"dataPolicy,omitempty"`
+	DataPolicy *bool `json:"dataPolicy,omitzero"`
 	// Enable network security capability.
-	NetworkSecurity *bool `json:"networkSecurity,omitempty"`
+	NetworkSecurity *bool `json:"networkSecurity,omitzero"`
 	// Optional note for this capability configuration.
-	Note *string `json:"note,omitempty"`
+	Note *string `json:"note,omitzero"`
 	// Enable vulnerability management capability.
-	VulnerabilityManagement *bool `json:"vulnerabilityManagement,omitempty"`
+	VulnerabilityManagement *bool `json:"vulnerabilityManagement,omitzero"`
 }
 
 // PublicApiCreateActivationProfileRequest Request body for creating a new activation profile via the public API.
@@ -1750,7 +1750,7 @@ type PublicApiCreateActivationProfileRequest struct {
 	// Capability configuration. At least one capability must be enabled.
 	Capabilities PublicApiCapabilities `json:"capabilities"`
 	// Optional group ID to associate with the activation profile.
-	GroupID *string `json:"groupId,omitempty"`
+	GroupID *string `json:"groupId,omitzero"`
 	// Name of the activation profile.
 	Name string `json:"name"`
 	// Creation origin.

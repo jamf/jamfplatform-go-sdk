@@ -39,7 +39,7 @@ type ApiErrorErrorsItem struct {
 // AuditEnvelope A single audit event in canonical wire shape. Discriminated structurally into a gateway event (carries `actor` + `requestContext`) or a service event (carries `data`); the two never mix.
 type AuditEnvelope struct {
 	// The principal responsible for a gateway event. Present only on gateway events.
-	Actor *Actor `json:"actor,omitempty"`
+	Actor *Actor `json:"actor,omitzero"`
 	// Unique event id.
 	AuditID string `json:"auditId"`
 	// System that emitted this event, e.g. `api-gateway`, `blueprints`, `ai-policy`.
@@ -47,17 +47,17 @@ type AuditEnvelope struct {
 	// Event type, e.g. `api.call`, `blueprint.created`.
 	AuditType string `json:"auditType"`
 	// Event-specific payload (schema varies by source).
-	Data *map[string]any `json:"data,omitempty"`
+	Data *map[string]any `json:"data,omitzero"`
 	// Environment id, when applicable.
-	EnvironmentID *string `json:"environmentId,omitempty"`
+	EnvironmentID *string `json:"environmentId,omitzero"`
 	// Organization id.
 	OrgID string `json:"orgId"`
 	// HTTP request details for gateway events.
-	RequestContext *RequestContext `json:"requestContext,omitempty"`
+	RequestContext *RequestContext `json:"requestContext,omitzero"`
 	// Affected resource id, when applicable.
-	ResourceID *string `json:"resourceId,omitempty"`
+	ResourceID *string `json:"resourceId,omitzero"`
 	// Tenant id, when applicable.
-	TenantID *string `json:"tenantId,omitempty"`
+	TenantID *string `json:"tenantId,omitzero"`
 	// Event timestamp (ISO-8601).
 	Time time.Time `json:"time"`
 	// Transaction id linking related events.
@@ -73,13 +73,13 @@ type AuditEventBase struct {
 	// Event type, e.g. `api.call`, `blueprint.created`.
 	AuditType string `json:"auditType"`
 	// Environment id, when applicable.
-	EnvironmentID *string `json:"environmentId,omitempty"`
+	EnvironmentID *string `json:"environmentId,omitzero"`
 	// Organization id.
 	OrgID string `json:"orgId"`
 	// Affected resource id, when applicable.
-	ResourceID *string `json:"resourceId,omitempty"`
+	ResourceID *string `json:"resourceId,omitzero"`
 	// Tenant id, when applicable.
-	TenantID *string `json:"tenantId,omitempty"`
+	TenantID *string `json:"tenantId,omitzero"`
 	// Event timestamp (ISO-8601).
 	Time time.Time `json:"time"`
 	// Transaction id linking related events.
@@ -106,7 +106,7 @@ type FilterPage struct {
 // GatewayEnvelope Gateway-sourced event (`auditSource = api-gateway`) — carries actor + request context, no `data`.
 type GatewayEnvelope struct {
 	// The principal responsible for a gateway event. Present only on gateway events.
-	Actor *Actor `json:"actor,omitempty"`
+	Actor *Actor `json:"actor,omitzero"`
 	// Unique event id.
 	AuditID string `json:"auditId"`
 	// System that emitted this event, e.g. `api-gateway`, `blueprints`, `ai-policy`.
@@ -114,15 +114,15 @@ type GatewayEnvelope struct {
 	// Event type, e.g. `api.call`, `blueprint.created`.
 	AuditType string `json:"auditType"`
 	// Environment id, when applicable.
-	EnvironmentID *string `json:"environmentId,omitempty"`
+	EnvironmentID *string `json:"environmentId,omitzero"`
 	// Organization id.
 	OrgID string `json:"orgId"`
 	// HTTP request details for gateway events.
-	RequestContext *RequestContext `json:"requestContext,omitempty"`
+	RequestContext *RequestContext `json:"requestContext,omitzero"`
 	// Affected resource id, when applicable.
-	ResourceID *string `json:"resourceId,omitempty"`
+	ResourceID *string `json:"resourceId,omitzero"`
 	// Tenant id, when applicable.
-	TenantID *string `json:"tenantId,omitempty"`
+	TenantID *string `json:"tenantId,omitzero"`
 	// Event timestamp (ISO-8601).
 	Time time.Time `json:"time"`
 	// Transaction id linking related events.
@@ -159,15 +159,15 @@ type ServiceEnvelope struct {
 	// Event type, e.g. `api.call`, `blueprint.created`.
 	AuditType string `json:"auditType"`
 	// Event-specific payload (schema varies by source).
-	Data *map[string]any `json:"data,omitempty"`
+	Data *map[string]any `json:"data,omitzero"`
 	// Environment id, when applicable.
-	EnvironmentID *string `json:"environmentId,omitempty"`
+	EnvironmentID *string `json:"environmentId,omitzero"`
 	// Organization id.
 	OrgID string `json:"orgId"`
 	// Affected resource id, when applicable.
-	ResourceID *string `json:"resourceId,omitempty"`
+	ResourceID *string `json:"resourceId,omitzero"`
 	// Tenant id, when applicable.
-	TenantID *string `json:"tenantId,omitempty"`
+	TenantID *string `json:"tenantId,omitzero"`
 	// Event timestamp (ISO-8601).
 	Time time.Time `json:"time"`
 	// Transaction id linking related events.

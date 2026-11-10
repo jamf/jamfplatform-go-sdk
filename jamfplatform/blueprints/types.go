@@ -16,69 +16,69 @@ import (
 type AcceptCookies struct {
 	// Write-only. Servers MUST NOT return this field in responses; the SDK preserves it only so the caller
 	// can supply a value on update.
-	Included *bool `json:"Included,omitempty"`
+	Included *bool `json:"Included,omitzero"`
 	// The policy Safari uses for managing cookies.
 	// Allowed values: see the AcceptCookiesValue constants.
-	Value *string `json:"Value,omitempty"`
+	Value *string `json:"Value,omitzero"`
 }
 
 // AllowDisablingFraudWarning represents a allow disabling fraud warning.
 type AllowDisablingFraudWarning struct {
 	// Write-only. Servers MUST NOT return this field in responses; the SDK preserves it only so the caller
 	// can supply a value on update.
-	Included *bool `json:"Included,omitempty"`
+	Included *bool `json:"Included,omitzero"`
 	// If false, the system forces fraud warnings on in Safari.
-	Value *bool `json:"Value,omitempty"`
+	Value *bool `json:"Value,omitzero"`
 }
 
 // AllowHistoryClearing represents a allow history clearing.
 type AllowHistoryClearing struct {
 	// Write-only. Servers MUST NOT return this field in responses; the SDK preserves it only so the caller
 	// can supply a value on update.
-	Included *bool `json:"Included,omitempty"`
+	Included *bool `json:"Included,omitzero"`
 	// If false, the system disables clearing history in Safari.
-	Value *bool `json:"Value,omitempty"`
+	Value *bool `json:"Value,omitzero"`
 }
 
 // AllowJavaScript represents a allow java script.
 type AllowJavaScript struct {
 	// Write-only. Servers MUST NOT return this field in responses; the SDK preserves it only so the caller
 	// can supply a value on update.
-	Included *bool `json:"Included,omitempty"`
+	Included *bool `json:"Included,omitzero"`
 	// If false, the system disables JavaScript in Safari.
-	Value *bool `json:"Value,omitempty"`
+	Value *bool `json:"Value,omitzero"`
 }
 
 // AllowPopups represents a allow popups.
 type AllowPopups struct {
 	// Write-only. Servers MUST NOT return this field in responses; the SDK preserves it only so the caller
 	// can supply a value on update.
-	Included *bool `json:"Included,omitempty"`
+	Included *bool `json:"Included,omitzero"`
 	// If false, the system disables popups in Safari.
-	Value *bool `json:"Value,omitempty"`
+	Value *bool `json:"Value,omitzero"`
 }
 
 // AllowPrivateBrowsing represents a allow private browsing.
 type AllowPrivateBrowsing struct {
 	// Write-only. Servers MUST NOT return this field in responses; the SDK preserves it only so the caller
 	// can supply a value on update.
-	Included *bool `json:"Included,omitempty"`
+	Included *bool `json:"Included,omitzero"`
 	// If false, the system disables private browsing in Safari.
-	Value *bool `json:"Value,omitempty"`
+	Value *bool `json:"Value,omitzero"`
 }
 
 // AllowSummary represents a allow summary.
 type AllowSummary struct {
 	// Write-only. Servers MUST NOT return this field in responses; the SDK preserves it only so the caller
 	// can supply a value on update.
-	Included *bool `json:"Included,omitempty"`
+	Included *bool `json:"Included,omitzero"`
 	// If false, the system disables summarization of content in Safari.
-	Value *bool `json:"Value,omitempty"`
+	Value *bool `json:"Value,omitzero"`
 }
 
 // ApiError represents a api error.
 type ApiError struct {
-	Errors *Error `json:"errors,omitempty"`
+	Errors *Error `json:"errors,omitzero"`
 	// HTTP status of the response.
 	HttpStatus int `json:"httpStatus"`
 	// Trace ID.
@@ -88,30 +88,30 @@ type ApiError struct {
 // AppSettingsAllowed Allow/deny lists for which apps and binaries can run. > **Validation rule:** Each entry in `AllowedBinaries` requires either `CDHash` or > `TeamID`. Each entry in `DeniedBinaries` requires `CDHash`, `TeamID`, or `SigningID`.
 type AppSettingsAllowed struct {
 	// Bundle IDs the device may show or launch. Not supported on macOS.
-	AllowedApps *[]string `json:"AllowedApps,omitempty"`
+	AllowedApps *[]string `json:"AllowedApps,omitzero"`
 	// Binaries allowed to run. macOS only.
-	AllowedBinaries *[]AppSettingsBinaryIdentifier `json:"AllowedBinaries,omitempty"`
+	AllowedBinaries *[]AppSettingsBinaryIdentifier `json:"AllowedBinaries,omitzero"`
 	// If `true`, implicitly allows managed apps when `AllowedBinaries` is present. macOS only.
-	AlwaysAllowManagedApps *bool `json:"AlwaysAllowManagedApps,omitempty"`
+	AlwaysAllowManagedApps *bool `json:"AlwaysAllowManagedApps,omitzero"`
 	// Bundle IDs the device may not show or launch. Not supported on macOS.
-	DeniedApps *[]string `json:"DeniedApps,omitempty"`
+	DeniedApps *[]string `json:"DeniedApps,omitzero"`
 	// Binaries denied from running. macOS only.
-	DeniedBinaries *[]AppSettingsBinaryIdentifier `json:"DeniedBinaries,omitempty"`
+	DeniedBinaries *[]AppSettingsBinaryIdentifier `json:"DeniedBinaries,omitzero"`
 }
 
 // AppSettingsBinaryIdentifier Identifies a binary by code-signing attributes.
 type AppSettingsBinaryIdentifier struct {
 	// 40-character code directory hash of the binary.
-	CDHash *string `json:"CDHash,omitempty"`
+	CDHash *string `json:"CDHash,omitzero"`
 	// File system path prefix to match binaries.
-	PathPrefix *string `json:"PathPrefix,omitempty"`
+	PathPrefix *string `json:"PathPrefix,omitzero"`
 	// Code signature signing identifier of the binary.
-	SigningID *string `json:"SigningID,omitempty"`
+	SigningID *string `json:"SigningID,omitzero"`
 	// Code signing state to match.
 	// Allowed values: see the AppSettingsBinaryIdentifierSigningState constants.
-	SigningState *string `json:"SigningState,omitempty"`
+	SigningState *string `json:"SigningState,omitzero"`
 	// Code signature team identifier. Use `*APPLE*` for Apple binaries with no team identifier.
-	TeamID *string `json:"TeamID,omitempty"`
+	TeamID *string `json:"TeamID,omitzero"`
 }
 
 // AppSettingsDeclaration Configures app allow/deny lists and app privacy permission defaults.
@@ -133,31 +133,31 @@ type AppSettingsDeclarationPayload struct {
 	// Allow/deny lists for which apps and binaries can run.
 	// > **Validation rule:** Each entry in `AllowedBinaries` requires either `CDHash` or > `TeamID`. Each
 	// entry in `DeniedBinaries` requires `CDHash`, `TeamID`, or `SigningID`.
-	Allowed *AppSettingsAllowed `json:"Allowed,omitempty"`
+	Allowed *AppSettingsAllowed `json:"Allowed,omitzero"`
 	// App privacy permission defaults. Not supported on tvOS/visionOS/watchOS.
-	Privacy *AppSettingsPrivacy `json:"Privacy,omitempty"`
+	Privacy *AppSettingsPrivacy `json:"Privacy,omitzero"`
 }
 
 // AppSettingsPermissionDefaults App privacy permission defaults for one app identifier.
 type AppSettingsPermissionDefaults struct {
 	// Not supported on iOS.
 	// Allowed values: see the AppSettingsPermissionDefaultsAccessibility constants.
-	Accessibility *string `json:"Accessibility,omitempty"`
+	Accessibility *string `json:"Accessibility,omitzero"`
 	// Allowed values: see the AppSettingsPermissionDefaultsBluetooth constants.
-	Bluetooth *string `json:"Bluetooth,omitempty"`
+	Bluetooth *string `json:"Bluetooth,omitzero"`
 	// Allowed values: see the AppSettingsPermissionDefaultsCamera constants.
-	Camera *string `json:"Camera,omitempty"`
+	Camera *string `json:"Camera,omitzero"`
 	// Allowed values: see the AppSettingsPermissionDefaultsDictation constants.
-	Dictation *string `json:"Dictation,omitempty"`
+	Dictation *string `json:"Dictation,omitzero"`
 	// Allowed values: see the AppSettingsPermissionDefaultsLocalNetwork constants.
-	LocalNetwork *string `json:"LocalNetwork,omitempty"`
+	LocalNetwork *string `json:"LocalNetwork,omitzero"`
 	// Allowed values: see the AppSettingsPermissionDefaultsLocation constants.
-	Location *string `json:"Location,omitempty"`
+	Location *string `json:"Location,omitzero"`
 	// Not supported on macOS.
 	// Allowed values: see the AppSettingsPermissionDefaultsLocationAccuracy constants.
-	LocationAccuracy *string `json:"LocationAccuracy,omitempty"`
+	LocationAccuracy *string `json:"LocationAccuracy,omitzero"`
 	// Allowed values: see the AppSettingsPermissionDefaultsMicrophone constants.
-	Microphone *string `json:"Microphone,omitempty"`
+	Microphone *string `json:"Microphone,omitzero"`
 	// Text shown to the user explaining why the organization requires these defaults.
 	OrganizationJustification string `json:"OrganizationJustification"`
 }
@@ -169,7 +169,7 @@ type AppSettingsPermissionDefaultsMap = map[string]AppSettingsPermissionDefaults
 type AppSettingsPrivacy struct {
 	// Maps an app identifier (bundle ID on iOS; a composed `Bundle-ID {Designated-Requirement}` identifier
 	// on macOS) to a permission-defaults object.
-	PermissionDefaults *AppSettingsPermissionDefaultsMap `json:"PermissionDefaults,omitempty"`
+	PermissionDefaults *AppSettingsPermissionDefaultsMap `json:"PermissionDefaults,omitzero"`
 }
 
 // AudioAccessorySettingsComponent represents a audio accessory settings component.
@@ -184,7 +184,7 @@ type AudioAccessorySettingsComponent struct {
 // AudioAccessorySettingsConfiguration Audio accessory settings configuration. Configures audio accessory temporary pairing behavior.
 type AudioAccessorySettingsConfiguration struct {
 	// Temporary pairing configuration.
-	TemporaryPairing *TemporaryPairing `json:"TemporaryPairing,omitempty"`
+	TemporaryPairing *TemporaryPairing `json:"TemporaryPairing,omitzero"`
 }
 
 // AutomaticAction represents a automatic action.
@@ -192,16 +192,16 @@ type AutomaticAction struct {
 	// Controls whether this control should be used.
 	// Write-only. Servers MUST NOT return this field in responses; the SDK preserves it only so the caller
 	// can supply a value on update.
-	Included *bool `json:"Included,omitempty"`
+	Included *bool `json:"Included,omitzero"`
 	// Allowed values: see the AutomaticActionValue constants.
 	Value string `json:"Value"`
 }
 
 // AutomaticActions represents a automatic actions.
 type AutomaticActions struct {
-	Download              *AutomaticAction `json:"Download,omitempty"`
-	InstallOSUpdates      *AutomaticAction `json:"InstallOSUpdates,omitempty"`
-	InstallSecurityUpdate *AutomaticAction `json:"InstallSecurityUpdate,omitempty"`
+	Download              *AutomaticAction `json:"Download,omitzero"`
+	InstallOSUpdates      *AutomaticAction `json:"InstallOSUpdates,omitzero"`
+	InstallSecurityUpdate *AutomaticAction `json:"InstallSecurityUpdate,omitzero"`
 }
 
 // BasicMode represents a basic mode.
@@ -211,7 +211,7 @@ type BasicMode struct {
 	// Controls whether this control should be used.
 	// Write-only. Servers MUST NOT return this field in responses; the SDK preserves it only so the caller
 	// can supply a value on update.
-	Included *bool `json:"Included,omitempty"`
+	Included *bool `json:"Included,omitzero"`
 }
 
 // Beta represents a beta.
@@ -219,22 +219,22 @@ type Beta struct {
 	// Controls whether this control should be used.
 	// Write-only. Servers MUST NOT return this field in responses; the SDK preserves it only so the caller
 	// can supply a value on update.
-	Included *bool         `json:"Included,omitempty"`
-	Value    *BetaSettings `json:"Value,omitempty"`
+	Included *bool         `json:"Included,omitzero"`
+	Value    *BetaSettings `json:"Value,omitzero"`
 }
 
 // BetaProgram represents a beta program.
 type BetaProgram struct {
-	Description *string `json:"Description,omitempty"`
-	Token       *string `json:"Token,omitempty"`
+	Description *string `json:"Description,omitzero"`
+	Token       *string `json:"Token,omitzero"`
 }
 
 // BetaSettings represents a beta settings.
 type BetaSettings struct {
-	OfferPrograms *[]BetaProgram `json:"OfferPrograms,omitempty"`
+	OfferPrograms *[]BetaProgram `json:"OfferPrograms,omitzero"`
 	// Allowed values: see the BetaSettingsProgramEnrollment constants.
 	ProgramEnrollment string       `json:"ProgramEnrollment"`
-	RequireProgram    *BetaProgram `json:"RequireProgram,omitempty"`
+	RequireProgram    *BetaProgram `json:"RequireProgram,omitzero"`
 }
 
 // BlueprintDetail represents a blueprint detail.
@@ -242,15 +242,15 @@ type BlueprintDetail struct {
 	// Creation date.
 	Created time.Time `json:"created"`
 	// Blueprint deployment state.
-	DeploymentState *DeploymentState `json:"deploymentState,omitempty"`
+	DeploymentState *DeploymentState `json:"deploymentState,omitzero"`
 	// Description of the blueprint.
-	Description *string `json:"description,omitempty"`
+	Description *string `json:"description,omitzero"`
 	// ID of the blueprint.
 	ID string `json:"id"`
 	// Name of the blueprint.
 	Name string `json:"name"`
 	// Device groups.
-	Scope *BlueprintScope `json:"scope,omitempty"`
+	Scope *BlueprintScope `json:"scope,omitzero"`
 	// Array of blueprint steps.
 	Steps []BlueprintStep `json:"steps"`
 	// Last modification date.
@@ -262,9 +262,9 @@ type BlueprintOverview struct {
 	// Creation date.
 	Created time.Time `json:"created"`
 	// Blueprint deployment state.
-	DeploymentState *DeploymentState `json:"deploymentState,omitempty"`
+	DeploymentState *DeploymentState `json:"deploymentState,omitzero"`
 	// Description of the blueprint.
-	Description *string `json:"description,omitempty"`
+	Description *string `json:"description,omitzero"`
 	// ID of the blueprint.
 	ID string `json:"id"`
 	// Name of the blueprint.
@@ -292,11 +292,11 @@ type BlueprintStatusDetail struct {
 // BlueprintStep Array of blueprint steps.
 type BlueprintStep struct {
 	// Declarative activation predicate.
-	ActivationPredicate *string `json:"activationPredicate,omitempty"`
+	ActivationPredicate *string `json:"activationPredicate,omitzero"`
 	// Array of components included in the step.
 	Components []Component `json:"components"`
 	// Name of the step.
-	Name *string `json:"name,omitempty"`
+	Name *string `json:"name,omitzero"`
 }
 
 // BookmarkGroup represents a bookmark group.
@@ -384,28 +384,28 @@ func (m BookmarkItem) MarshalJSON() ([]byte, error) {
 // Calculator represents a calculator.
 type Calculator struct {
 	// If present, configures the basic mode of the calculator. Basic mode is always enabled.
-	BasicMode *BasicMode `json:"BasicMode,omitempty"`
+	BasicMode *BasicMode `json:"BasicMode,omitzero"`
 	// If present, controls global input options of the calculator. If not present, all input modes are
 	// enabled.
-	InputModes *InputModes `json:"InputModes,omitempty"`
+	InputModes *InputModes `json:"InputModes,omitzero"`
 	// If present, configures the Math Notes mode of the calculator. If not present, math notes mode is
 	// enabled.
-	MathNotesMode *MathNotesMode `json:"MathNotesMode,omitempty"`
+	MathNotesMode *MathNotesMode `json:"MathNotesMode,omitzero"`
 	// If present, configures the programmer mode of the calculator. If not present, programmer mode is
 	// enabled.
-	ProgrammerMode *ProgrammerMode `json:"ProgrammerMode,omitempty"`
+	ProgrammerMode *ProgrammerMode `json:"ProgrammerMode,omitzero"`
 	// If present, configures the scientific mode of the calculator. If not present, scientific mode is
 	// enabled.
-	ScientificMode *ScientificMode `json:"ScientificMode,omitempty"`
+	ScientificMode *ScientificMode `json:"ScientificMode,omitzero"`
 }
 
 // ChangeAtNextAuth represents a change at next auth.
 type ChangeAtNextAuth struct {
 	// Write-only. Servers MUST NOT return this field in responses; the SDK preserves it only so the caller
 	// can supply a value on update.
-	Included *bool `json:"Included,omitempty"`
+	Included *bool `json:"Included,omitzero"`
 	// Change at next auth.
-	Value *bool `json:"Value,omitempty"`
+	Value *bool `json:"Value,omitzero"`
 }
 
 // Component A blueprint component.
@@ -417,11 +417,11 @@ type Component struct {
 // ComponentDescription Array of result items.
 type ComponentDescription struct {
 	// Description of the component.
-	Description *string `json:"description,omitempty"`
+	Description *string `json:"description,omitzero"`
 	// Blueprint component identifier.
 	Identifier string `json:"identifier"`
 	// Meta object containing additional information about component.
-	Meta *Meta `json:"meta,omitempty"`
+	Meta *Meta `json:"meta,omitzero"`
 	// Name of the component.
 	Name string `json:"name"`
 }
@@ -535,68 +535,68 @@ type ContentCachingDeclaration struct {
 // ContentCachingDeclarationPayload Payload fields for the Content Caching declaration.
 type ContentCachingDeclarationPayload struct {
 	// If `true`, the system may purge cached content when disk space is low.
-	AllowCacheDelete *bool `json:"AllowCacheDelete,omitempty"`
+	AllowCacheDelete *bool `json:"AllowCacheDelete,omitzero"`
 	// Caches the user's iCloud data. At least one of `AllowPersonalCaching`/`AllowSharedCaching` must be
 	// `true`.
-	AllowPersonalCaching *bool `json:"AllowPersonalCaching,omitempty"`
+	AllowPersonalCaching *bool `json:"AllowPersonalCaching,omitzero"`
 	// Caches non-iCloud content such as apps and software updates.
-	AllowSharedCaching *bool `json:"AllowSharedCaching,omitempty"`
+	AllowSharedCaching *bool `json:"AllowSharedCaching,omitzero"`
 	// Automatically activates Content Caching when possible.
-	AutoActivation *bool `json:"AutoActivation,omitempty"`
+	AutoActivation *bool `json:"AutoActivation,omitzero"`
 	// Automatically enables Internet connection sharing for tethered caching.
-	AutoEnableTetheredCaching *bool `json:"AutoEnableTetheredCaching,omitempty"`
+	AutoEnableTetheredCaching *bool `json:"AutoEnableTetheredCaching,omitzero"`
 	// Maximum disk space in bytes for the cache. `0` is unlimited.
-	CacheLimit *int `json:"CacheLimit,omitempty"`
+	CacheLimit *int `json:"CacheLimit,omitzero"`
 	// Directory used to store cached content. Must end with `/Library/Application
 	// Support/Apple/AssetCache/Data`.
-	DataPath *string `json:"DataPath,omitempty"`
+	DataPath *string `json:"DataPath,omitzero"`
 	// Reporting interval in seconds for the status item. `0` disables it; any other value must be between
 	// 300 and 86400.
-	DeclarativeStatusInterval *int `json:"DeclarativeStatusInterval,omitempty"`
+	DeclarativeStatusInterval *int `json:"DeclarativeStatusInterval,omitzero"`
 	// If `true`, disables Content Caching entirely.
-	DenyActivation *bool `json:"DenyActivation,omitempty"`
+	DenyActivation *bool `json:"DenyActivation,omitzero"`
 	// If `true`, disables tethered caching.
-	DenyTetheredCaching *bool `json:"DenyTetheredCaching,omitempty"`
+	DenyTetheredCaching *bool `json:"DenyTetheredCaching,omitzero"`
 	// Shows exceptional conditions as system notifications.
-	DisplayAlerts *bool `json:"DisplayAlerts,omitempty"`
+	DisplayAlerts *bool `json:"DisplayAlerts,omitzero"`
 	// Prevents sleep while Content Caching is on.
-	KeepAwake *bool `json:"KeepAwake,omitempty"`
+	KeepAwake *bool `json:"KeepAwake,omitzero"`
 	// Client IP ranges to serve.
-	ListenRanges *[]ContentCachingIpRange `json:"ListenRanges,omitempty"`
+	ListenRanges *[]ContentCachingIpRange `json:"ListenRanges,omitzero"`
 	// Restricts serving to `ListenRanges` only.
-	ListenRangesOnly *bool `json:"ListenRangesOnly,omitempty"`
+	ListenRangesOnly *bool `json:"ListenRangesOnly,omitzero"`
 	// Serves clients in the union of `ListenRanges`, `PeerListenRanges`, and `Parents`.
-	ListenWithPeersAndParents *bool `json:"ListenWithPeersAndParents,omitempty"`
+	ListenWithPeersAndParents *bool `json:"ListenWithPeersAndParents,omitzero"`
 	// Restricts serving to the local subnet, ignoring `ListenRanges`.
-	LocalSubnetsOnly *bool `json:"LocalSubnetsOnly,omitempty"`
+	LocalSubnetsOnly *bool `json:"LocalSubnetsOnly,omitzero"`
 	// Logs client IP and port.
-	LogClientIdentity *bool `json:"LogClientIdentity,omitempty"`
+	LogClientIdentity *bool `json:"LogClientIdentity,omitzero"`
 	// Reporting interval in seconds for management statistics.
-	ManagementReportingInterval *int `json:"ManagementReportingInterval,omitempty"`
+	ManagementReportingInterval *int `json:"ManagementReportingInterval,omitzero"`
 	// How the `ManagementStatusTarget` HTTPS connection is secured.
 	// Allowed values: see the ContentCachingDeclarationPayloadManagementSecurityConfig constants.
-	ManagementSecurityConfig *string `json:"ManagementSecurityConfig,omitempty"`
+	ManagementSecurityConfig *string `json:"ManagementSecurityConfig,omitzero"`
 	// Asset declaration identifier for the certificate used to verify `ManagementStatusTarget`.
-	ManagementStatusCertificateReference *string `json:"ManagementStatusCertificateReference,omitempty"`
+	ManagementStatusCertificateReference *string `json:"ManagementStatusCertificateReference,omitzero"`
 	// URL the cache PUTs management statistics to.
-	ManagementStatusTarget *string `json:"ManagementStatusTarget,omitempty"`
+	ManagementStatusTarget *string `json:"ManagementStatusTarget,omitzero"`
 	// Policy for choosing among multiple parents.
 	// Allowed values: see the ContentCachingDeclarationPayloadParentSelectionPolicy constants.
-	ParentSelectionPolicy *string `json:"ParentSelectionPolicy,omitempty"`
+	ParentSelectionPolicy *string `json:"ParentSelectionPolicy,omitzero"`
 	// IP addresses of upstream content caches to use instead of Apple directly.
-	Parents *[]string `json:"Parents,omitempty"`
+	Parents *[]string `json:"Parents,omitzero"`
 	// Peer IP ranges this cache queries for content.
-	PeerFilterRanges *[]ContentCachingIpRange `json:"PeerFilterRanges,omitempty"`
+	PeerFilterRanges *[]ContentCachingIpRange `json:"PeerFilterRanges,omitzero"`
 	// Peer IP ranges this cache responds to.
-	PeerListenRanges *[]ContentCachingIpRange `json:"PeerListenRanges,omitempty"`
+	PeerListenRanges *[]ContentCachingIpRange `json:"PeerListenRanges,omitzero"`
 	// Restricts peering to the local subnet.
-	PeerLocalSubnetsOnly *bool `json:"PeerLocalSubnetsOnly,omitempty"`
+	PeerLocalSubnetsOnly *bool `json:"PeerLocalSubnetsOnly,omitzero"`
 	// Maximum disk space in bytes for personal (iCloud) content. `0` uses `CacheLimit`.
-	PersonalCacheLimit *int `json:"PersonalCacheLimit,omitempty"`
+	PersonalCacheLimit *int `json:"PersonalCacheLimit,omitzero"`
 	// TCP port for upload/download requests. `0` picks a random port.
-	Port *int `json:"Port,omitempty"`
+	Port *int `json:"Port,omitzero"`
 	// Public IP ranges cloud servers use to match clients to caches.
-	PublicRanges *[]ContentCachingIpRange `json:"PublicRanges,omitempty"`
+	PublicRanges *[]ContentCachingIpRange `json:"PublicRanges,omitzero"`
 }
 
 // ContentCachingIpRange A range of IP addresses.
@@ -606,13 +606,13 @@ type ContentCachingIpRange struct {
 	// The last IP address in the range.
 	Last string `json:"last"`
 	// Allowed values: see the ContentCachingIpRangeType constants.
-	Type *string `json:"type,omitempty"`
+	Type *string `json:"type,omitzero"`
 }
 
 // CreateBlueprintRequest represents a create blueprint request.
 type CreateBlueprintRequest struct {
 	// Description of the blueprint.
-	Description *string `json:"description,omitempty"`
+	Description *string `json:"description,omitzero"`
 	// Name of the blueprint.
 	Name string `json:"name"`
 	// Scope of the blueprint.
@@ -724,12 +724,12 @@ type CustomDeclarationsConfiguration struct {
 type CustomRegex struct {
 	// Map of OS language ID to a localized description. Use the special `default` key for languages that
 	// the dictionary doesn't contain.
-	Description *map[string]string `json:"Description,omitempty"`
+	Description *map[string]string `json:"Description,omitzero"`
 	// Write-only. Servers MUST NOT return this field in responses; the SDK preserves it only so the caller
 	// can supply a value on update.
-	Included *bool `json:"Included,omitempty"`
+	Included *bool `json:"Included,omitzero"`
 	// Regular expression.
-	Regex *string `json:"Regex,omitempty"`
+	Regex *string `json:"Regex,omitzero"`
 }
 
 // DeclarationsComponent Blueprint component for one or more supported Apple declarations.
@@ -979,10 +979,10 @@ func (m DeclarationsComponentConfigurationDeclarationsItem) MarshalJSON() ([]byt
 
 // Deferrals represents a deferrals.
 type Deferrals struct {
-	CombinedPeriodInDays *OptionalPeriodInDays `json:"CombinedPeriodInDays,omitempty"`
-	MajorPeriodInDays    *OptionalPeriodInDays `json:"MajorPeriodInDays,omitempty"`
-	MinorPeriodInDays    *OptionalPeriodInDays `json:"MinorPeriodInDays,omitempty"`
-	SystemPeriodInDays   *OptionalPeriodInDays `json:"SystemPeriodInDays,omitempty"`
+	CombinedPeriodInDays *OptionalPeriodInDays `json:"CombinedPeriodInDays,omitzero"`
+	MajorPeriodInDays    *OptionalPeriodInDays `json:"MajorPeriodInDays,omitzero"`
+	MinorPeriodInDays    *OptionalPeriodInDays `json:"MinorPeriodInDays,omitzero"`
+	SystemPeriodInDays   *OptionalPeriodInDays `json:"SystemPeriodInDays,omitzero"`
 }
 
 // Deployment Information about last deployment job.
@@ -997,7 +997,7 @@ type Deployment struct {
 // DeploymentState Blueprint deployment state.
 type DeploymentState struct {
 	// Information about last deployment job.
-	LastDeployment *Deployment `json:"lastDeployment,omitempty"`
+	LastDeployment *Deployment `json:"lastDeployment,omitzero"`
 	// Blueprint state.
 	// Allowed values: see the DeploymentStateState constants.
 	State string `json:"state"`
@@ -1006,9 +1006,9 @@ type DeploymentState struct {
 // DetailsURL Optional URL with details about the enforced update.
 type DetailsURL struct {
 	// Controls whether this setting should be used.
-	Included *bool `json:"Included,omitempty"`
+	Included *bool `json:"Included,omitzero"`
 	// URL of a web page with the details about the enforced update.
-	Value *string `json:"Value,omitempty"`
+	Value *string `json:"Value,omitzero"`
 }
 
 // DiskManagementComponent represents a disk management component.
@@ -1023,7 +1023,7 @@ type DiskManagementComponent struct {
 // DiskManagementSettingsConfiguration Disk management settings configuration. Configures restrictions for external and network storage access.
 type DiskManagementSettingsConfiguration struct {
 	// Storage restrictions configuration.
-	Restrictions *Restrictions `json:"Restrictions,omitempty"`
+	Restrictions *Restrictions `json:"Restrictions,omitzero"`
 	// Configuration version.
 	// Allowed values: see the DiskManagementSettingsConfigurationVersion constants.
 	Version int `json:"version"`
@@ -1037,9 +1037,9 @@ type Error struct {
 	// displayed to a user; instead refer to errorCode and it's localized text.
 	Description string `json:"description"`
 	// Name of the field that caused the error.
-	Field *string `json:"field,omitempty"`
+	Field *string `json:"field,omitzero"`
 	// id of object with error.
-	ID *string `json:"id,omitempty"`
+	ID *string `json:"id,omitzero"`
 }
 
 // ExternalIntelligenceSettingsDeclaration Configures External Intelligence Integrations settings.
@@ -1059,26 +1059,26 @@ type ExternalIntelligenceSettingsDeclaration struct {
 // ExternalIntelligenceSettingsDeclarationPayload Payload fields for the External Intelligence Settings declaration.
 type ExternalIntelligenceSettingsDeclarationPayload struct {
 	// If `false`, disables sign-in for external intelligence integrations.
-	AllowSignIn *bool `json:"AllowSignIn,omitempty"`
+	AllowSignIn *bool `json:"AllowSignIn,omitzero"`
 	// Restricts external intelligence to the given workspace ID (currently limited to one element).
-	AllowedWorkspaceIDs *[]string `json:"AllowedWorkspaceIDs,omitempty"`
+	AllowedWorkspaceIDs *[]string `json:"AllowedWorkspaceIDs,omitzero"`
 	// If `false`, disables external intelligence integrations.
-	Enabled *bool `json:"Enabled,omitempty"`
+	Enabled *bool `json:"Enabled,omitzero"`
 }
 
 // FailedAttemptsResetInMinutes represents a failed attempts reset in minutes.
 type FailedAttemptsResetInMinutes struct {
 	// Write-only. Servers MUST NOT return this field in responses; the SDK preserves it only so the caller
 	// can supply a value on update.
-	Included *bool `json:"Included,omitempty"`
+	Included *bool `json:"Included,omitzero"`
 	// Failed attempts reset in minutes.
-	Value *int `json:"Value,omitempty"`
+	Value *int `json:"Value,omitzero"`
 }
 
 // FolderBookmarkItem represents a folder bookmark item.
 type FolderBookmarkItem struct {
 	// An array of bookmarks for each bookmark in the folder.
-	Folder *[]URLBookmarkItem `json:"Folder,omitempty"`
+	Folder *[]URLBookmarkItem `json:"Folder,omitzero"`
 	// The title of the folder shown in Safari.
 	Title string `json:"Title"`
 	// Allowed values: see the FolderBookmarkItemType constants.
@@ -1090,7 +1090,7 @@ type InputModes struct {
 	// Controls whether this control should be used.
 	// Write-only. Servers MUST NOT return this field in responses; the SDK preserves it only so the caller
 	// can supply a value on update.
-	Included *bool `json:"Included,omitempty"`
+	Included *bool `json:"Included,omitzero"`
 	// Configures whether RPN input is enabled.
 	RPN bool `json:"RPN"`
 	// Configures whether unit conversions are enabled.
@@ -1100,35 +1100,35 @@ type InputModes struct {
 // IntelligenceSettingsApps Per-app Intelligence feature toggles.
 type IntelligenceSettingsApps struct {
 	// Calendar and Reminders Intelligence feature toggles. Requires iOS/macOS/visionOS 27.0+.
-	Calendar *IntelligenceSettingsAppsCalendar `json:"Calendar,omitempty"`
+	Calendar *IntelligenceSettingsAppsCalendar `json:"Calendar,omitzero"`
 	// Mail Intelligence feature toggles.
-	Mail *IntelligenceSettingsAppsMail `json:"Mail,omitempty"`
+	Mail *IntelligenceSettingsAppsMail `json:"Mail,omitzero"`
 	// Not supported on visionOS.
-	Notes *IntelligenceSettingsAppsNotes `json:"Notes,omitempty"`
+	Notes *IntelligenceSettingsAppsNotes `json:"Notes,omitzero"`
 	// Safari Intelligence feature toggles.
-	Safari *IntelligenceSettingsAppsSafari `json:"Safari,omitempty"`
+	Safari *IntelligenceSettingsAppsSafari `json:"Safari,omitzero"`
 }
 
 // IntelligenceSettingsAppsCalendar Calendar and Reminders Intelligence feature toggles. Requires iOS/macOS/visionOS 27.0+.
 type IntelligenceSettingsAppsCalendar struct {
-	AllowNaturalLanguageEditing *bool `json:"AllowNaturalLanguageEditing,omitempty"`
+	AllowNaturalLanguageEditing *bool `json:"AllowNaturalLanguageEditing,omitzero"`
 }
 
 // IntelligenceSettingsAppsMail Mail Intelligence feature toggles.
 type IntelligenceSettingsAppsMail struct {
-	AllowSmartReplies *bool `json:"AllowSmartReplies,omitempty"`
-	AllowSummary      *bool `json:"AllowSummary,omitempty"`
+	AllowSmartReplies *bool `json:"AllowSmartReplies,omitzero"`
+	AllowSummary      *bool `json:"AllowSummary,omitzero"`
 }
 
 // IntelligenceSettingsAppsNotes Not supported on visionOS.
 type IntelligenceSettingsAppsNotes struct {
-	AllowTranscription        *bool `json:"AllowTranscription,omitempty"`
-	AllowTranscriptionSummary *bool `json:"AllowTranscriptionSummary,omitempty"`
+	AllowTranscription        *bool `json:"AllowTranscription,omitzero"`
+	AllowTranscriptionSummary *bool `json:"AllowTranscriptionSummary,omitzero"`
 }
 
 // IntelligenceSettingsAppsSafari Safari Intelligence feature toggles.
 type IntelligenceSettingsAppsSafari struct {
-	AllowSummary *bool `json:"AllowSummary,omitempty"`
+	AllowSummary *bool `json:"AllowSummary,omitzero"`
 }
 
 // IntelligenceSettingsDeclaration Configures Apple Intelligence settings.
@@ -1147,24 +1147,24 @@ type IntelligenceSettingsDeclaration struct {
 
 // IntelligenceSettingsDeclarationPayload Payload fields for the Intelligence Settings declaration.
 type IntelligenceSettingsDeclarationPayload struct {
-	AllowAppleIntelligenceReport *bool `json:"AllowAppleIntelligenceReport,omitempty"`
-	AllowGenmoji                 *bool `json:"AllowGenmoji,omitempty"`
-	AllowImagePlayground         *bool `json:"AllowImagePlayground,omitempty"`
+	AllowAppleIntelligenceReport *bool `json:"AllowAppleIntelligenceReport,omitzero"`
+	AllowGenmoji                 *bool `json:"AllowGenmoji,omitzero"`
+	AllowImagePlayground         *bool `json:"AllowImagePlayground,omitzero"`
 	// Not supported on macOS.
-	AllowImageWand *bool `json:"AllowImageWand,omitempty"`
+	AllowImageWand *bool `json:"AllowImageWand,omitzero"`
 	// Not supported on macOS/visionOS.
-	AllowPersonalizedHandwritingResults *bool `json:"AllowPersonalizedHandwritingResults,omitempty"`
+	AllowPersonalizedHandwritingResults *bool `json:"AllowPersonalizedHandwritingResults,omitzero"`
 	// Not supported on visionOS. Requires iOS/macOS 27.0+.
-	AllowVisualIntelligence *bool `json:"AllowVisualIntelligence,omitempty"`
+	AllowVisualIntelligence *bool `json:"AllowVisualIntelligence,omitzero"`
 	// Not supported on macOS/visionOS. Deprecated on iOS 27.0+ in favor of `AllowVisualIntelligence`.
-	AllowVisualIntelligenceSummary *bool `json:"AllowVisualIntelligenceSummary,omitempty"`
-	AllowWritingTools              *bool `json:"AllowWritingTools,omitempty"`
+	AllowVisualIntelligenceSummary *bool `json:"AllowVisualIntelligenceSummary,omitzero"`
+	AllowWritingTools              *bool `json:"AllowWritingTools,omitzero"`
 	// Per-app Intelligence feature toggles.
-	Apps *IntelligenceSettingsApps `json:"Apps,omitempty"`
+	Apps *IntelligenceSettingsApps `json:"Apps,omitzero"`
 	// If `true`, forces on-device-only dictation.
-	ForceOnDeviceOnlyDictation *bool `json:"ForceOnDeviceOnlyDictation,omitempty"`
+	ForceOnDeviceOnlyDictation *bool `json:"ForceOnDeviceOnlyDictation,omitzero"`
 	// Not supported on macOS/visionOS. If `true`, forces on-device-only translation.
-	ForceOnDeviceOnlyTranslation *bool `json:"ForceOnDeviceOnlyTranslation,omitempty"`
+	ForceOnDeviceOnlyTranslation *bool `json:"ForceOnDeviceOnlyTranslation,omitzero"`
 }
 
 // KeyboardSettingsDeclaration Configures keyboard settings.
@@ -1184,38 +1184,38 @@ type KeyboardSettingsDeclaration struct {
 // KeyboardSettingsDeclarationPayload Payload fields for the Keyboard Settings declaration.
 type KeyboardSettingsDeclarationPayload struct {
 	// Not supported on macOS.
-	AllowAutoCorrection   *bool `json:"AllowAutoCorrection,omitempty"`
-	AllowDefinitionLookup *bool `json:"AllowDefinitionLookup,omitempty"`
-	AllowDictation        *bool `json:"AllowDictation,omitempty"`
+	AllowAutoCorrection   *bool `json:"AllowAutoCorrection,omitzero"`
+	AllowDefinitionLookup *bool `json:"AllowDefinitionLookup,omitzero"`
+	AllowDictation        *bool `json:"AllowDictation,omitzero"`
 	// Also supported by `math.settings`.
-	AllowMathKeyboardSuggestions *bool `json:"AllowMathKeyboardSuggestions,omitempty"`
+	AllowMathKeyboardSuggestions *bool `json:"AllowMathKeyboardSuggestions,omitzero"`
 	// Not supported on macOS.
-	AllowPredictiveText *bool `json:"AllowPredictiveText,omitempty"`
+	AllowPredictiveText *bool `json:"AllowPredictiveText,omitzero"`
 	// Not supported on macOS.
-	AllowSlideToType *bool `json:"AllowSlideToType,omitempty"`
+	AllowSlideToType *bool `json:"AllowSlideToType,omitzero"`
 	// Not supported on macOS.
-	AllowSpellCheck *bool `json:"AllowSpellCheck,omitempty"`
+	AllowSpellCheck *bool `json:"AllowSpellCheck,omitzero"`
 	// Not supported on macOS.
-	AllowTextReplacement *bool `json:"AllowTextReplacement,omitempty"`
+	AllowTextReplacement *bool `json:"AllowTextReplacement,omitzero"`
 }
 
 // ManagedAppAttributes Fine-grained app behavior settings. All fields are optional. **iOS 18.1+ note:** `Hideable` and `Lockable` require iOS 18.1 or later. When `Lockable` is `false`, `Hideable` is required and must also be `false`.
 type ManagedAppAttributes struct {
 	// Associated domains for the app.
-	AssociatedDomains *[]string `json:"AssociatedDomains,omitempty"`
+	AssociatedDomains *[]string `json:"AssociatedDomains,omitzero"`
 	// Enable direct downloads for the app's associated domains.
-	AssociatedDomainsEnableDirectDownloads *bool `json:"AssociatedDomainsEnableDirectDownloads,omitempty"`
+	AssociatedDomainsEnableDirectDownloads *bool `json:"AssociatedDomainsEnableDirectDownloads,omitzero"`
 	// UUID of the network slice to use for the app's cellular connection.
-	CellularSliceUUID *string `json:"CellularSliceUUID,omitempty"`
+	CellularSliceUUID *string `json:"CellularSliceUUID,omitzero"`
 	// UUID of the DNS proxy configuration to apply to the app.
-	DNSProxyUUID *string `json:"DNSProxyUUID,omitempty"`
+	DNSProxyUUID *string `json:"DNSProxyUUID,omitzero"`
 	// Allow the user to hide the app from the home screen (requires iOS 18.1 or later). When `Lockable` is
 	// `false`, this must also be `false`.
-	Hideable *bool `json:"Hideable,omitempty"`
+	Hideable *bool `json:"Hideable,omitzero"`
 	// Allow the user to lock the app behind Face ID or Touch ID (requires iOS 18.1 or later).
-	Lockable *bool `json:"Lockable,omitempty"`
+	Lockable *bool `json:"Lockable,omitzero"`
 	// Require screen lock when the app uses Tap to Pay.
-	TapToPayScreenLock *bool `json:"TapToPayScreenLock,omitempty"`
+	TapToPayScreenLock *bool `json:"TapToPayScreenLock,omitzero"`
 }
 
 // ManagedAppComponent Blueprint component that installs and manages volume purchasing apps on managed devices.
@@ -1279,17 +1279,17 @@ type ManagedAppComponent struct {
 type ManagedAppConfig struct {
 	// Certificates to provide to the app or extension. Each entry pairs a certificate asset reference with
 	// an identifier the app uses to look the certificate up.
-	Certificates *[]ManagedAppCredentialConfig `json:"Certificates,omitempty"`
+	Certificates *[]ManagedAppCredentialConfig `json:"Certificates,omitzero"`
 	// Identifier of an asset declaration containing a reference to the app or extension config data. The
 	// asset must be of type `com.apple.asset.data`, the referenced data must be a property list file, and
 	// the asset's `ContentType` must match the data type.
-	DataAssetReference *string `json:"DataAssetReference,omitempty"`
+	DataAssetReference *string `json:"DataAssetReference,omitzero"`
 	// Identities to provide to the app or extension. Each entry pairs an identity asset reference with an
 	// identifier the app uses to look the identity up.
-	Identities *[]ManagedAppCredentialConfig `json:"Identities,omitempty"`
+	Identities *[]ManagedAppCredentialConfig `json:"Identities,omitzero"`
 	// Passwords to provide to the app or extension. Each entry pairs a password asset reference with an
 	// identifier the app uses to look the password up.
-	Passwords *[]ManagedAppCredentialConfig `json:"Passwords,omitempty"`
+	Passwords *[]ManagedAppCredentialConfig `json:"Passwords,omitzero"`
 }
 
 // ManagedAppConfiguration Configuration for one or more volume purchasing apps. ### Example — single required app ```json { "apps": [ { "AssetId": "019a8082-19ba-794c-91f4-2cd5a02b0c72", "AppAndBookTokenId": "099a8082-ae9d-70be-b377-84e4ba7459c4", "AppId": "com.microsoft.Excel", "Install": "Required", "AutomaticAppUpdates": "AlwaysOn" } ] } ``` ### Example — app with attributes (iOS 18.1+) ```json { "apps": [ { "AssetId": "019a8082-19ba-794c-91f4-2cd5a02b0c72", "AppAndBookTokenId": "099a8082-ae9d-70be-b377-84e4ba7459c4", "AppId": "com.microsoft.Excel", "Install": "Required", "AllowDownloadsOverCellular": "AlwaysOff", "AutomaticAppUpdates": "AlwaysOn", "IncludeInBackup": true, "Attributes": { "Hideable": true, "Lockable": true, "AssociatedDomains": ["corp.example.com"], "AssociatedDomainsEnableDirectDownloads": false } } ] } ``` ### Example — multiple apps in one component ```json { "apps": [ { "AssetId": "019a8082-19ba-794c-91f4-2cd5a02b0c72", "AppAndBookTokenId": "099a8082-ae9d-70be-b377-84e4ba7459c4", "AppId": "com.microsoft.Excel", "Install": "Required" }, { "AssetId": "12345678-0000-0000-0000-000000000001", "AppAndBookTokenId": "099a8082-ae9d-70be-b377-84e4ba7459c4", "AppId": "com.microsoft.Word", "Install": "Optional", "AutomaticAppUpdates": "StoreSettings" } ] } ```.
@@ -1326,31 +1326,31 @@ type ManagedAppDeclaration struct {
 type ManagedAppDeclarationPayload struct {
 	// Identifies an existing app to take over management of, formatted `Bundle-ID` or `Bundle-ID
 	// (Team-ID)`.
-	AppComposedIdentifier *string `json:"AppComposedIdentifier,omitempty"`
+	AppComposedIdentifier *string `json:"AppComposedIdentifier,omitzero"`
 	// App or extension config data and credentials. Requires macOS 27.0+.
-	AppConfig *ManagedAppConfig `json:"AppConfig,omitempty"`
+	AppConfig *ManagedAppConfig `json:"AppConfig,omitzero"`
 	// App Store ID of the app. One of `AppStoreID`, `BundleID`, or `AppComposedIdentifier` is required.
-	AppStoreID *string `json:"AppStoreID,omitempty"`
+	AppStoreID *string `json:"AppStoreID,omitzero"`
 	// Bundle ID of an App Store app.
-	BundleID *string `json:"BundleID,omitempty"`
+	BundleID *string `json:"BundleID,omitzero"`
 	// Maps an extension composed identifier (`Bundle-ID` or `Bundle-ID (Team-ID)`) to its config.
-	ExtensionConfigs *ManagedAppExtensionConfigs `json:"ExtensionConfigs,omitempty"`
+	ExtensionConfigs *ManagedAppExtensionConfigs `json:"ExtensionConfigs,omitzero"`
 	// Describes how and when to install the app.
-	InstallBehavior *ManagedAppInstallBehavior `json:"InstallBehavior,omitempty"`
+	InstallBehavior *ManagedAppInstallBehavior `json:"InstallBehavior,omitzero"`
 	// Identifier of an asset declaration providing app config data via the MDMv1 behavior. Requires macOS
 	// 27.0+.
-	LegacyAppConfigAssetReference *string `json:"LegacyAppConfigAssetReference,omitempty"`
+	LegacyAppConfigAssetReference *string `json:"LegacyAppConfigAssetReference,omitzero"`
 	// Specifies how the device updates the app.
-	UpdateBehavior *ManagedAppUpdateBehavior `json:"UpdateBehavior,omitempty"`
+	UpdateBehavior *ManagedAppUpdateBehavior `json:"UpdateBehavior,omitzero"`
 	// If `true`, installs an iOS/iPadOS App Store app on Apple silicon Macs.
-	IOSApp *bool `json:"iOSApp,omitempty"`
+	IOSApp *bool `json:"iOSApp,omitzero"`
 }
 
 // ManagedAppEntry Configuration for a single volume purchasing app.
 type ManagedAppEntry struct {
 	// Controls whether the app can be downloaded over a cellular connection.
 	// Allowed values: see the ManagedAppEntryAllowDownloadsOverCellular constants.
-	AllowDownloadsOverCellular *string `json:"AllowDownloadsOverCellular,omitempty"`
+	AllowDownloadsOverCellular *string `json:"AllowDownloadsOverCellular,omitzero"`
 	// Identifier of the volume purchasing token that licenses this app.
 	AppAndBookTokenID string `json:"AppAndBookTokenId"`
 	// App bundle identifier.
@@ -1360,15 +1360,15 @@ type ManagedAppEntry struct {
 	// Fine-grained app behavior settings. All fields are optional.
 	// **iOS 18.1+ note:** `Hideable` and `Lockable` require iOS 18.1 or later. When `Lockable` is `false`,
 	// `Hideable` is required and must also be `false`.
-	Attributes *ManagedAppAttributes `json:"Attributes,omitempty"`
+	Attributes *ManagedAppAttributes `json:"Attributes,omitzero"`
 	// Controls whether the app updates automatically.
 	// Allowed values: see the ManagedAppEntryAutomaticAppUpdates constants.
-	AutomaticAppUpdates *string `json:"AutomaticAppUpdates,omitempty"`
+	AutomaticAppUpdates *string `json:"AutomaticAppUpdates,omitzero"`
 	// Whether the app's data is included in device backups.
-	IncludeInBackup *bool `json:"IncludeInBackup,omitempty"`
+	IncludeInBackup *bool `json:"IncludeInBackup,omitzero"`
 	// Whether the app must be installed on devices in scope.
 	// Allowed values: see the ManagedAppEntryInstall constants.
-	Install *string `json:"Install,omitempty"`
+	Install *string `json:"Install,omitzero"`
 }
 
 // ManagedAppExtensionConfigs maps an extension composed identifier (`Bundle-ID` or `Bundle-ID (Team-ID)`) to its config.
@@ -1378,18 +1378,18 @@ type ManagedAppExtensionConfigs = map[string]ManagedAppConfig
 type ManagedAppInstallBehavior struct {
 	// Whether the app remains on the device at all times.
 	// Allowed values: see the ManagedAppInstallBehaviorInstall constants.
-	Install *string `json:"Install,omitempty"`
+	Install *string `json:"Install,omitzero"`
 	// The app's license.
-	License *ManagedAppLicense `json:"License,omitempty"`
+	License *ManagedAppLicense `json:"License,omitzero"`
 	// App Store external version identifier (EVID) to install.
-	Version *int `json:"Version,omitempty"`
+	Version *int `json:"Version,omitzero"`
 }
 
 // ManagedAppLicense The app's license.
 type ManagedAppLicense struct {
 	// License type for an App Store app.
 	// Allowed values: see the ManagedAppLicenseAssignment constants.
-	Assignment *string `json:"Assignment,omitempty"`
+	Assignment *string `json:"Assignment,omitzero"`
 }
 
 // ManagedAppUpdateBehavior Specifies how the device updates the app.
@@ -1402,15 +1402,15 @@ type ManagedAppUpdateBehavior struct {
 // ManagedExtension represents a managed extension.
 type ManagedExtension struct {
 	// Allowed domains.
-	AllowedDomains *[]ManagedExtensionDomain `json:"AllowedDomains,omitempty"`
+	AllowedDomains *[]ManagedExtensionDomain `json:"AllowedDomains,omitzero"`
 	// Denied domains.
-	DeniedDomains *[]ManagedExtensionDomain `json:"DeniedDomains,omitempty"`
+	DeniedDomains *[]ManagedExtensionDomain `json:"DeniedDomains,omitzero"`
 	// Private Browsing state.
 	// Allowed values: see the ManagedExtensionPrivateBrowsing constants.
-	PrivateBrowsing *string `json:"PrivateBrowsing,omitempty"`
+	PrivateBrowsing *string `json:"PrivateBrowsing,omitzero"`
 	// Extension state.
 	// Allowed values: see the ManagedExtensionState constants.
-	State *string `json:"State,omitempty"`
+	State *string `json:"State,omitzero"`
 }
 
 // ManagedExtensionDomain represents a managed extension domain.
@@ -1426,7 +1426,7 @@ type MathNotesMode struct {
 	// Controls whether this control should be used.
 	// Write-only. Servers MUST NOT return this field in responses; the SDK preserves it only so the caller
 	// can supply a value on update.
-	Included *bool `json:"Included,omitempty"`
+	Included *bool `json:"Included,omitzero"`
 }
 
 // MathSettingsComponent represents a math settings component.
@@ -1442,45 +1442,45 @@ type MathSettingsComponent struct {
 // MathSettingsConfiguration Math settings configuration. Configures Calculator app modes and system-wide math behavior including keyboard suggestions and Math Notes.
 type MathSettingsConfiguration struct {
 	// If present, configures the built-in Calculator app.
-	Calculator *Calculator `json:"Calculator,omitempty"`
+	Calculator *Calculator `json:"Calculator,omitzero"`
 	// If present, configures math behavior in the system.
-	SystemBehavior *SystemBehavior `json:"SystemBehavior,omitempty"`
+	SystemBehavior *SystemBehavior `json:"SystemBehavior,omitzero"`
 }
 
 // MaximumFailedAttempts represents a maximum failed attempts.
 type MaximumFailedAttempts struct {
 	// Write-only. Servers MUST NOT return this field in responses; the SDK preserves it only so the caller
 	// can supply a value on update.
-	Included *bool `json:"Included,omitempty"`
+	Included *bool `json:"Included,omitzero"`
 	// Maximum failed attempts.
-	Value *int `json:"Value,omitempty"`
+	Value *int `json:"Value,omitzero"`
 }
 
 // MaximumGracePeriodInMinutes represents a maximum grace period in minutes.
 type MaximumGracePeriodInMinutes struct {
 	// Write-only. Servers MUST NOT return this field in responses; the SDK preserves it only so the caller
 	// can supply a value on update.
-	Included *bool `json:"Included,omitempty"`
+	Included *bool `json:"Included,omitzero"`
 	// Maximum grace period in minutes.
-	Value *int `json:"Value,omitempty"`
+	Value *int `json:"Value,omitzero"`
 }
 
 // MaximumInactivityInMinutes represents a maximum inactivity in minutes.
 type MaximumInactivityInMinutes struct {
 	// Write-only. Servers MUST NOT return this field in responses; the SDK preserves it only so the caller
 	// can supply a value on update.
-	Included *bool `json:"Included,omitempty"`
+	Included *bool `json:"Included,omitzero"`
 	// Maximum inactivity in minutes.
-	Value *int `json:"Value,omitempty"`
+	Value *int `json:"Value,omitzero"`
 }
 
 // MaximumPasscodeAgeInDays represents a maximum passcode age in days.
 type MaximumPasscodeAgeInDays struct {
 	// Write-only. Servers MUST NOT return this field in responses; the SDK preserves it only so the caller
 	// can supply a value on update.
-	Included *bool `json:"Included,omitempty"`
+	Included *bool `json:"Included,omitzero"`
 	// Maximum passcode age in days.
-	Value *int `json:"Value,omitempty"`
+	Value *int `json:"Value,omitzero"`
 }
 
 // Meta Meta object containing additional information about component.
@@ -1493,32 +1493,32 @@ type Meta struct {
 type MinimumComplexCharacters struct {
 	// Write-only. Servers MUST NOT return this field in responses; the SDK preserves it only so the caller
 	// can supply a value on update.
-	Included *bool `json:"Included,omitempty"`
+	Included *bool `json:"Included,omitzero"`
 	// Minimum complex characters.
-	Value *int `json:"Value,omitempty"`
+	Value *int `json:"Value,omitzero"`
 }
 
 // MinimumLength represents a minimum length.
 type MinimumLength struct {
 	// Write-only. Servers MUST NOT return this field in responses; the SDK preserves it only so the caller
 	// can supply a value on update.
-	Included *bool `json:"Included,omitempty"`
+	Included *bool `json:"Included,omitzero"`
 	// Minimum length.
-	Value *int `json:"Value,omitempty"`
+	Value *int `json:"Value,omitzero"`
 }
 
 // NewTabStartPage represents a new tab start page.
 type NewTabStartPage struct {
 	// The composed identifier of the extension that provides the start page.
-	ExtensionIdentifier *string `json:"ExtensionIdentifier,omitempty"`
+	ExtensionIdentifier *string `json:"ExtensionIdentifier,omitzero"`
 	// The URL of the homepage which needs to start with https:// or http://.
-	HomepageURL *string `json:"HomepageURL,omitempty"`
+	HomepageURL *string `json:"HomepageURL,omitzero"`
 	// Write-only. Servers MUST NOT return this field in responses; the SDK preserves it only so the caller
 	// can supply a value on update.
-	Included *bool `json:"Included,omitempty"`
+	Included *bool `json:"Included,omitzero"`
 	// Sets the start page type in Safari.
 	// Allowed values: see the NewTabStartPagePageType constants.
-	PageType *string `json:"PageType,omitempty"`
+	PageType *string `json:"PageType,omitzero"`
 }
 
 // OptionalPeriodInDays represents a optional period in days.
@@ -1526,8 +1526,8 @@ type OptionalPeriodInDays struct {
 	// Controls whether this control should be used.
 	// Write-only. Servers MUST NOT return this field in responses; the SDK preserves it only so the caller
 	// can supply a value on update.
-	Included *bool `json:"Included,omitempty"`
-	Value    *int  `json:"Value,omitempty"`
+	Included *bool `json:"Included,omitzero"`
+	Value    *int  `json:"Value,omitzero"`
 }
 
 // OptionallyEnabled represents a optionally enabled.
@@ -1536,7 +1536,7 @@ type OptionallyEnabled struct {
 	// Controls whether this control should be used.
 	// Write-only. Servers MUST NOT return this field in responses; the SDK preserves it only so the caller
 	// can supply a value on update.
-	Included *bool `json:"Included,omitempty"`
+	Included *bool `json:"Included,omitzero"`
 }
 
 // PackageDeclaration Installs a package (apps, fonts, documents, or other items) on macOS. Apps a package installs are not automatically managed; use the Managed App declaration for that.
@@ -1556,23 +1556,23 @@ type PackageDeclaration struct {
 // PackageDeclarationPayload Payload fields for the Package declaration.
 type PackageDeclarationPayload struct {
 	// Describes how and when to install the package.
-	InstallBehavior *PackageInstallBehavior `json:"InstallBehavior,omitempty"`
+	InstallBehavior *PackageInstallBehavior `json:"InstallBehavior,omitzero"`
 	// URL of the manifest document for the package (`.pkg`) to install.
 	ManifestURL string `json:"ManifestURL"`
 	// macOS 27.0+.
-	UninstallBehavior *PackageUninstallBehavior `json:"UninstallBehavior,omitempty"`
+	UninstallBehavior *PackageUninstallBehavior `json:"UninstallBehavior,omitzero"`
 }
 
 // PackageInstallBehavior Describes how and when to install the package.
 type PackageInstallBehavior struct {
 	// Allowed values: see the PackageInstallBehaviorInstall constants.
-	Install *string `json:"Install,omitempty"`
+	Install *string `json:"Install,omitzero"`
 }
 
 // PackageUninstallBehavior macOS 27.0+.
 type PackageUninstallBehavior struct {
 	// If `true`, removes the files the package installed when the configuration is removed.
-	Remove *bool `json:"Remove,omitempty"`
+	Remove *bool `json:"Remove,omitzero"`
 }
 
 // PagedResponseBlueprintOverview represents a paged response blueprint overview.
@@ -1595,9 +1595,9 @@ type PagedResponseComponentDescription struct {
 type PasscodeReuseLimit struct {
 	// Write-only. Servers MUST NOT return this field in responses; the SDK preserves it only so the caller
 	// can supply a value on update.
-	Included *bool `json:"Included,omitempty"`
+	Included *bool `json:"Included,omitzero"`
 	// Passcode reuse limit.
-	Value *int `json:"Value,omitempty"`
+	Value *int `json:"Value,omitzero"`
 }
 
 // PasscodeSettingsComponent represents a passcode settings component.
@@ -1611,19 +1611,19 @@ type PasscodeSettingsComponent struct {
 
 // PasscodeSettingsConfiguration Passcode settings configuration. Configures device passcode requirements including complexity, length, and expiration.
 type PasscodeSettingsConfiguration struct {
-	ChangeAtNextAuth             *ChangeAtNextAuth             `json:"ChangeAtNextAuth,omitempty"`
-	CustomRegex                  *CustomRegex                  `json:"CustomRegex,omitempty"`
-	FailedAttemptsResetInMinutes *FailedAttemptsResetInMinutes `json:"FailedAttemptsResetInMinutes,omitempty"`
-	MaximumFailedAttempts        *MaximumFailedAttempts        `json:"MaximumFailedAttempts,omitempty"`
-	MaximumGracePeriodInMinutes  *MaximumGracePeriodInMinutes  `json:"MaximumGracePeriodInMinutes,omitempty"`
-	MaximumInactivityInMinutes   *MaximumInactivityInMinutes   `json:"MaximumInactivityInMinutes,omitempty"`
-	MaximumPasscodeAgeInDays     *MaximumPasscodeAgeInDays     `json:"MaximumPasscodeAgeInDays,omitempty"`
-	MinimumComplexCharacters     *MinimumComplexCharacters     `json:"MinimumComplexCharacters,omitempty"`
-	MinimumLength                *MinimumLength                `json:"MinimumLength,omitempty"`
-	PasscodeReuseLimit           *PasscodeReuseLimit           `json:"PasscodeReuseLimit,omitempty"`
-	RequireAlphanumericPasscode  *RequireAlphanumericPasscode  `json:"RequireAlphanumericPasscode,omitempty"`
-	RequireComplexPasscode       *RequireComplexPasscode       `json:"RequireComplexPasscode,omitempty"`
-	RequirePasscode              *RequirePasscode              `json:"RequirePasscode,omitempty"`
+	ChangeAtNextAuth             *ChangeAtNextAuth             `json:"ChangeAtNextAuth,omitzero"`
+	CustomRegex                  *CustomRegex                  `json:"CustomRegex,omitzero"`
+	FailedAttemptsResetInMinutes *FailedAttemptsResetInMinutes `json:"FailedAttemptsResetInMinutes,omitzero"`
+	MaximumFailedAttempts        *MaximumFailedAttempts        `json:"MaximumFailedAttempts,omitzero"`
+	MaximumGracePeriodInMinutes  *MaximumGracePeriodInMinutes  `json:"MaximumGracePeriodInMinutes,omitzero"`
+	MaximumInactivityInMinutes   *MaximumInactivityInMinutes   `json:"MaximumInactivityInMinutes,omitzero"`
+	MaximumPasscodeAgeInDays     *MaximumPasscodeAgeInDays     `json:"MaximumPasscodeAgeInDays,omitzero"`
+	MinimumComplexCharacters     *MinimumComplexCharacters     `json:"MinimumComplexCharacters,omitzero"`
+	MinimumLength                *MinimumLength                `json:"MinimumLength,omitzero"`
+	PasscodeReuseLimit           *PasscodeReuseLimit           `json:"PasscodeReuseLimit,omitzero"`
+	RequireAlphanumericPasscode  *RequireAlphanumericPasscode  `json:"RequireAlphanumericPasscode,omitzero"`
+	RequireComplexPasscode       *RequireComplexPasscode       `json:"RequireComplexPasscode,omitzero"`
+	RequirePasscode              *RequirePasscode              `json:"RequirePasscode,omitzero"`
 	// Configuration version.
 	// Allowed values: see the PasscodeSettingsConfigurationVersion constants.
 	Version int `json:"version"`
@@ -1636,13 +1636,13 @@ type ProgrammerMode struct {
 	// Controls whether this control should be used.
 	// Write-only. Servers MUST NOT return this field in responses; the SDK preserves it only so the caller
 	// can supply a value on update.
-	Included *bool `json:"Included,omitempty"`
+	Included *bool `json:"Included,omitzero"`
 }
 
 // RapidSecurityResponse represents a rapid security response.
 type RapidSecurityResponse struct {
-	Enable         *OptionallyEnabled `json:"Enable,omitempty"`
-	EnableRollback *OptionallyEnabled `json:"EnableRollback,omitempty"`
+	Enable         *OptionallyEnabled `json:"Enable,omitzero"`
+	EnableRollback *OptionallyEnabled `json:"EnableRollback,omitzero"`
 }
 
 // RecommendedCadence represents a recommended cadence.
@@ -1650,7 +1650,7 @@ type RecommendedCadence struct {
 	// Controls whether this control should be used.
 	// Write-only. Servers MUST NOT return this field in responses; the SDK preserves it only so the caller
 	// can supply a value on update.
-	Included *bool `json:"Included,omitempty"`
+	Included *bool `json:"Included,omitzero"`
 	// Allowed values: see the RecommendedCadenceValue constants.
 	Value string `json:"Value"`
 }
@@ -1659,35 +1659,35 @@ type RecommendedCadence struct {
 type RequireAlphanumericPasscode struct {
 	// Write-only. Servers MUST NOT return this field in responses; the SDK preserves it only so the caller
 	// can supply a value on update.
-	Included *bool `json:"Included,omitempty"`
+	Included *bool `json:"Included,omitzero"`
 	// Require alphanumeric passcode.
-	Value *bool `json:"Value,omitempty"`
+	Value *bool `json:"Value,omitzero"`
 }
 
 // RequireComplexPasscode represents a require complex passcode.
 type RequireComplexPasscode struct {
 	// Write-only. Servers MUST NOT return this field in responses; the SDK preserves it only so the caller
 	// can supply a value on update.
-	Included *bool `json:"Included,omitempty"`
+	Included *bool `json:"Included,omitzero"`
 	// Require complex passcode.
-	Value *bool `json:"Value,omitempty"`
+	Value *bool `json:"Value,omitzero"`
 }
 
 // RequirePasscode represents a require passcode.
 type RequirePasscode struct {
 	// Write-only. Servers MUST NOT return this field in responses; the SDK preserves it only so the caller
 	// can supply a value on update.
-	Included *bool `json:"Included,omitempty"`
+	Included *bool `json:"Included,omitzero"`
 	// Require passcode.
-	Value *bool `json:"Value,omitempty"`
+	Value *bool `json:"Value,omitzero"`
 }
 
 // Restrictions Storage restrictions configuration.
 type Restrictions struct {
 	// Storage access mode configuration.
-	ExternalStorage *StorageMode `json:"ExternalStorage,omitempty"`
+	ExternalStorage *StorageMode `json:"ExternalStorage,omitzero"`
 	// Storage access mode configuration.
-	NetworkStorage *StorageMode `json:"NetworkStorage,omitempty"`
+	NetworkStorage *StorageMode `json:"NetworkStorage,omitzero"`
 }
 
 // SafariBookmarksComponent represents a safari bookmarks component.
@@ -1732,21 +1732,21 @@ type SafariSettingsComponent struct {
 // SafariSettingsConfiguration Safari settings configuration. Configures Safari browser behavior including cookies, JavaScript, popups, private browsing, and start page settings.
 type SafariSettingsConfiguration struct {
 	// The policy Safari uses for managing cookies.
-	AcceptCookies *AcceptCookies `json:"AcceptCookies,omitempty"`
+	AcceptCookies *AcceptCookies `json:"AcceptCookies,omitzero"`
 	// If false, the system forces fraud warnings on in Safari.
-	AllowDisablingFraudWarning *AllowDisablingFraudWarning `json:"AllowDisablingFraudWarning,omitempty"`
+	AllowDisablingFraudWarning *AllowDisablingFraudWarning `json:"AllowDisablingFraudWarning,omitzero"`
 	// If false, the system disables clearing history in Safari.
-	AllowHistoryClearing *AllowHistoryClearing `json:"AllowHistoryClearing,omitempty"`
+	AllowHistoryClearing *AllowHistoryClearing `json:"AllowHistoryClearing,omitzero"`
 	// If false, the system disables JavaScript in Safari.
-	AllowJavaScript *AllowJavaScript `json:"AllowJavaScript,omitempty"`
+	AllowJavaScript *AllowJavaScript `json:"AllowJavaScript,omitzero"`
 	// If false, the system disables popups in Safari.
-	AllowPopups *AllowPopups `json:"AllowPopups,omitempty"`
+	AllowPopups *AllowPopups `json:"AllowPopups,omitzero"`
 	// If false, the system disables private browsing in Safari.
-	AllowPrivateBrowsing *AllowPrivateBrowsing `json:"AllowPrivateBrowsing,omitempty"`
+	AllowPrivateBrowsing *AllowPrivateBrowsing `json:"AllowPrivateBrowsing,omitzero"`
 	// If false, the system disables summarization of content in Safari.
-	AllowSummary *AllowSummary `json:"AllowSummary,omitempty"`
+	AllowSummary *AllowSummary `json:"AllowSummary,omitzero"`
 	// Sets the start page for new tabs in Safari.
-	NewTabStartPage *NewTabStartPage `json:"NewTabStartPage,omitempty"`
+	NewTabStartPage *NewTabStartPage `json:"NewTabStartPage,omitzero"`
 }
 
 // ScientificMode represents a scientific mode.
@@ -1756,7 +1756,7 @@ type ScientificMode struct {
 	// Controls whether this control should be used.
 	// Write-only. Servers MUST NOT return this field in responses; the SDK preserves it only so the caller
 	// can supply a value on update.
-	Included *bool `json:"Included,omitempty"`
+	Included *bool `json:"Included,omitzero"`
 }
 
 // ScreenSharingConnectionDeclaration Configures a connection to a screen-sharing host. macOS only.
@@ -1777,7 +1777,7 @@ type ScreenSharingConnectionDeclaration struct {
 type ScreenSharingConnectionDeclarationPayload struct {
 	// Asset declaration identifier of type `com.apple.asset.credential.userpassword` providing
 	// authentication credentials.
-	AuthenticationCredentialsAssetReference *string `json:"AuthenticationCredentialsAssetReference,omitempty"`
+	AuthenticationCredentialsAssetReference *string `json:"AuthenticationCredentialsAssetReference,omitzero"`
 	// Unique identifier for this connection when it is a member of a connection group.
 	ConnectionUUID string `json:"ConnectionUUID"`
 	// Display configuration for a screen-sharing connection.
@@ -1787,7 +1787,7 @@ type ScreenSharingConnectionDeclarationPayload struct {
 	// Host name or IP address of the screen-sharing host.
 	HostName string `json:"HostName"`
 	// TCP port to initiate the connection on.
-	Port *int `json:"Port,omitempty"`
+	Port *int `json:"Port,omitzero"`
 }
 
 // ScreenSharingConnectionGroupDeclaration Groups multiple Screen Sharing Connection declarations together. macOS only.
@@ -1838,13 +1838,13 @@ type ScreenSharingHostSettingsDeclaration struct {
 // ScreenSharingHostSettingsDeclarationPayload Payload fields for the Screen Sharing Host Settings declaration.
 type ScreenSharingHostSettingsDeclarationPayload struct {
 	// Maximum virtual displays to make available to clients.
-	MaximumVirtualDisplays *int `json:"MaximumVirtualDisplays,omitempty"`
+	MaximumVirtualDisplays *int `json:"MaximumVirtualDisplays,omitzero"`
 	// Initial UDP port for the host connection. Screen sharing always establishes its first connection on
 	// TCP port 5900.
-	PortBase                          *int  `json:"PortBase,omitempty"`
-	PreventCopyFilesFromHost          *bool `json:"PreventCopyFilesFromHost,omitempty"`
-	PreventCopyFilesToHost            *bool `json:"PreventCopyFilesToHost,omitempty"`
-	PreventHighPerformanceConnections *bool `json:"PreventHighPerformanceConnections,omitempty"`
+	PortBase                          *int  `json:"PortBase,omitzero"`
+	PreventCopyFilesFromHost          *bool `json:"PreventCopyFilesFromHost,omitzero"`
+	PreventCopyFilesToHost            *bool `json:"PreventCopyFilesToHost,omitzero"`
+	PreventHighPerformanceConnections *bool `json:"PreventHighPerformanceConnections,omitzero"`
 }
 
 // SiriSettingsDeclaration Configures Siri settings.
@@ -1865,17 +1865,17 @@ type SiriSettingsDeclaration struct {
 type SiriSettingsDeclarationPayload struct {
 	// Not supported on tvOS/watchOS. Requires iOS/macOS/visionOS 27.0+. If `false`, disables Siri AI
 	// features.
-	AllowSiriAI *bool `json:"AllowSiriAI,omitempty"`
+	AllowSiriAI *bool `json:"AllowSiriAI,omitzero"`
 	// Not supported on macOS/tvOS/visionOS.
-	AllowUserGeneratedContent *bool `json:"AllowUserGeneratedContent,omitempty"`
+	AllowUserGeneratedContent *bool `json:"AllowUserGeneratedContent,omitzero"`
 	// Not supported on macOS/tvOS/visionOS.
-	AllowWhileLocked *bool `json:"AllowWhileLocked,omitempty"`
+	AllowWhileLocked *bool `json:"AllowWhileLocked,omitzero"`
 	// Not supported on watchOS. If `false`, disables Siri.
-	Enabled *bool `json:"Enabled,omitempty"`
+	Enabled *bool `json:"Enabled,omitzero"`
 	// Not supported on tvOS/visionOS/watchOS.
-	ForceProfanityFilter *bool `json:"ForceProfanityFilter,omitempty"`
+	ForceProfanityFilter *bool `json:"ForceProfanityFilter,omitzero"`
 	// Not supported on tvOS/watchOS. Requires iOS/macOS/visionOS 27.0+.
-	ForceReduceSensitiveContent *bool `json:"ForceReduceSensitiveContent,omitempty"`
+	ForceReduceSensitiveContent *bool `json:"ForceReduceSensitiveContent,omitzero"`
 }
 
 // SoftwareUpdateSettingsComponent represents a software update settings component.
@@ -1890,13 +1890,13 @@ type SoftwareUpdateSettingsComponent struct {
 
 // SoftwareUpdateSettingsConfiguration Software update settings configuration. Configures OS update behavior including notifications, automatic actions, deferrals, and rapid security responses.
 type SoftwareUpdateSettingsConfiguration struct {
-	AllowStandardUserOSUpdates *OptionallyEnabled     `json:"AllowStandardUserOSUpdates,omitempty"`
-	AutomaticActions           *AutomaticActions      `json:"AutomaticActions,omitempty"`
-	Beta                       *Beta                  `json:"Beta,omitempty"`
-	Deferrals                  *Deferrals             `json:"Deferrals,omitempty"`
-	Notifications              *OptionallyEnabled     `json:"Notifications,omitempty"`
-	RapidSecurityResponse      *RapidSecurityResponse `json:"RapidSecurityResponse,omitempty"`
-	RecommendedCadence         *RecommendedCadence    `json:"RecommendedCadence,omitempty"`
+	AllowStandardUserOSUpdates *OptionallyEnabled     `json:"AllowStandardUserOSUpdates,omitzero"`
+	AutomaticActions           *AutomaticActions      `json:"AutomaticActions,omitzero"`
+	Beta                       *Beta                  `json:"Beta,omitzero"`
+	Deferrals                  *Deferrals             `json:"Deferrals,omitzero"`
+	Notifications              *OptionallyEnabled     `json:"Notifications,omitzero"`
+	RapidSecurityResponse      *RapidSecurityResponse `json:"RapidSecurityResponse,omitzero"`
+	RecommendedCadence         *RecommendedCadence    `json:"RecommendedCadence,omitzero"`
 }
 
 // StorageMode Storage access mode configuration.
@@ -1904,7 +1904,7 @@ type StorageMode struct {
 	// Controls whether this setting should be used.
 	// Write-only. Servers MUST NOT return this field in responses; the SDK preserves it only so the caller
 	// can supply a value on update.
-	Included *bool `json:"Included,omitempty"`
+	Included *bool `json:"Included,omitzero"`
 	// Controls whether the mode is enabled.
 	// Allowed values: see the StorageModeValue constants.
 	Value string `json:"Value"`
@@ -2075,7 +2075,7 @@ type SwUpdateLatestConfiguration struct {
 	// The device local time (HH:MM) when the update should be installed.
 	DeploymentTime string `json:"deploymentTime"`
 	// Optional URL with details about the enforced update.
-	DetailsURL *DetailsURL `json:"detailsURL,omitempty"`
+	DetailsURL *DetailsURL `json:"detailsURL,omitzero"`
 	// The number of days after the OS update release.
 	EnforceAfterDays int `json:"enforceAfterDays"`
 	// Allowed values: see the SwUpdateLatestConfigurationEnforcementType constants.
@@ -2087,7 +2087,7 @@ type SwUpdateLatestConfiguration struct {
 // SwUpdateManualConfiguration Manual software update enforcement configuration. Enforces a specific OS version by a specific date/time.
 type SwUpdateManualConfiguration struct {
 	// Optional URL with details about the enforced update.
-	DetailsURL *DetailsURL `json:"detailsURL,omitempty"`
+	DetailsURL *DetailsURL `json:"detailsURL,omitzero"`
 	// Allowed values: see the SwUpdateManualConfigurationEnforcementType constants.
 	EnforcementType string `json:"enforcementType"`
 	// Local time of the device until which update must be performed.
@@ -2099,7 +2099,7 @@ type SwUpdateManualConfiguration struct {
 // SwUpdateSemanticConfiguration Automatic software update with SEMANTIC strategy. Applies semantic versioning rules to determine update enforcement timing.
 type SwUpdateSemanticConfiguration struct {
 	// Optional URL with details about the enforced update.
-	DetailsURL *DetailsURL `json:"detailsURL,omitempty"`
+	DetailsURL *DetailsURL `json:"detailsURL,omitzero"`
 	// Allowed values: see the SwUpdateSemanticConfigurationEnforcementType constants.
 	EnforcementType string `json:"enforcementType"`
 	// Rules for semantic update strategy.
@@ -2113,7 +2113,7 @@ type SystemBehavior struct {
 	// Controls whether this control should be used.
 	// Write-only. Servers MUST NOT return this field in responses; the SDK preserves it only so the caller
 	// can supply a value on update.
-	Included *bool `json:"Included,omitempty"`
+	Included *bool `json:"Included,omitzero"`
 	// Controls whether keyboard suggestions include math solutions.
 	KeyboardSuggestions bool `json:"KeyboardSuggestions"`
 	// Controls whether Math Notes is allowed in other apps such as Notes.
@@ -2123,13 +2123,13 @@ type SystemBehavior struct {
 // TemporaryPairing Temporary pairing configuration.
 type TemporaryPairing struct {
 	// Temporary pairing configuration details.
-	Configuration *TemporaryPairingConfig `json:"Configuration,omitempty"`
+	Configuration *TemporaryPairingConfig `json:"Configuration,omitzero"`
 	// If true, temporary pairing of audio accessories is disabled.
-	Disabled *bool `json:"Disabled,omitempty"`
+	Disabled *bool `json:"Disabled,omitzero"`
 	// Controls whether this setting should be used.
 	// Write-only. Servers MUST NOT return this field in responses; the SDK preserves it only so the caller
 	// can supply a value on update.
-	Included *bool `json:"Included,omitempty"`
+	Included *bool `json:"Included,omitzero"`
 }
 
 // TemporaryPairingConfig Temporary pairing configuration details.
@@ -2141,7 +2141,7 @@ type TemporaryPairingConfig struct {
 // UnpairingTime Automatic unpairing time configuration.
 type UnpairingTime struct {
 	// Local time hour (24-hour clock) for automatic unpairing. Required when Policy is "Hour".
-	Hour *int `json:"Hour,omitempty"`
+	Hour *int `json:"Hour,omitzero"`
 	// A string that specifies the device's unpairing policy.
 	// Allowed values: see the UnpairingTimePolicy constants.
 	Policy string `json:"Policy"`
@@ -2150,13 +2150,13 @@ type UnpairingTime struct {
 // UpdateBlueprintRequest represents a update blueprint request.
 type UpdateBlueprintRequest struct {
 	// Description of the blueprint.
-	Description *string `json:"description,omitempty"`
+	Description *string `json:"description,omitzero"`
 	// Name of the blueprint.
-	Name *string `json:"name,omitempty"`
+	Name *string `json:"name,omitzero"`
 	// Device groups.
-	Scope *BlueprintScope `json:"scope,omitempty"`
+	Scope *BlueprintScope `json:"scope,omitzero"`
 	// Array of blueprint steps.
-	Steps *[]BlueprintStep `json:"steps,omitempty"`
+	Steps *[]BlueprintStep `json:"steps,omitzero"`
 }
 
 // UpdateRule Configuration for a specific update type.
