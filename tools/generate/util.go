@@ -9,6 +9,8 @@ import (
 	"sort"
 	"strings"
 	"unicode"
+
+	"github.com/getkin/kin-openapi/openapi3"
 )
 
 // ---------------------------------------------------------------------------
@@ -455,4 +457,33 @@ func stripDeprecatedPrefix(summary string, deprecated bool) string {
 		return summary
 	}
 	return deprecatedSummaryPrefixRe.ReplaceAllString(summary, "")
+}
+
+// declaredPageSizeMax returns the maximum the spec declares on an operation's
+// page-size query parameter, or 0 when it declares none.
+//
+// A declared maximum is per-endpoint and authoritative, and it is the one
+// source that can be lower than the family default. It is consulted after an
+// explicit config.json maxPageSize and before defaultMaxPageSize. Wire-checked
+// 2026-11-11 on every list that sat at the default of 100 while its spec
+// declared more: AI Governance's policies and policy versions declare 500 and
+// answer 400 SCHEMA_VALIDATION_FAILED at 501; Jamf Pro /v1/users declares
+// 1000 and returned all 795 rows of a 795-row tenant at 1000; UEM Connect's
+// sync runs declares 100 and answers 422 at 101.
+func declaredPageSizeMax(pathItem *openapi3.PathItem, op *openapi3.Operation, name string) int {
+	for _, params := range []openapi3.Parameters{op.Parameters, pathItem.Parameters} {
+		for _, ref := range params {
+			if ref == nil || ref.Value == nil {
+				continue
+			}
+			p := ref.Value
+			if p.In != openapi3.ParameterInQuery || p.Name != name || p.Schema == nil || p.Schema.Value == nil {
+				continue
+			}
+			if m := p.Schema.Value.Max; m != nil && *m >= 1 {
+				return int(*m)
+			}
+		}
+	}
+	return 0
 }

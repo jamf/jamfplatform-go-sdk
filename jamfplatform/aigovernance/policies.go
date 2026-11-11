@@ -29,7 +29,7 @@ import (
 //     version.
 func (c *Client) ListPolicies(ctx context.Context, sort []string, schemaDrift bool) ([]PolicySummary, error) {
 	prefix := c.transport.APIPrefix("ai/governance/policies", "v1")
-	return client.ListAllPages(ctx, 100, func(ctx context.Context, page, pageSize int) ([]PolicySummary, bool, error) {
+	return client.ListAllPages(ctx, 500, func(ctx context.Context, page, pageSize int) ([]PolicySummary, bool, error) {
 		params := url.Values{}
 		params.Set("page", strconv.Itoa(page))
 		params.Set("page-size", strconv.Itoa(pageSize))
@@ -177,7 +177,7 @@ func (c *Client) PublishPolicy(ctx context.Context, policyID string) (*PublishRe
 //   - policyID: Policy ID.
 func (c *Client) ListPolicyVersions(ctx context.Context, policyID string) ([]PolicyVersion, error) {
 	prefix := c.transport.APIPrefix("ai/governance/policies", "v1")
-	return client.ListAllPages(ctx, 100, func(ctx context.Context, page, pageSize int) ([]PolicyVersion, bool, error) {
+	return client.ListAllPages(ctx, 500, func(ctx context.Context, page, pageSize int) ([]PolicyVersion, bool, error) {
 		params := url.Values{}
 		params.Set("page", strconv.Itoa(page))
 		params.Set("page-size", strconv.Itoa(pageSize))

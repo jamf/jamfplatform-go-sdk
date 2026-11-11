@@ -21,7 +21,7 @@ import (
 // Required privileges: ztna:read.
 func (c *Client) ListZtnaAppsV1(ctx context.Context) ([]App, error) {
 	prefix := c.transport.APIPrefix("securitycloud", "v1")
-	return client.ListAllPages(ctx, 100, func(ctx context.Context, page, pageSize int) ([]App, bool, error) {
+	return client.ListAllPages(ctx, 1000, func(ctx context.Context, page, pageSize int) ([]App, bool, error) {
 		params := url.Values{}
 		params.Set("page", strconv.Itoa(page))
 		params.Set("page-size", strconv.Itoa(pageSize))

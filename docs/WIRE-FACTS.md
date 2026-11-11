@@ -5034,6 +5034,49 @@ one.
   client-authentication style on any error. With the default removed the same stall
   tracked the server's, an 8s hold returning after 8s. See
   [STYLE.md](STYLE.md#request-lifetime-belongs-to-the-callers-context).
+- **A page of a list walk is not retried on a 504; it is re-fetched smaller.**
+  `ListAllPages` and `Transport.ListAllRaw` halve the page size on a server
+  timeout (`IsServerTimeout`: a 504 or a client-side timeout), down to 100 rows,
+  and resume from the rows already held. Above that floor their page requests
+  skip the transport's 504 retry — re-sending the identical page asks for the
+  work that just failed to finish. Every other request, and a page at the floor,
+  keeps the retry. No transient 504 has been recorded on the gateway: the two
+  observed are the 90s edge limit below and the JCDS refresh hold above, both
+  deterministic. A 40-device environment could not produce one (2026-11-11).
+- **Page-size ceilings of the lists that sat at the default of 100** (EU
+  environment-scoped credentials, 2026-11-11, page-size 100 → 10000). A declared
+  `maximum` is now read from the spec (`declaredPageSizeMax`), ahead of the
+  family default:
+  - `ai/governance/policies` list and versions: declared 500; **400
+    `SCHEMA_VALIDATION_FAILED` at 501**. Now 500.
+  - `pro /v1/users`: declared 1000; all 795 rows of a 795-row tenant at 1000, and
+    no rejection up to 10000. Now 1000.
+  - `uem-connect` sync runs: declared 100; **422 `VALIDATION_FAILED` at 101**.
+    Stays 100.
+  - `securitycloud /v1/ztna/apps`: nothing declared; **400 `INVALID_FIELD` "must
+    be less than or equal to 1000" at 1001**. `maxPageSize: 1000` in config.
+  - `compliance-benchmarks` rules: nothing declared, spec **default** 500, so
+    the service pages at 500 unasked. `maxPageSize: 500` in config.
+  - `audit` list (`/audit/v1/audit`, cursor): declared 200, now 200. **`400
+    PAGE_SIZE_OUT_OF_RANGE` at 201**, and 200 is honoured: one 200-row request
+    returned all 163 events of a 163-event window, and cursor walks at 10, 50,
+    100 and 200 returned the same 163 unique rows (145 for a second source).
+  - `device-groups` list: nothing declared. Seeded to 2106 groups (2026-11-11):
+    every size to 2000 honoured, walks at 100 and 2000 return all 2106 unique
+    rows. **Silently clamped at 2000 above it, and `hasNext` is then wrong**:
+    page-size 5000 answers 2000 rows with `hasNext: false`, so a walk above the
+    cap reports success with 106 rows missing. `maxPageSize: 2000`. Each page
+    costs ~5s whatever its size.
+  - `blueprints` list: nothing declared. Seeded to 2104 blueprints: every size
+    to 2000 honoured, **silently clamped at 2000** above it. The service offsets
+    by the clamped size, but `ListBlueprints` stops on a short page (`sizeCheck`),
+    so any size above 2000 would return 2000 rows and stop. `maxPageSize: 2000`.
+  - **Left at 100, deliberately:** blueprint components (a fixed catalogue of
+    17), benchmark devices, both DDM reports and site objects. None rejected any
+    size up to 10000, but none could be grown past 100 rows on a sandbox, so a
+    silent clamp could not be ruled out — and the two clamps above show that a
+    clamp is the norm on this gateway and that its `hasNext` cannot be trusted
+    past one.
 - **Reported, not reproduced: the edge answers 504 after 90s.** One field report
   from a downstream CLI: a 2000-row computer-inventory page fetched with curl and a
   10-minute client timeout returned a CloudFront HTML 504 at 90s, while a 1000-row

@@ -27,7 +27,7 @@ import (
 //   - ruleSearch: string to search in rule title and rule id.
 func (c *Client) ListBenchmarkRulesStats(ctx context.Context, id string, sort string, ruleSearch string) ([]RuleResult, error) {
 	prefix := c.transport.APIPrefix("compliance-benchmarks", "v1")
-	return client.ListAllPages(ctx, 100, func(ctx context.Context, page, pageSize int) ([]RuleResult, bool, error) {
+	return client.ListAllPages(ctx, 500, func(ctx context.Context, page, pageSize int) ([]RuleResult, bool, error) {
 		params := url.Values{}
 		params.Set("page", strconv.Itoa(page))
 		params.Set("page-size", strconv.Itoa(pageSize))

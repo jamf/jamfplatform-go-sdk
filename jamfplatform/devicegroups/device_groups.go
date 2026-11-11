@@ -29,7 +29,7 @@ import (
 //     `name=="*Managed*" and deviceType=="MOBILE"`.
 func (c *Client) ListDeviceGroups(ctx context.Context, sort []string, filter string) ([]DeviceGroupListReadRepresentationV1, error) {
 	prefix := c.transport.APIPrefix("device-groups", "v1")
-	return client.ListAllPages(ctx, 100, func(ctx context.Context, page, pageSize int) ([]DeviceGroupListReadRepresentationV1, bool, error) {
+	return client.ListAllPages(ctx, 2000, func(ctx context.Context, page, pageSize int) ([]DeviceGroupListReadRepresentationV1, bool, error) {
 		params := url.Values{}
 		params.Set("page", strconv.Itoa(page))
 		params.Set("page-size", strconv.Itoa(pageSize))

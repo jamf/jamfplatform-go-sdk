@@ -1334,7 +1334,7 @@ func buildMethod(doc *openapi3.T, spec SpecDef, opDef OperationDef, enumTypes ma
 		ContentType:     opDef.ContentType,
 		PaginationStyle: opDef.Pagination,
 		PageSizeParam:   coalesce(opDef.PageSizeParam, "page-size"),
-		MaxPageSize:     coalesceInt(opDef.MaxPageSize, defaultMaxPageSize(spec.Package, opDef.Pagination)),
+		MaxPageSize:     coalesceInt(opDef.MaxPageSize, coalesceInt(declaredPageSizeMax(pathItem, op, coalesce(opDef.PageSizeParam, "page-size")), defaultMaxPageSize(spec.Package, opDef.Pagination))),
 		ResultsField:    coalesce(opDef.ResultsField, "results"),
 		CursorField:     coalesce(opDef.CursorField, "nextCursor"),
 		CursorParam:     coalesce(opDef.CursorParam, "cursor"),

@@ -93,12 +93,32 @@ func WithHTTPClient(httpClient *http.Client) Option {
 			if httpClient.Jar == nil {
 				httpClient.Jar = newCookieJar()
 			}
-			c.baseClient = httpClient
-			c.tuned = nil
-			c.uploadClient = wrapWithOAuth2(c.oauthConfig, httpClient, c.throttle)
-			c.retry.HTTPClient = c.uploadClient
+			c.adoptHTTPClient(httpClient)
 		}
 	}
+}
+
+// adoptHTTPClient makes a caller's client the base of the chain: it stamps the
+// configured User-Agent onto its transport, then wraps it with the throttle,
+// the send tracker and OAuth2.
+//
+// The User-Agent wrapper has to be added here because the SDK's own chain,
+// which carries it, is the one being replaced. Without it every request from a
+// client built with both WithUserAgent and WithHTTPClient went out as
+// Go-http-client — the order NewClient applies its options in made
+// WithUserAgent a no-op whenever WithHTTPClient was also given.
+func (c *Transport) adoptHTTPClient(httpClient *http.Client) {
+	if c.userAgent != "" {
+		rt := httpClient.Transport
+		if rt == nil {
+			rt = http.DefaultTransport
+		}
+		httpClient.Transport = &userAgentTransport{base: rt, userAgent: c.userAgent}
+	}
+	c.baseClient = httpClient
+	c.tuned = nil
+	c.uploadClient = wrapWithOAuth2(c.oauthConfig, httpClient, c.throttle)
+	c.retry.HTTPClient = c.uploadClient
 }
 
 // WithResponseHeaderTimeout bounds how long the SDK's transport waits for the
@@ -553,10 +573,7 @@ func (c *Transport) HTTPClient() *http.Client {
 // layered onto the previous one is gone and the caller's headers and bearer
 // relocation would silently stop being applied.
 func (c *Transport) SetHTTPClient(httpClient *http.Client) {
-	c.baseClient = httpClient
-	c.tuned = nil
-	c.uploadClient = wrapWithOAuth2(c.oauthConfig, httpClient, c.throttle)
-	c.retry.HTTPClient = c.uploadClient
+	c.adoptHTTPClient(httpClient)
 	c.installHeaderTransport()
 }
 

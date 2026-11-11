@@ -29,7 +29,7 @@ import (
 //   - resourceID: Resource ids to include (comma-separated, max 50).
 func (c *Client) ListAuditEvents(ctx context.Context, since string, until string, actor string, auditSource []string, auditType []string, resourceID []string) ([]AuditEnvelope, error) {
 	prefix := c.transport.APIPrefix("audit", "v1")
-	return client.ListAllCursorPages(ctx, 100, func(ctx context.Context, cursor string, pageSize int) ([]AuditEnvelope, string, error) {
+	return client.ListAllCursorPages(ctx, 200, func(ctx context.Context, cursor string, pageSize int) ([]AuditEnvelope, string, error) {
 		params := url.Values{}
 		params.Set("page-size", strconv.Itoa(pageSize))
 		if cursor != "" {
