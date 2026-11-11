@@ -37,18 +37,19 @@ const MinShrunkPageSize = 100
 // one cannot, so its page requests opt out of the transport's 504 retry while
 // they are above the floor; every other request keeps it.
 func ListAllPages[T any](ctx context.Context, pageSize int, fetchPage func(ctx context.Context, page, pageSize int) ([]T, bool, error)) ([]T, error) {
-	return walkPages(ctx, pageSize, 0, fetchPage)
+	return walkPages(ctx, pageSize, 0, nil, fetchPage)
 }
 
-// walkPages is ListAllPages with an optional limit: once limit items are held
-// (limit > 0) the walk stops and returns exactly limit of them.
+// walkPages is ListAllPages with an optional limit — once limit items are held
+// (limit > 0) the walk stops and returns exactly limit of them — and an
+// optional onShrink, called with the old and new page size on each shrink.
 //
 // Position is tracked as a row offset rather than a page number, because a
 // shrink changes what a page number means: page 3 at 2000 rows is rows
 // 6000–7999, page 3 at 1000 is rows 3000–3999. The offset advances by the
 // page size requested, not by the rows returned, which is the page-index
 // model the server uses and what the page++ walk did before shrinking existed.
-func walkPages[T any](ctx context.Context, pageSize, limit int, fetchPage func(ctx context.Context, page, pageSize int) ([]T, bool, error)) ([]T, error) {
+func walkPages[T any](ctx context.Context, pageSize, limit int, onShrink func(from, to int), fetchPage func(ctx context.Context, page, pageSize int) ([]T, bool, error)) ([]T, error) {
 	if pageSize <= 0 {
 		return nil, fmt.Errorf("pagination: page size must be positive, got %d", pageSize)
 	}
@@ -67,6 +68,9 @@ func walkPages[T any](ctx context.Context, pageSize, limit int, fetchPage func(c
 			// (both match context.DeadlineExceeded), so the walk asks its own
 			// context: a smaller page cannot extend the caller's bound.
 			if smaller, ok := shrinkPage(err, pageSize); ok && ctx.Err() == nil {
+				if onShrink != nil {
+					onShrink(pageSize, smaller)
+				}
 				pageSize = smaller
 				continue
 			}
@@ -156,6 +160,10 @@ type RawPageWalk struct {
 	ResultsField string
 	// Limit stops the walk once this many rows are held; 0 means no limit.
 	Limit int
+	// OnShrink, when set, is called with the old and new page size each time
+	// a page the server could not answer in time is re-fetched smaller, so a
+	// caller can tell its user why the walk slowed down.
+	OnShrink func(from, to int)
 	// MaxPages bounds the walk against a server that ignores the page
 	// parameter; 10000 when zero.
 	MaxPages int
@@ -185,7 +193,7 @@ func (c *Transport) ListAllRaw(ctx context.Context, path string, query url.Value
 		maxPages = 10000
 	}
 	requests := 0
-	items, err := walkPages(ctx, opts.PageSize, opts.Limit, func(ctx context.Context, page, pageSize int) ([]json.RawMessage, bool, error) {
+	items, err := walkPages(ctx, opts.PageSize, opts.Limit, opts.OnShrink, func(ctx context.Context, page, pageSize int) ([]json.RawMessage, bool, error) {
 		requests++
 		if requests > maxPages {
 			return nil, false, fmt.Errorf("pagination: exceeded %d pages without reaching the end of %s; the server may not be honoring the page parameter", maxPages, path)

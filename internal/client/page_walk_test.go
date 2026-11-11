@@ -92,11 +92,16 @@ func TestListAllRaw_ShrinksInsteadOfRetryingAGatewayTimeout(t *testing.T) {
 	s := &pagedServer{total: 1200, alwaysFailAbove: 500}
 	c := newPagedTransport(t, s)
 
-	got, err := c.ListAllRaw(context.Background(), "/api/rows", nil, RawPageWalk{PageSize: 2000})
+	var shrinks []string
+	got, err := c.ListAllRaw(context.Background(), "/api/rows", nil, RawPageWalk{PageSize: 2000,
+		OnShrink: func(from, to int) { shrinks = append(shrinks, fmt.Sprintf("%d->%d", from, to)) }})
 	if err != nil {
 		t.Fatal(err)
 	}
 	assertSequence(t, rowNumbers(t, got), 1200)
+	if fmt.Sprint(shrinks) != "[2000->1000 1000->500]" {
+		t.Errorf("shrinks = %v", shrinks)
+	}
 	if n := s.calls[[2]int{0, 2000}]; n != 1 {
 		t.Errorf("page 0 at 2000 sent %d times, want 1", n)
 	}
