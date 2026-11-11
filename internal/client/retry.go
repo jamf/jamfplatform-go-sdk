@@ -130,6 +130,14 @@ func jamfCheckRetry(ctx context.Context, resp *http.Response, err error) (bool, 
 	if resp == nil {
 		return retryableTransportError(sendStateFrom(ctx), err), nil
 	}
+	// A page of a shrinking walk is not re-sent on a 504: the identical page
+	// asks the server for the same work it just failed to finish in time, and
+	// the walk has a request that can succeed — a smaller page. Every other
+	// request keeps the 504 retry, since for a single object there is nothing
+	// smaller to ask for. See walkPages.
+	if resp.StatusCode == http.StatusGatewayTimeout && isPageWalk(ctx) {
+		return false, nil
+	}
 	return isRetryableWriteStatus(resp.Request.Method, resp.StatusCode), nil
 }
 

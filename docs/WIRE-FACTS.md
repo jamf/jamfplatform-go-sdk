@@ -5034,6 +5034,15 @@ one.
   client-authentication style on any error. With the default removed the same stall
   tracked the server's, an 8s hold returning after 8s. See
   [STYLE.md](STYLE.md#request-lifetime-belongs-to-the-callers-context).
+- **A page of a list walk is not retried on a 504; it is re-fetched smaller.**
+  `ListAllPages` and `Transport.ListAllRaw` halve the page size on a server
+  timeout (`IsServerTimeout`: a 504 or a client-side timeout), down to 100 rows,
+  and resume from the rows already held. Above that floor their page requests
+  skip the transport's 504 retry — re-sending the identical page asks for the
+  work that just failed to finish. Every other request, and a page at the floor,
+  keeps the retry. No transient 504 has been recorded on the gateway: the two
+  observed are the 90s edge limit below and the JCDS refresh hold above, both
+  deterministic. A 40-device environment could not produce one (2026-11-11).
 - **Reported, not reproduced: the edge answers 504 after 90s.** One field report
   from a downstream CLI: a 2000-row computer-inventory page fetched with curl and a
   10-minute client timeout returned a CloudFront HTML 504 at 90s, while a 1000-row

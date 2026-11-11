@@ -72,3 +72,14 @@ type AmbiguousMatchError = client.AmbiguousMatchError
 func AsAPIError(err error) *APIResponseError {
 	return client.AsAPIError(err)
 }
+
+// IsServerTimeout reports whether err is the server not answering in time: a
+// 504 response, or a client-side timeout (a response-header timeout or an
+// http.Client.Timeout). Paginated List methods already answer one by halving
+// the page size and resuming, down to 100 rows a page; a caller walking its
+// own pages can do the same. A deadline on the caller's own context reports
+// true as well, since Go surfaces it as the same error — check ctx.Err() to
+// tell the two apart.
+func IsServerTimeout(err error) bool {
+	return client.IsServerTimeout(err)
+}

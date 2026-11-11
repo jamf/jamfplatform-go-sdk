@@ -145,6 +145,12 @@ func (c *Client) Transport() *client.Transport {
 	return c.transport
 }
 
+// RawPageWalk configures Transport().ListAllRaw, the walk for a caller that
+// needs each row of a paginated collection as the server's own JSON rather
+// than as an SDK type. It shrinks the page size on a server timeout as the
+// typed List methods do, and ends on an empty page.
+type RawPageWalk = client.RawPageWalk
+
 // clientConfig holds configuration applied via Option functions.
 type clientConfig struct {
 	userAgent     string
