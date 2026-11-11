@@ -31,7 +31,7 @@ import (
 //   - platform: Optional. Return platform identifiers instead of internal identifiers when set to true.
 func (c *Client) ListUsersV1(ctx context.Context, sort []string, filter string, platform bool) ([]User, error) {
 	prefix := c.transport.APIPrefix("pro", "v1")
-	return client.ListAllPages(ctx, 100, func(ctx context.Context, page, pageSize int) ([]User, bool, error) {
+	return client.ListAllPages(ctx, 1000, func(ctx context.Context, page, pageSize int) ([]User, bool, error) {
 		params := url.Values{}
 		params.Set("page", strconv.Itoa(page))
 		params.Set("page-size", strconv.Itoa(pageSize))

@@ -5043,6 +5043,30 @@ one.
   keeps the retry. No transient 504 has been recorded on the gateway: the two
   observed are the 90s edge limit below and the JCDS refresh hold above, both
   deterministic. A 40-device environment could not produce one (2026-11-11).
+- **Page-size ceilings of the lists that sat at the default of 100** (EU
+  environment-scoped credentials, 2026-11-11, page-size 100 → 10000). A declared
+  `maximum` is now read from the spec (`declaredPageSizeMax`), ahead of the
+  family default:
+  - `ai/governance/policies` list and versions: declared 500; **400
+    `SCHEMA_VALIDATION_FAILED` at 501**. Now 500.
+  - `pro /v1/users`: declared 1000; all 795 rows of a 795-row tenant at 1000, and
+    no rejection up to 10000. Now 1000.
+  - `uem-connect` sync runs: declared 100; **422 `VALIDATION_FAILED` at 101**.
+    Stays 100.
+  - `securitycloud /v1/ztna/apps`: nothing declared; **400 `INVALID_FIELD` "must
+    be less than or equal to 1000" at 1001**. `maxPageSize: 1000` in config.
+  - `compliance-benchmarks` rules: nothing declared, spec **default** 500, so
+    the service pages at 500 unasked. `maxPageSize: 500` in config.
+  - `audit` list (`/audit/v1/audit`, cursor): declared 200, now 200. **`400
+    PAGE_SIZE_OUT_OF_RANGE` at 201**, and 200 is honoured: one 200-row request
+    returned all 163 events of a 163-event window, and cursor walks at 10, 50,
+    100 and 200 returned the same 163 unique rows (145 for a second source).
+  - **Left at 100, deliberately:** blueprints, blueprint components, benchmark
+    devices, both DDM reports, device groups, site objects. None rejected any
+    size up to 10000, but every collection probed was smaller than 100 rows,
+    so a silent clamp could not be seen — and their `sizeCheck`/`totalCount`
+    termination reads a clamped page as the last one and truncates. Raise one
+    only against a collection larger than the size being proven.
 - **Reported, not reproduced: the edge answers 504 after 90s.** One field report
   from a downstream CLI: a 2000-row computer-inventory page fetched with curl and a
   10-minute client timeout returned a CloudFront HTML 504 at 90s, while a 1000-row

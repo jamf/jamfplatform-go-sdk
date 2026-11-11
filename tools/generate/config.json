@@ -331,6 +331,7 @@
           "op": "GET /v1/benchmarks/{id}/rules",
           "name": "ListBenchmarkRulesStats",
           "pagination": "sizeCheck",
+          "maxPageSize": 500,
           "params": [
             "sort:string",
             "rule-search:string:ruleSearch"
@@ -10735,6 +10736,7 @@
           "op": "GET /v1/ztna/apps",
           "name": "ListZtnaAppsV1",
           "pagination": "totalCount",
+          "maxPageSize": 1000,
           "resolver": {
             "resourceType": "ZtnaAppV1",
             "nameField": "name",
