@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -199,9 +200,7 @@ func (c *Transport) ListAllRaw(ctx context.Context, path string, query url.Value
 			return nil, false, fmt.Errorf("pagination: exceeded %d pages without reaching the end of %s; the server may not be honoring the page parameter", maxPages, path)
 		}
 		pq := url.Values{}
-		for k, v := range query {
-			pq[k] = v
-		}
+		maps.Copy(pq, query)
 		pq.Set("page", strconv.Itoa(page))
 		pq.Set(sizeParam, strconv.Itoa(pageSize))
 		endpoint := path + "?" + pq.Encode()
