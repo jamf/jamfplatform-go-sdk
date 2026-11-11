@@ -5061,12 +5061,22 @@ one.
     PAGE_SIZE_OUT_OF_RANGE` at 201**, and 200 is honoured: one 200-row request
     returned all 163 events of a 163-event window, and cursor walks at 10, 50,
     100 and 200 returned the same 163 unique rows (145 for a second source).
-  - **Left at 100, deliberately:** blueprints, blueprint components, benchmark
-    devices, both DDM reports, device groups, site objects. None rejected any
-    size up to 10000, but every collection probed was smaller than 100 rows,
-    so a silent clamp could not be seen — and their `sizeCheck`/`totalCount`
-    termination reads a clamped page as the last one and truncates. Raise one
-    only against a collection larger than the size being proven.
+  - `device-groups` list: nothing declared. Seeded to 2106 groups (2026-11-11):
+    every size to 2000 honoured, walks at 100 and 2000 return all 2106 unique
+    rows. **Silently clamped at 2000 above it, and `hasNext` is then wrong**:
+    page-size 5000 answers 2000 rows with `hasNext: false`, so a walk above the
+    cap reports success with 106 rows missing. `maxPageSize: 2000`. Each page
+    costs ~5s whatever its size.
+  - `blueprints` list: nothing declared. Seeded to 2104 blueprints: every size
+    to 2000 honoured, **silently clamped at 2000** above it. The service offsets
+    by the clamped size, but `ListBlueprints` stops on a short page (`sizeCheck`),
+    so any size above 2000 would return 2000 rows and stop. `maxPageSize: 2000`.
+  - **Left at 100, deliberately:** blueprint components (a fixed catalogue of
+    17), benchmark devices, both DDM reports and site objects. None rejected any
+    size up to 10000, but none could be grown past 100 rows on a sandbox, so a
+    silent clamp could not be ruled out — and the two clamps above show that a
+    clamp is the norm on this gateway and that its `hasNext` cannot be trusted
+    past one.
 - **Reported, not reproduced: the edge answers 504 after 90s.** One field report
   from a downstream CLI: a 2000-row computer-inventory page fetched with curl and a
   10-minute client timeout returned a CloudFront HTML 504 at 90s, while a 1000-row

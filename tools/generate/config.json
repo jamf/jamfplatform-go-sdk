@@ -85,6 +85,7 @@
           "op": "GET /v1/blueprints",
           "name": "ListBlueprints",
           "pagination": "sizeCheck",
+          "maxPageSize": 2000,
           "params": [
             "sort:[]string",
             "search"
@@ -167,6 +168,7 @@
           "op": "GET /v1/device-groups",
           "name": "ListDeviceGroups",
           "pagination": "hasNext",
+          "maxPageSize": 2000,
           "params": [
             "sort:[]string",
             "filter"
