@@ -4,7 +4,7 @@ go 1.27.4
 
 require (
 	github.com/aws/aws-sdk-go-v2 v1.48.0
-	github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager v0.5.7
+	github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager v0.5.11
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.116.0
 	github.com/hashicorp/go-retryablehttp v0.7.8
 	golang.org/x/net v0.63.0
